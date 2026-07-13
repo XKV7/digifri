@@ -239,7 +239,7 @@ export class MenuUiHandler extends MessageUiHandler {
       });
     };
 
-    if (isBeta || isDev || isApp) {
+    if (isBeta || isDev || isApp || bypassLogin) {
       manageDataOptions.push({
         label: i18next.t("menuUiHandler:importSession"),
         handler: () => {
@@ -294,7 +294,7 @@ export class MenuUiHandler extends MessageUiHandler {
       },
       keepOpen: true,
     });
-    if (isBeta || isDev || isApp) {
+    if (isBeta || isDev || isApp || bypassLogin) {
       manageDataOptions.push({
         label: i18next.t("menuUiHandler:importData"),
         handler: () => {
@@ -305,16 +305,16 @@ export class MenuUiHandler extends MessageUiHandler {
         keepOpen: true,
       });
     }
-    manageDataOptions.push(
-      {
-        label: i18next.t("menuUiHandler:exportData"),
-        handler: () => {
-          globalScene.gameData.tryExportData(GameDataType.SYSTEM);
-          return true;
-        },
-        keepOpen: true,
+    manageDataOptions.push({
+      label: i18next.t("menuUiHandler:exportData"),
+      handler: () => {
+        globalScene.gameData.tryExportData(GameDataType.SYSTEM);
+        return true;
       },
-      {
+      keepOpen: true,
+    });
+    if (!bypassLogin) {
+      manageDataOptions.push({
         // Note: i18n key is under `menu`, not `menuUiHandler` to avoid duplication
         label: i18next.t("menu:changePassword"),
         handler: () => {
@@ -324,8 +324,8 @@ export class MenuUiHandler extends MessageUiHandler {
           return true;
         },
         keepOpen: true,
-      },
-    );
+      });
+    }
     if (isBeta || isDev) {
       manageDataOptions.push({
         label: "Test Dialogue",
