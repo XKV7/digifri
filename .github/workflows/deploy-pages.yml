@@ -1,0 +1,83 @@
+# Builds the game and deploys it to GitHub Pages so it can be played at
+# https://<owner>.github.io/<repo>/
+#
+# The game assets and translations live in separate repositories
+# (they are git submodules upstream); they are fetched here at build time
+# instead of being committed to this repository.
+name: Deploy Game to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+      - claude/pocketlog-html-deploy-0b1hmy
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Checkout game assets
+        uses: actions/checkout@v4
+        with:
+          repository: pagefaultgames/pokerogue-assets
+          ref: 96c1c4dee7ce76632dcfd47b55ff92c3f1872eee # beta branch
+          path: assets
+
+      - name: Checkout translations
+        uses: actions/checkout@v4
+        with:
+          repository: pagefaultgames/pokerogue-locales
+          ref: 9898cdb32f9233ca53c3d0180d45305744899d36 # main branch
+          path: locales
+
+      - name: Make PWA manifest paths relative (Pages serves from a sub-path)
+        run: |
+          sed -i 's|"scope": "/"|"scope": "./"|; s|"start_url": "/"|"start_url": "./"|' assets/manifest.webmanifest
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build (offline mode, saves in browser localStorage)
+        run: pnpm build
+        env:
+          NODE_ENV: production
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

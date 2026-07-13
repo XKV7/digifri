@@ -1,0 +1,17 @@
+name: "Setup pnpm and Node.js"
+description: "Setup pnpm and Node.js environment for workflows. Requires the repo to be cloned to at least have .nvmrc and package.json"
+runs:
+  using: "composite"
+  steps:
+    - name: Install pnpm
+      uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version-file: ".nvmrc"
+        cache: "pnpm"
+
+    - name: Install dependencies
+      run: pnpm i
+      shell: bash
