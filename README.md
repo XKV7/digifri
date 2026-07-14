@@ -24,6 +24,8 @@ This fork is configured to run **fully offline in the browser** (no login server
 
 To enable it: push this repository to GitHub, then go to **Settings → Pages** and set the source to **GitHub Actions** (the workflow also attempts to enable this automatically). After the workflow finishes, the game is playable at `https://<owner>.github.io/<repo>/`.
 
+**▶ Play now: <https://xkv7.github.io/digifri/>** (the address is case-sensitive — all lowercase, and the trailing `/digifri/` path is required.)
+
 > ⚠️ Saves live in your browser's `localStorage` — clearing site data deletes your progress. Use the in-game menu's data export/import to back up saves.
 
 # Contributing

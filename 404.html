@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<!--
+SPDX-FileCopyrightText: 2026 NONE
+SPDX-License-Identifier: CC0-1.0
+
+GitHub Pages serves this page for any unknown path under the site.
+Redirect stray URLs (typos, stale bookmarks, old hashed asset links)
+back to the game entry point.
+-->
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<title>PokéRogue</title>
+	<meta http-equiv="refresh" content="0; url=/digifri/" />
+	<script>
+		// Redirect to the deployment root (works even if meta refresh is disabled)
+		var base = location.pathname.split("/")[1];
+		location.replace(base ? "/" + base + "/" : "/");
+	</script>
+</head>
+<body>
+	<p>Redirecting to the game… <a href="/digifri/">Click here if you are not redirected.</a></p>
+</body>
+</html>
