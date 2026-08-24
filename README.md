@@ -28,6 +28,18 @@ To enable it: push this repository to GitHub, then go to **Settings → Pages** 
 
 > ⚠️ Saves live in your browser's `localStorage` — clearing site data deletes your progress. Use the in-game menu's data export/import to back up saves.
 
+## ☁️ Cloud save (cross-device continue) via Firebase
+
+On top of the offline mode above, [`src/cloud-save.ts`](./src/cloud-save.ts) adds an optional layer: signing in with a Google account mirrors the same save keys to Firestore, so progress can continue on any device/browser signed into that account. Declining sign-in (or dismissing the prompt) keeps the game exactly as before — device-local only.
+
+- On first load, a small overlay offers **"Google 계정으로 로그인"** (enable cloud save) or **"이 기기에서만 플레이"** (stay local-only). The choice is remembered; a `☁️` badge in the corner shows sync status and can be clicked to sign in/out later.
+- Sync is last-write-wins per save key, using a client timestamp; if a device has unsynced local progress when first signing in on it, you're asked which copy to keep.
+- The Firebase project this points to (`pokerogue-4818a`) is owned by the repo maintainer. To point this fork at your **own** Firebase project instead:
+  1. Create a project at the [Firebase console](https://console.firebase.google.com), enable **Authentication → Sign-in method → Google**, add your Pages domain (e.g. `<owner>.github.io`) under **Authentication → Settings → Authorized domains**, and create a **Firestore Database**.
+  2. Publish [`firestore.rules`](./firestore.rules) under **Firestore Database → Rules** — it restricts each save to its own signed-in user.
+  3. Replace the `firebaseConfig` object at the top of `src/cloud-save.ts` with your project's web app config (Project settings → General → Your apps).
+- The Firebase config values are public client identifiers (not secrets) — safe to commit; access control is enforced by `firestore.rules` alone.
+
 # Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md), this includes instructions on how to set up the game locally.

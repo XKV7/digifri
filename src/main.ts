@@ -2,6 +2,7 @@ import "#app/polyfills"; // All polyfills MUST be loaded first for side effects
 import "#init/init-manifest"; // initializes the manifest, must be done *before* i18n is initialized due to being used for caching
 import "#app/i18n"; // Initializes i18n on import
 
+import { initCloudSave } from "#app/cloud-save";
 import { InvertPostFX } from "#app/pipelines/invert";
 import { preventDoubleTapZoom } from "#app/touch-controls";
 import { isBeta, isDev } from "#constants/app-constants";
@@ -73,6 +74,12 @@ async function startGame(): Promise<void> {
     version,
   });
   game.sound.pauseOnBlur = false;
+}
+
+try {
+  await initCloudSave(); // may reload the page once after pulling newer cloud saves
+} catch (err) {
+  console.error("Cloud save init failed, continuing with device-local saves:", err);
 }
 
 try {

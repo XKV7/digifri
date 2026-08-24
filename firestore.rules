@@ -1,0 +1,20 @@
+// SPDX-FileCopyrightText: 2026 NONE
+// SPDX-License-Identifier: CC0-1.0
+//
+// Firestore security rules for the optional cloud save feature (see
+// src/cloud-save.ts). Paste this into Firebase Console > Firestore Database
+// > Rules, then Publish.
+//
+// Each signed-in user can only read/write their own save documents under
+// users/{their uid}/saves/*. Nobody else can read or write another user's
+// data, and unauthenticated access is denied entirely.
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/saves/{saveKey} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}
