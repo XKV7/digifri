@@ -31,12 +31,12 @@ export const EGG_PITY_EPIC_THRESHOLD = 59;
 export const EGG_PITY_RARE_THRESHOLD = 9;
 
 // Waves to hatch an egg of a given tier
-// (halved from upstream defaults of 10/25/50/100/50 for faster hatching in this fork)
-export const HATCH_WAVES_COMMON_EGG = 5;
-export const HATCH_WAVES_RARE_EGG = 12;
-export const HATCH_WAVES_EPIC_EGG = 25;
-export const HATCH_WAVES_LEGENDARY_EGG = 50;
-export const HATCH_WAVES_MANAPHY_EGG = 25;
+// (set to 1 for all tiers in this fork so every egg hatches after a single wave)
+export const HATCH_WAVES_COMMON_EGG = 1;
+export const HATCH_WAVES_RARE_EGG = 1;
+export const HATCH_WAVES_EPIC_EGG = 1;
+export const HATCH_WAVES_LEGENDARY_EGG = 1;
+export const HATCH_WAVES_MANAPHY_EGG = 1;
 
 // Rates for specific random properties in 1/x
 export const GACHA_DEFAULT_SHINY_RATE = 128;
