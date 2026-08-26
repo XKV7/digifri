@@ -3080,7 +3080,8 @@ export class StarterSelectUiHandler extends MessageUiHandler {
     switch (globalScene.gameMode.modeId) {
       case GameModes.ENDLESS:
       case GameModes.SPLICED_ENDLESS:
-        valueLimit.value = 15;
+        // Cheat toggle: window.cheatToggleEndlessCostLimit() sets/clears this per-device flag
+        valueLimit.value = localStorage.getItem("cheatNoEndlessCostLimit") === "1" ? 999 : 15;
         break;
       default:
         valueLimit.value = 10;

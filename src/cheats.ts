@@ -98,4 +98,28 @@ async function unlockAllPokemon(): Promise<void> {
   window.location.reload();
 }
 
+/**
+ * Toggles the Endless/Spliced Endless starter select cost limit between the
+ * normal value (15) and effectively unlimited (999). Purely a per-device
+ * localStorage flag (see starter-select-ui-handler.ts#getValueLimit) — does
+ * not touch save data or the cloud, so it must be toggled again on any other
+ * device/browser you want it enabled on.
+ */
+function toggleEndlessCostLimit(): void {
+  const key = "cheatNoEndlessCostLimit";
+  const enabling = localStorage.getItem(key) !== "1";
+  if (enabling) {
+    localStorage.setItem(key, "1");
+  } else {
+    localStorage.removeItem(key);
+  }
+  alert(
+    enabling
+      ? "엔드리스 모드 코스트 제한이 해제되었습니다 (999). 스타터 선택 화면에서 확인하세요."
+      : "엔드리스 모드 코스트 제한이 원래대로(15) 복원되었습니다.",
+  );
+}
+
 (window as unknown as { cheatUnlockAllPokemon: () => Promise<void> }).cheatUnlockAllPokemon = unlockAllPokemon;
+(window as unknown as { cheatToggleEndlessCostLimit: () => void }).cheatToggleEndlessCostLimit =
+  toggleEndlessCostLimit;
