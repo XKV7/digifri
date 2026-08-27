@@ -39,6 +39,8 @@ export interface SystemSaveData {
   eggPity: number[];
   unlockPity: number[];
   appliedMigrators: AppliedMigrators;
+  /** Player-chosen "pickup" legendary for the Legendary Gacha, overriding the automatic daily rotation when set */
+  pinnedLegendarySpecies?: SpeciesId | undefined;
 }
 
 export interface SessionSaveData {

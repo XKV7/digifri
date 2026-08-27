@@ -8,6 +8,7 @@ import { Egg, getLegendaryGachaSpeciesForTimestamp } from "#data/egg";
 import { Button } from "#enums/buttons";
 import { EggTier } from "#enums/egg-type";
 import { GachaType } from "#enums/gacha-types";
+import type { SpeciesId } from "#enums/species-id";
 import { TextStyle } from "#enums/text-style";
 import { UiMode } from "#enums/ui-mode";
 import { getVoucherTypeIcon, VoucherType } from "#system/voucher";
@@ -360,7 +361,9 @@ export class EggGachaUiHandler extends MessageUiHandler {
 
     handleTutorial(Tutorial.EGG_GACHA);
 
-    this.legendaryExpiration.setText(this.getLegendaryGachaTimeLeft());
+    if (!globalScene.gameData.pinnedLegendarySpecies) {
+      this.legendaryExpiration.setText(this.getLegendaryGachaTimeLeft());
+    }
     this.legendaryGachaTimer();
 
     return true;
@@ -651,13 +654,16 @@ export class EggGachaUiHandler extends MessageUiHandler {
   }
 
   /**
-   * Update the legendary gacha icon based on the current timestamp.
+   * Update the legendary gacha icon based on the player's pinned pickup legendary
+   * (if any), falling back to the automatic daily rotation otherwise.
    */
   private updateLegendaryGacha(): void {
     const infoContainer = this.gachaInfoContainers[GachaType.LEGENDARY];
-    const species = speciesDataRegistry.getSpecies(getLegendaryGachaSpeciesForTimestamp(Date.now()));
+    const pinnedSpecies = globalScene.gameData.pinnedLegendarySpecies;
+    const species = speciesDataRegistry.getSpecies(pinnedSpecies ?? getLegendaryGachaSpeciesForTimestamp(Date.now()));
     const pokemonIcon = infoContainer.getAt(1) as Phaser.GameObjects.Sprite;
     pokemonIcon.setTexture(species.getIconAtlasKey(), species.getIconId(false));
+    this.legendaryExpiration.setText(pinnedSpecies ? "PICKUP" : this.getLegendaryGachaTimeLeft());
   }
 
   consumeVouchers(voucherType: VoucherType, count: number): void {
@@ -828,6 +834,16 @@ export class EggGachaUiHandler extends MessageUiHandler {
           success = this.setGachaCursor(this.gachaCursor + 1);
         }
         break;
+      case Button.STATS:
+        if (this.gachaCursor === GachaType.LEGENDARY) {
+          ui.setOverlayMode(UiMode.LEGENDARY_PICKER, (speciesId: SpeciesId | null) => {
+            globalScene.gameData.pinnedLegendarySpecies = speciesId ?? undefined;
+            void globalScene.gameData.saveSystem();
+            this.updateLegendaryGacha();
+          });
+          success = true;
+        }
+        break;
     }
 
     // Return undefined here because we do not play error sound in case of failed directional movements
@@ -917,7 +933,9 @@ export class EggGachaUiHandler extends MessageUiHandler {
       loop: true,
       delay: fixedInt(1000),
       callback: () => {
-        this.legendaryExpiration.setText(this.getLegendaryGachaTimeLeft());
+        if (!globalScene.gameData.pinnedLegendarySpecies) {
+          this.legendaryExpiration.setText(this.getLegendaryGachaTimeLeft());
+        }
       },
     });
   }

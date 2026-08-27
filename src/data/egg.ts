@@ -412,7 +412,9 @@ export class Egg {
       return rand ? SpeciesId.PHIONE : SpeciesId.MANAPHY;
     }
     if (this.tier === EggTier.LEGENDARY && this._sourceType === EggSourceType.GACHA_LEGENDARY && !randSeedInt(2)) {
-      return getLegendaryGachaSpeciesForTimestamp(this.timestamp);
+      // A player-chosen "pickup" legendary (set from the Legendary Gacha screen) overrides
+      // the automatic daily rotation.
+      return globalScene.gameData.pinnedLegendarySpecies ?? getLegendaryGachaSpeciesForTimestamp(this.timestamp);
     }
 
     let minStarterValue: number;

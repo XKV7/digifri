@@ -151,6 +151,8 @@ export class GameData {
   public eggs: Egg[];
   public eggPity: number[];
   public unlockPity: number[];
+  /** Player-chosen "pickup" legendary for the Legendary Gacha, overriding the automatic daily rotation when set */
+  public pinnedLegendarySpecies?: SpeciesId | undefined;
 
   public appliedMigrators: AppliedMigrators = {};
 
@@ -210,6 +212,7 @@ export class GameData {
       eggPity: this.eggPity.slice(0),
       unlockPity: this.unlockPity.slice(0),
       appliedMigrators: this.appliedMigrators,
+      pinnedLegendarySpecies: this.pinnedLegendarySpecies,
     };
   }
 
@@ -464,6 +467,7 @@ export class GameData {
 
     this.eggPity = systemData.eggPity ? systemData.eggPity.slice(0) : [0, 0, 0, 0];
     this.unlockPity = systemData.unlockPity ? systemData.unlockPity.slice(0) : [0, 0, 0, 0];
+    this.pinnedLegendarySpecies = systemData.pinnedLegendarySpecies;
 
     this.dexData = Object.assign(this.dexData, systemData.dexData);
     this.consolidateDexData(this.dexData);
