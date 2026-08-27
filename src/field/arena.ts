@@ -185,22 +185,27 @@ export class Arena {
    *
    * | Tier    | Tier Values | Chance |
    * |:-------:|:-----------:|:------:|
-   * | Boss    | 20-63       | 44/64  |
-   * | Boss R  | 6-19        | 14/64  |
-   * | Boss SR | 1-5         | 5/64   |
-   * | Boss UR | 0           | 1/64   |
+   * | Boss    | 38-63       | 26/64  |
+   * | Boss R  | 30-37       | 8/64   |
+   * | Boss SR | 5-29        | 25/64  |
+   * | Boss UR | 0-4         | 5/64   |
+   *
+   * Boss Super Rare and Boss Ultra Rare are boosted 5x over upstream odds
+   * (5/64 and 1/64 respectively, now 25/64 and 5/64); Boss and Boss Rare
+   * absorb the difference, shrunk proportionally to each other so their
+   * relative ratio (44:14) is unchanged.
    *
    * @param tierValue - Number from `0-63`
    * @returns the generated BiomePoolTier
    */
   private generateBossBiomeTier(tierValue: number): BiomePoolTier {
-    if (tierValue >= 20) {
+    if (tierValue >= 38) {
       return BiomePoolTier.BOSS;
     }
-    if (tierValue >= 6) {
+    if (tierValue >= 30) {
       return BiomePoolTier.BOSS_RARE;
     }
-    if (tierValue >= 1) {
+    if (tierValue >= 5) {
       return BiomePoolTier.BOSS_SUPER_RARE;
     }
     return BiomePoolTier.BOSS_ULTRA_RARE;
@@ -211,26 +216,31 @@ export class Arena {
    *
    * | Tier       | Tier Values | Chance  |
    * |:----------:|:-----------:|:-------:|
-   * | Common     | 156-511     | 356/512 |
-   * | Uncommon   | 32-155      | 124/512 |
-   * | Rare       | 6-31        | 26/512  |
-   * | Super Rare | 1-5         | 5/512   |
-   * | Ultra Rare | 0           | 1/512   |
+   * | Common     | 173-511     | 339/512 |
+   * | Uncommon   | 55-172      | 118/512 |
+   * | Rare       | 30-54       | 25/512  |
+   * | Super Rare | 5-29        | 25/512  |
+   * | Ultra Rare | 0-4         | 5/512   |
+   *
+   * Super Rare and Ultra Rare are boosted 5x over upstream odds (5/512 and
+   * 1/512 respectively, now 25/512 and 5/512); Common/Uncommon/Rare absorb
+   * the difference, shrunk proportionally to each other so their relative
+   * ratio (356:124:26) is unchanged.
    *
    * @param tierValue - Number from `0-511`
    * @returns the generated BiomePoolTier
    */
   private generateNonBossBiomeTier(tierValue: number): BiomePoolTier {
-    if (tierValue >= 156) {
+    if (tierValue >= 173) {
       return BiomePoolTier.COMMON;
     }
-    if (tierValue >= 32) {
+    if (tierValue >= 55) {
       return BiomePoolTier.UNCOMMON;
     }
-    if (tierValue >= 6) {
+    if (tierValue >= 30) {
       return BiomePoolTier.RARE;
     }
-    if (tierValue >= 1) {
+    if (tierValue >= 5) {
       return BiomePoolTier.SUPER_RARE;
     }
     return BiomePoolTier.ULTRA_RARE;
@@ -580,7 +590,7 @@ export class Arena {
       return overrideSpecies;
     }
 
-    // Boss pool is 0-63, non Boss pool is 0-512
+    // Boss pool is 0-63, non Boss pool is 0-511
     const isBossSpecies =
       globalScene.getEncounterBossSegments(waveIndex, level) > 0
       && this.pokemonPool[BiomePoolTier.BOSS].length > 0
