@@ -2344,7 +2344,7 @@ let enemyBuffModifierPoolThresholds = {};
 // biome-ignore lint/correctness/noUnusedVariables: TODO explain why this is marked as OK
 let enemyBuffIgnoredPoolIndexes = {};
 
-const tierWeights = [768 / 1024, 195 / 1024, 48 / 1024, 12 / 1024, 1 / 1024];
+const tierWeights = [709 / 1024, 180 / 1024, 44 / 1024, 84 / 1024, 7 / 1024];
 /**
  * Allows a unit test to check if an item exists in the Modifier Pool. \
  * Checks the pool directly, rather than attempting to reroll for the item.
@@ -2804,7 +2804,21 @@ function getNewModifierTypeOption(
       } while (upgraded);
     }
 
-    if (tierValue > 255) {
+    // Player shop rewards (post-wave item screen) roll Rogue/Master tier at 7x
+    // the base rate; enemy-held-item pools keep the original odds.
+    if (player) {
+      if (tierValue > 314) {
+        tier = ModifierTier.COMMON;
+      } else if (tierValue > 134) {
+        tier = ModifierTier.GREAT;
+      } else if (tierValue > 90) {
+        tier = ModifierTier.ULTRA;
+      } else if (tierValue > 6) {
+        tier = ModifierTier.ROGUE;
+      } else {
+        tier = ModifierTier.MASTER;
+      }
+    } else if (tierValue > 255) {
       tier = ModifierTier.COMMON;
     } else if (tierValue > 60) {
       tier = ModifierTier.GREAT;
