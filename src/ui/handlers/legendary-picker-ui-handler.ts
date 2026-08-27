@@ -14,17 +14,23 @@ import { UiMode } from "#enums/ui-mode";
 import { MessageUiHandler } from "#ui/message-ui-handler";
 import { PokemonIconAnimHelper, PokemonIconAnimMode } from "#ui/pokemon-icon-anim-helper";
 import { ScrollBar } from "#ui/scroll-bar";
-import { ScrollableGridHelper } from "#ui/utils/scrollable-grid-helper";
 import { addTextObject } from "#ui/text";
 import { addWindow } from "#ui/ui-theme";
+import { ScrollableGridHelper } from "#ui/utils/scrollable-grid-helper";
 
 /**
- * Lets the player pick a specific legendary species to "pin" as the Legendary
- * Gacha's featured pickup, overriding the automatic daily rotation.
+ * Scrollable species-icon grid picker. Originally built to let the player
+ * pick a specific legendary to "pin" as the Legendary Gacha's featured
+ * pickup (opened from the Egg Gacha screen via {@linkcode Button.STATS}),
+ * also reused as a generic species picker (e.g. the Pokémon gift flow in
+ * gift.ts) via the optional species list argument.
  *
- * Opened from the Egg Gacha screen (Legendary machine, {@linkcode Button.STATS}).
- * `show(args)` expects `args[0]` to be a callback invoked with the chosen
- * {@linkcode SpeciesId}, or `null` if the player cleared the pin.
+ * `show(args)` expects:
+ * - `args[0]`: callback invoked with the chosen {@linkcode SpeciesId}, or
+ *   `null` if the player cleared the pin ({@linkcode Button.STATS}) or cancelled.
+ * - `args[1]` (optional): the species list to show. Defaults to the
+ *   legendary-gacha-eligible species.
+ * - `args[2]` (optional): instruction text override.
  */
 export class LegendaryPickerUiHandler extends MessageUiHandler {
   private readonly ROWS = 6;
@@ -75,13 +81,7 @@ export class LegendaryPickerUiHandler extends MessageUiHandler {
 
     this.cursorObj = globalScene.add.image(0, 0, "select_cursor").setOrigin(0);
 
-    const scrollBar = new ScrollBar(
-      8 + this.COLUMNS * 18 + 4,
-      40,
-      4,
-      this.ROWS * 18,
-      this.ROWS,
-    );
+    const scrollBar = new ScrollBar(8 + this.COLUMNS * 18 + 4, 40, 4, this.ROWS * 18, this.ROWS);
 
     this.scrollGridHandler = new ScrollableGridHelper(this, this.ROWS, this.COLUMNS)
       .withScrollBar(scrollBar)
@@ -113,7 +113,10 @@ export class LegendaryPickerUiHandler extends MessageUiHandler {
     super.show(args);
 
     this.onPick = args[0];
-    this.speciesList = getValidLegendaryGachaSpecies();
+    this.speciesList = (args[1] as SpeciesId[] | undefined) ?? getValidLegendaryGachaSpecies();
+    this.instructionText.setText(
+      (args[2] as string | undefined) ?? "Z: 픽업 선택   C: 자동(오늘의 전설)로 되돌리기   X: 취소",
+    );
 
     this.initIcons();
 
@@ -159,9 +162,7 @@ export class LegendaryPickerUiHandler extends MessageUiHandler {
     const speciesId = this.speciesList[index];
     const species = speciesDataRegistry.getSpecies(speciesId);
     this.nameText.setText(species.getName());
-    this.pinnedIndicatorText.setText(
-      globalScene.gameData.pinnedLegendarySpecies === speciesId ? "현재 픽업 중" : "",
-    );
+    this.pinnedIndicatorText.setText(globalScene.gameData.pinnedLegendarySpecies === speciesId ? "현재 픽업 중" : "");
   }
 
   processInput(button: Button): boolean {
@@ -175,14 +176,17 @@ export class LegendaryPickerUiHandler extends MessageUiHandler {
         break;
       case Button.ACTION: {
         const speciesId = this.speciesList[this.cursor + this.scrollGridHandler.getItemOffset()];
-        this.onPick(speciesId);
+        // Revert first: onPick may itself open another overlay (e.g. the gift
+        // email form), which must land on top of whatever's below this picker,
+        // not on top of this (about to be popped) picker.
         ui.revertMode();
+        this.onPick(speciesId);
         success = true;
         break;
       }
       case Button.STATS:
-        this.onPick(null);
         ui.revertMode();
+        this.onPick(null);
         success = true;
         break;
       default:

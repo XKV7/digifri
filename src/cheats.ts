@@ -19,19 +19,21 @@ import { AbilityAttr } from "#enums/ability-attr";
 import { DexAttr } from "#enums/dex-attr";
 import { Nature } from "#enums/nature";
 import { Passive as PassiveAttr } from "#enums/passive";
+import type { SpeciesId } from "#enums/species-id";
+import type { GameData } from "#system/game-data";
 import { RibbonData } from "#system/ribbons/ribbon-data";
 
 const ALL_DEX_ATTR =
-  DexAttr.NON_SHINY |
-  DexAttr.SHINY |
-  DexAttr.MALE |
-  DexAttr.FEMALE |
-  DexAttr.DEFAULT_VARIANT |
-  DexAttr.VARIANT_2 |
-  DexAttr.VARIANT_3 |
-  DexAttr.DEFAULT_FORM;
+  DexAttr.NON_SHINY
+  | DexAttr.SHINY
+  | DexAttr.MALE
+  | DexAttr.FEMALE
+  | DexAttr.DEFAULT_VARIANT
+  | DexAttr.VARIANT_2
+  | DexAttr.VARIANT_3
+  | DexAttr.DEFAULT_FORM;
 
-function allNatureAttr(): number {
+export function allNatureAttr(): number {
   let attr = 0;
   for (const nature of Object.values(Nature)) {
     if (typeof nature === "number") {
@@ -39,6 +41,51 @@ function allNatureAttr(): number {
     }
   }
   return attr;
+}
+
+/** Marks a single species as seen/caught (all shiny/gender/variant combos, 31 IVs, all natures). */
+export function unlockDexEntry(gameData: GameData, speciesId: SpeciesId, natureAttr: number): void {
+  let entry = gameData.dexData[speciesId];
+  if (!entry) {
+    entry = {
+      seenAttr: 0n,
+      caughtAttr: 0n,
+      natureAttr: 0,
+      seenCount: 0,
+      caughtCount: 0,
+      hatchedCount: 0,
+      ivs: [0, 0, 0, 0, 0, 0],
+      ribbons: new RibbonData(0),
+    };
+    gameData.dexData[speciesId] = entry;
+  }
+  entry.seenAttr = ALL_DEX_ATTR;
+  entry.caughtAttr = ALL_DEX_ATTR;
+  entry.natureAttr = natureAttr;
+  entry.seenCount = Math.max(entry.seenCount, 1);
+  entry.caughtCount = Math.max(entry.caughtCount, 1);
+  entry.ivs = [31, 31, 31, 31, 31, 31];
+}
+
+/** Candy-maxes a single starter species with every ability + passive unlocked. Only valid for starter species. */
+export function unlockStarterEntry(gameData: GameData, speciesId: SpeciesId): void {
+  let starter = gameData.starterData[speciesId];
+  if (!starter) {
+    starter = {
+      moveset: null,
+      eggMoves: 0,
+      candyCount: 0,
+      friendship: 0,
+      abilityAttr: 0,
+      passiveAttr: 0,
+      valueReduction: 0,
+      classicWinCount: 0,
+    };
+    gameData.starterData[speciesId] = starter;
+  }
+  starter.candyCount = Math.max(starter.candyCount, 999);
+  starter.abilityAttr |= AbilityAttr.ABILITY_1 | AbilityAttr.ABILITY_2 | AbilityAttr.ABILITY_HIDDEN;
+  starter.passiveAttr |= PassiveAttr.UNLOCKED | PassiveAttr.ENABLED;
 }
 
 async function unlockAllPokemon(): Promise<void> {
@@ -50,47 +97,11 @@ async function unlockAllPokemon(): Promise<void> {
 
   const natureAttr = allNatureAttr();
   for (const species of speciesDataRegistry.getAllSpecies()) {
-    const id = species.speciesId;
-    let entry = gameData.dexData[id];
-    if (!entry) {
-      entry = {
-        seenAttr: 0n,
-        caughtAttr: 0n,
-        natureAttr: 0,
-        seenCount: 0,
-        caughtCount: 0,
-        hatchedCount: 0,
-        ivs: [0, 0, 0, 0, 0, 0],
-        ribbons: new RibbonData(0),
-      };
-      gameData.dexData[id] = entry;
-    }
-    entry.seenAttr = ALL_DEX_ATTR;
-    entry.caughtAttr = ALL_DEX_ATTR;
-    entry.natureAttr = natureAttr;
-    entry.seenCount = Math.max(entry.seenCount, 1);
-    entry.caughtCount = Math.max(entry.caughtCount, 1);
-    entry.ivs = [31, 31, 31, 31, 31, 31];
+    unlockDexEntry(gameData, species.speciesId, natureAttr);
   }
 
   for (const id of speciesDataRegistry.getAllStarters()) {
-    let starter = gameData.starterData[id];
-    if (!starter) {
-      starter = {
-        moveset: null,
-        eggMoves: 0,
-        candyCount: 0,
-        friendship: 0,
-        abilityAttr: 0,
-        passiveAttr: 0,
-        valueReduction: 0,
-        classicWinCount: 0,
-      };
-      gameData.starterData[id] = starter;
-    }
-    starter.candyCount = Math.max(starter.candyCount, 999);
-    starter.abilityAttr |= AbilityAttr.ABILITY_1 | AbilityAttr.ABILITY_2 | AbilityAttr.ABILITY_HIDDEN;
-    starter.passiveAttr |= PassiveAttr.UNLOCKED | PassiveAttr.ENABLED;
+    unlockStarterEntry(gameData, id);
   }
 
   await gameData.saveSystem();
@@ -121,5 +132,4 @@ function toggleEndlessCostLimit(): void {
 }
 
 (window as unknown as { cheatUnlockAllPokemon: () => Promise<void> }).cheatUnlockAllPokemon = unlockAllPokemon;
-(window as unknown as { cheatToggleEndlessCostLimit: () => void }).cheatToggleEndlessCostLimit =
-  toggleEndlessCostLimit;
+(window as unknown as { cheatToggleEndlessCostLimit: () => void }).cheatToggleEndlessCostLimit = toggleEndlessCostLimit;

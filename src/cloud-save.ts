@@ -14,12 +14,13 @@
  * Data model: users/{uid}/saves/{localStorageKey} -> { v: string (lz-base64), t: number, del?: true }
  */
 
+import { publishGiftProfile, setCloudSaveContext } from "#app/gift";
 import { initializeApp } from "firebase/app";
 import {
   browserLocalPersistence,
+  GoogleAuthProvider,
   getAuth,
   getRedirectResult,
-  GoogleAuthProvider,
   onAuthStateChanged,
   setPersistence,
   signInWithPopup,
@@ -42,8 +43,8 @@ const firebaseConfig = {
 /** localStorage keys that are mirrored to the cloud */
 function isSyncedKey(key: string): boolean {
   return (
-    /^(data|sessionData\d*|runHistoryData|starterPrefs)_Guest$/.test(key) ||
-    ["settings", "tutorials", "prLang", "mappingConfigs", "daily"].includes(key)
+    /^(data|sessionData\d*|runHistoryData|starterPrefs)_Guest$/.test(key)
+    || ["settings", "tutorials", "prLang", "mappingConfigs", "daily"].includes(key)
   );
 }
 
@@ -71,8 +72,8 @@ function setBadge(state: "off" | "ok" | "busy" | "error", tooltip: string): void
     badge = document.createElement("div");
     badge.id = "cloud-save-badge";
     badge.style.cssText =
-      "position:fixed;right:6px;bottom:6px;z-index:9999;font-size:14px;line-height:1;padding:4px 6px;" +
-      "border-radius:6px;background:rgba(0,0,0,0.45);color:#fff;cursor:pointer;user-select:none;opacity:0.75;font-family:sans-serif;";
+      "position:fixed;right:6px;bottom:6px;z-index:9999;font-size:14px;line-height:1;padding:4px 6px;"
+      + "border-radius:6px;background:rgba(0,0,0,0.45);color:#fff;cursor:pointer;user-select:none;opacity:0.75;font-family:sans-serif;";
     document.body.appendChild(badge);
   }
   badge.textContent = { off: "☁️✕", ok: "☁️✓", busy: "☁️…", error: "☁️!" }[state];
@@ -83,16 +84,16 @@ function showLoginOverlay(): Promise<"google" | "local"> {
   return new Promise(resolve => {
     const overlay = document.createElement("div");
     overlay.style.cssText =
-      "position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.85);display:flex;flex-direction:column;" +
-      "align-items:center;justify-content:center;gap:16px;font-family:sans-serif;color:#fff;text-align:center;padding:16px;";
+      "position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.85);display:flex;flex-direction:column;"
+      + "align-items:center;justify-content:center;gap:16px;font-family:sans-serif;color:#fff;text-align:center;padding:16px;";
     const title = document.createElement("div");
     title.style.cssText = "font-size:20px;font-weight:bold;";
     title.textContent = "클라우드 저장 (Cloud Save)";
     const desc = document.createElement("div");
     desc.style.cssText = "font-size:14px;opacity:0.85;max-width:420px;line-height:1.5;";
     desc.textContent =
-      "Google 계정으로 로그인하면 세이브가 클라우드에 저장되어 다른 기기에서도 이어서 플레이할 수 있어요. " +
-      "로그인하지 않으면 이 기기(브라우저)에만 저장됩니다.";
+      "Google 계정으로 로그인하면 세이브가 클라우드에 저장되어 다른 기기에서도 이어서 플레이할 수 있어요. "
+      + "로그인하지 않으면 이 기기(브라우저)에만 저장됩니다.";
     const btnStyle =
       "font-size:16px;padding:12px 24px;border-radius:8px;border:none;cursor:pointer;min-width:260px;font-weight:bold;";
     const googleBtn = document.createElement("button");
@@ -204,6 +205,9 @@ async function startSync(app: ReturnType<typeof initializeApp>, user: User): Pro
   const savesRef = collection(db, "users", user.uid, "saves");
   setBadge("busy", "클라우드 세이브 동기화 중…");
 
+  setCloudSaveContext(app, user);
+  void publishGiftProfile(app, user);
+
   // If this device last synced with a different account, resolve whose data wins
   const prevUid = localStorage.getItem(UID_KEY);
   const uidChanged = !!prevUid && prevUid !== user.uid;
@@ -226,9 +230,9 @@ async function startSync(app: ReturnType<typeof initializeApp>, user: User): Pro
   if (dialogShown) {
     // First login on a device that already has local progress: ask which side wins
     preferRemote = confirm(
-      "클라우드에 저장된 세이브가 있습니다.\n\n" +
-        "확인 = 클라우드 세이브 사용 (이 기기의 기존 세이브를 덮어씀)\n" +
-        "취소 = 이 기기의 세이브를 클라우드에 업로드",
+      "클라우드에 저장된 세이브가 있습니다.\n\n"
+        + "확인 = 클라우드 세이브 사용 (이 기기의 기존 세이브를 덮어씀)\n"
+        + "취소 = 이 기기의 세이브를 클라우드에 업로드",
     );
   }
   const preferLocal = dialogShown && !preferRemote;

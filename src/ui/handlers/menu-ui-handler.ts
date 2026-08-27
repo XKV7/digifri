@@ -1,7 +1,9 @@
 import { pokerogueApi } from "#api/api";
 import { loggedInUser, updateUserInfo } from "#app/account";
+import { claimGifts, type GiftPayload, getCloudSaveContext } from "#app/gift";
 import { audioManager } from "#app/global-audio-manager";
 import { globalScene } from "#app/global-scene";
+import { speciesDataRegistry } from "#app/global-species-data-registry";
 import { handleTutorial, Tutorial } from "#app/tutorial";
 import { bypassLogin, isApp, isBeta, isDev } from "#constants/app-constants";
 import { AdminMode, getAdminModeName } from "#enums/admin-mode";
@@ -9,6 +11,7 @@ import { Button } from "#enums/buttons";
 import { GameDataType } from "#enums/game-data-type";
 import { TextStyle } from "#enums/text-style";
 import { UiMode } from "#enums/ui-mode";
+import { getVoucherTypeName, VoucherType } from "#system/voucher";
 import type { AwaitableUiHandler } from "#ui/awaitable-ui-handler";
 import type { OptionSelectConfig, OptionSelectItem } from "#ui/base-option-select-ui-handler";
 import { BgmBar } from "#ui/bgm-bar";
@@ -32,7 +35,14 @@ enum MenuOptions {
   COMMUNITY,
   SAVE_AND_QUIT,
   LOG_OUT,
+  GIFT_VOUCHER,
+  GIFT_POKEMON,
 }
+
+const KOREAN_MENU_LABELS: Partial<Record<MenuOptions, string>> = {
+  [MenuOptions.GIFT_VOUCHER]: "바우처 선물하기",
+  [MenuOptions.GIFT_POKEMON]: "포켓몬 선물하기",
+};
 
 let wikiUrl = "https://wiki.pokerogue.net/start";
 const discordUrl = "https://discord.gg/pokerogue";
@@ -77,6 +87,7 @@ export class MenuUiHandler extends MessageUiHandler {
         options: [MenuOptions.EGG_GACHA, MenuOptions.EGG_LIST],
       },
       { condition: bypassLogin, options: [MenuOptions.LOG_OUT] },
+      { condition: !getCloudSaveContext(), options: [MenuOptions.GIFT_VOUCHER, MenuOptions.GIFT_POKEMON] },
     ];
 
     this.menuOptions = getEnumValues(MenuOptions).filter(m => {
@@ -131,6 +142,7 @@ export class MenuUiHandler extends MessageUiHandler {
       },
       { condition: bypassLogin, options: [MenuOptions.LOG_OUT] },
       { condition: !globalScene.currentBattle, options: [MenuOptions.SAVE_AND_QUIT] },
+      { condition: !getCloudSaveContext(), options: [MenuOptions.GIFT_VOUCHER, MenuOptions.GIFT_POKEMON] },
     ];
 
     this.menuOptions = getEnumValues(MenuOptions).filter(m => {
@@ -140,7 +152,9 @@ export class MenuUiHandler extends MessageUiHandler {
     this.optionSelectText = addTextObject(
       0,
       0,
-      this.menuOptions.map(o => `${i18next.t(`menuUiHandler:${toCamelCase(MenuOptions[o])}`)}`).join("\n"),
+      this.menuOptions
+        .map(o => KOREAN_MENU_LABELS[o] ?? `${i18next.t(`menuUiHandler:${toCamelCase(MenuOptions[o])}`)}`)
+        .join("\n"),
       TextStyle.WINDOW,
       { maxLines: this.menuOptions.length },
     );
@@ -503,6 +517,20 @@ export class MenuUiHandler extends MessageUiHandler {
     this.setCursor(0);
   }
 
+  private openGiftEmailForm(giftPayload: GiftPayload): void {
+    const ui = this.getUi();
+    ui.setOverlayMode(UiMode.GIFT_EMAIL_FORM, {
+      giftPayload,
+      buttonActions: [
+        (message: string) => {
+          ui.revertMode();
+          ui.showText(message, null, () => ui.showText(""), fixedInt(3000));
+        },
+        () => ui.revertMode(),
+      ],
+    });
+  }
+
   show(args: any[]): boolean {
     this.render();
     super.show(args);
@@ -519,6 +547,10 @@ export class MenuUiHandler extends MessageUiHandler {
     this.getUi().hideTooltip();
 
     audioManager.playSound("ui/menu_open");
+
+    if (getCloudSaveContext()) {
+      void claimGifts();
+    }
 
     // Make sure the tutorial overlay sits above everything, but below the message box
     this.menuContainer.bringToTop(this.tutorialOverlay);
@@ -708,6 +740,44 @@ export class MenuUiHandler extends MessageUiHandler {
           } else {
             doLogout();
           }
+          break;
+        }
+        case MenuOptions.GIFT_VOUCHER: {
+          ui.revertMode();
+          const voucherOptions: OptionSelectItem[] = (
+            [VoucherType.REGULAR, VoucherType.PLUS, VoucherType.PREMIUM, VoucherType.GOLDEN] as const
+          ).map(voucherType => ({
+            label: getVoucherTypeName(voucherType),
+            handler: () => {
+              ui.revertMode();
+              this.openGiftEmailForm({ kind: "voucher", voucherType });
+              return true;
+            },
+          }));
+          voucherOptions.push({
+            label: i18next.t("menu:cancel"),
+            handler: () => {
+              ui.revertMode();
+              return true;
+            },
+          });
+          ui.setOverlayMode(UiMode.OPTION_SELECT, { options: voucherOptions });
+          success = true;
+          break;
+        }
+        case MenuOptions.GIFT_POKEMON: {
+          ui.revertMode();
+          ui.setOverlayMode(
+            UiMode.LEGENDARY_PICKER,
+            (speciesId: number | null) => {
+              if (speciesId != null) {
+                this.openGiftEmailForm({ kind: "pokemon", speciesId });
+              }
+            },
+            speciesDataRegistry.getAllSpecies().map(s => s.speciesId),
+            "Z: 선물할 포켓몬 선택   X: 취소",
+          );
+          success = true;
           break;
         }
       }

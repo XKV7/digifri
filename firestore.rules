@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: CC0-1.0
 //
 // Firestore security rules for the optional cloud save feature (see
-// src/cloud-save.ts). Paste this into Firebase Console > Firestore Database
-// > Rules, then Publish.
+// src/cloud-save.ts) and in-game gifting (see src/gift.ts). Paste this into
+// Firebase Console > Firestore Database > Rules, then Publish.
 //
 // Each signed-in user can only read/write their own save documents under
 // users/{their uid}/saves/*. Nobody else can read or write another user's
-// data, and unauthenticated access is denied entirely.
+// data, and unauthenticated access is denied entirely. Gifting adds two
+// more collections, giftProfiles/* and gifts/*, scoped as documented below.
 
 rules_version = '2';
 
@@ -15,6 +16,29 @@ service cloud.firestore {
   match /databases/{database}/documents {
     match /users/{uid}/saves/{saveKey} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // In-game gifting (see src/gift.ts). Each signed-in client publishes its
+    // own email -> uid mapping here so a sender can address a gift to a
+    // friend's email without needing their Firebase UID. Only the profile
+    // owner may write it; any signed-in user may read it (email + uid only).
+    match /giftProfiles/{uid} {
+      allow get, list: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Gift inbox: any signed-in user can drop a gift (a voucher or a
+    // Pokemon species) into another user's inbox; only the recipient can
+    // read or remove their own gifts. The recipient's client applies and
+    // deletes each gift the next time they open the in-game menu.
+    match /gifts/{targetUid}/inbox/{giftId} {
+      allow read, delete: if request.auth != null && request.auth.uid == targetUid;
+      allow create: if request.auth != null
+                    && request.auth.uid != targetUid
+                    && request.resource.data.keys().hasOnly(['kind', 'voucherType', 'speciesId', 'fromEmail', 'createdAt'])
+                    && request.resource.data.kind in ['voucher', 'pokemon']
+                    && request.resource.data.createdAt is number;
+      allow update: if false;
     }
   }
 }
