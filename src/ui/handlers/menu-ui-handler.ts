@@ -772,16 +772,27 @@ export class MenuUiHandler extends MessageUiHandler {
         }
         case MenuOptions.GIFT_POKEMON: {
           ui.revertMode();
-          ui.setOverlayMode(
-            UiMode.LEGENDARY_PICKER,
-            (speciesId: number | null) => {
-              if (speciesId != null) {
-                this.openGiftEmailForm({ kind: "pokemon", speciesId });
-              }
-            },
-            speciesDataRegistry.getAllSpecies().map(s => s.speciesId),
-            "Z: 선물할 포켓몬 선택   X: 취소",
-          );
+          // Gifting transfers ownership, so only species this account currently owns
+          // (caught) are offered — see gift.ts#sendGift, which revokes the sender's
+          // copy once the send succeeds.
+          const ownedSpeciesIds = speciesDataRegistry
+            .getAllSpecies()
+            .map(s => s.speciesId)
+            .filter(id => !!globalScene.gameData.dexData[id]?.caughtAttr);
+          if (ownedSpeciesIds.length === 0) {
+            ui.showText("선물할 수 있는(보유한) 포켓몬이 없습니다.", null, () => ui.showText(""), fixedInt(2000));
+          } else {
+            ui.setOverlayMode(
+              UiMode.LEGENDARY_PICKER,
+              (speciesId: number | null) => {
+                if (speciesId != null) {
+                  this.openGiftEmailForm({ kind: "pokemon", speciesId });
+                }
+              },
+              ownedSpeciesIds,
+              "Z: 선물(내 계정에서 사라짐)   X: 취소",
+            );
+          }
           success = true;
           break;
         }

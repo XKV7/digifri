@@ -16,7 +16,7 @@
  * relies on — they must be published in the Firebase console for this to work.
  */
 
-import { allNatureAttr, unlockDexEntry, unlockStarterEntry } from "#app/cheats";
+import { allNatureAttr, revokeSpeciesEntry, unlockDexEntry, unlockStarterEntry } from "#app/cheats";
 import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
 import type { SpeciesId } from "#enums/species-id";
@@ -95,6 +95,19 @@ export async function sendGift(
     return { ok: false, message: "자기 자신에게는 선물을 보낼 수 없습니다." };
   }
 
+  // Pokemon gifts transfer ownership: the sender must currently own the species, and it's
+  // revoked from their own account below once the gift is confirmed sent (never before —
+  // if the send fails, the sender keeps it).
+  const gameData = globalScene?.gameData;
+  if (payload.kind === "pokemon") {
+    if (!gameData) {
+      return { ok: false, message: "게임이 아직 로딩되지 않았습니다." };
+    }
+    if (!gameData.dexData[payload.speciesId]?.caughtAttr) {
+      return { ok: false, message: "이 포켓몬을 보유하고 있지 않아 선물할 수 없습니다." };
+    }
+  }
+
   try {
     await addDoc(collection(db, "gifts", targetUid, "inbox"), {
       ...payload,
@@ -104,6 +117,15 @@ export async function sendGift(
   } catch (err) {
     console.error("Sending gift failed:", err);
     return { ok: false, message: "선물을 보내는 중 오류가 발생했습니다." };
+  }
+
+  if (payload.kind === "pokemon" && gameData) {
+    revokeSpeciesEntry(gameData, payload.speciesId);
+    await gameData.saveSystem();
+    return {
+      ok: true,
+      message: "선물을 보냈습니다! 이 포켓몬은 더 이상 내 계정에서 사용할 수 없습니다.",
+    };
   }
 
   return { ok: true, message: "선물을 보냈습니다! 상대가 다음에 메뉴를 열 때 받게 됩니다." };

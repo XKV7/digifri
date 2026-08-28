@@ -110,6 +110,23 @@ async function unlockAllPokemon(): Promise<void> {
 }
 
 /**
+ * Reverses {@linkcode unlockDexEntry}/{@linkcode unlockStarterEntry} for a single species: clears its
+ * caught status (so it no longer counts as owned/selectable as a starter) and removes its starter data
+ * (candy, abilities, passives). `seenAttr` is left untouched — having encountered the species in the
+ * wild is dex knowledge, not ownership. Used by the Pokemon-gift flow (gift.ts) to make a gifted species
+ * disappear from the sender's own account.
+ */
+export function revokeSpeciesEntry(gameData: GameData, speciesId: SpeciesId): void {
+  const entry = gameData.dexData[speciesId];
+  if (entry) {
+    entry.caughtAttr = 0n;
+    entry.caughtCount = 0;
+    entry.ivs = [0, 0, 0, 0, 0, 0];
+  }
+  delete gameData.starterData[speciesId];
+}
+
+/**
  * Toggles the Endless/Spliced Endless starter select cost limit between the
  * normal value (15) and effectively unlimited (999). Purely a per-device
  * localStorage flag (see starter-select-ui-handler.ts#getValueLimit) — does
