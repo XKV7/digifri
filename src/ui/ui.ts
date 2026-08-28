@@ -113,6 +113,7 @@ const noTransitionModes = [
   UiMode.ALERT_MODAL,
   UiMode.GIFT_EMAIL_FORM,
   UiMode.GIFT_VOUCHER_FORM,
+  UiMode.LEGENDARY_PICKER,
 ];
 
 // biome-ignore lint/style/useNamingConvention: a unique case (only 2 letters)
