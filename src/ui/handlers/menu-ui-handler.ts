@@ -570,9 +570,14 @@ export class MenuUiHandler extends MessageUiHandler {
 
     if (button === Button.ACTION) {
       let adjustedCursor = this.cursor;
-      const excludedMenu = this.excludedMenus().find(e => e.condition);
-      if (excludedMenu !== undefined && excludedMenu.options !== undefined && excludedMenu.options.length > 0) {
-        const sortedOptions = excludedMenu.options.sort();
+      // Multiple exclusion groups can be active at once (e.g. bypassLogin hiding LOG_OUT
+      // while not being in a battle hides SAVE_AND_QUIT), so every active group's excluded
+      // options must be accounted for here, not just the first matching group.
+      const excludedOptions = this.excludedMenus()
+        .filter(e => e.condition)
+        .flatMap(e => e.options ?? []);
+      if (excludedOptions.length > 0) {
+        const sortedOptions = [...new Set(excludedOptions)].sort((a, b) => a - b);
         for (const imo of sortedOptions) {
           if (adjustedCursor >= imo) {
             adjustedCursor++;
