@@ -749,24 +749,31 @@ export class MenuUiHandler extends MessageUiHandler {
         }
         case MenuOptions.GIFT_VOUCHER: {
           ui.revertMode();
-          const voucherOptions: OptionSelectItem[] = (
+          // Gifting transfers ownership, so only voucher types this account currently
+          // holds are offered — see gift.ts#sendGift, which deducts one on send.
+          const ownedVoucherTypes = (
             [VoucherType.REGULAR, VoucherType.PLUS, VoucherType.PREMIUM, VoucherType.GOLDEN] as const
-          ).map(voucherType => ({
-            label: getVoucherTypeName(voucherType),
-            handler: () => {
-              ui.revertMode();
-              this.openGiftEmailForm({ kind: "voucher", voucherType });
-              return true;
-            },
-          }));
-          voucherOptions.push({
-            label: i18next.t("menu:cancel"),
-            handler: () => {
-              ui.revertMode();
-              return true;
-            },
-          });
-          ui.setOverlayMode(UiMode.OPTION_SELECT, { options: voucherOptions });
+          ).filter(voucherType => (globalScene.gameData.voucherCounts[voucherType] ?? 0) > 0);
+          if (ownedVoucherTypes.length === 0) {
+            ui.showText("선물할 수 있는(보유한) 바우처가 없습니다.", null, () => ui.showText(""), fixedInt(2000));
+          } else {
+            const voucherOptions: OptionSelectItem[] = ownedVoucherTypes.map(voucherType => ({
+              label: `${getVoucherTypeName(voucherType)} (${globalScene.gameData.voucherCounts[voucherType]}개)`,
+              handler: () => {
+                ui.revertMode();
+                this.openGiftEmailForm({ kind: "voucher", voucherType });
+                return true;
+              },
+            }));
+            voucherOptions.push({
+              label: i18next.t("menu:cancel"),
+              handler: () => {
+                ui.revertMode();
+                return true;
+              },
+            });
+            ui.setOverlayMode(UiMode.OPTION_SELECT, { options: voucherOptions });
+          }
           success = true;
           break;
         }

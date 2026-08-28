@@ -95,17 +95,18 @@ export async function sendGift(
     return { ok: false, message: "자기 자신에게는 선물을 보낼 수 없습니다." };
   }
 
-  // Pokemon gifts transfer ownership: the sender must currently own the species, and it's
-  // revoked from their own account below once the gift is confirmed sent (never before —
-  // if the send fails, the sender keeps it).
+  // Gifts transfer ownership: the sender must currently hold what they're giving, and it's
+  // deducted from their own account below only once the gift is confirmed sent (never
+  // before — if the send fails, the sender keeps it).
   const gameData = globalScene?.gameData;
-  if (payload.kind === "pokemon") {
-    if (!gameData) {
-      return { ok: false, message: "게임이 아직 로딩되지 않았습니다." };
-    }
-    if (!gameData.dexData[payload.speciesId]?.caughtAttr) {
-      return { ok: false, message: "이 포켓몬을 보유하고 있지 않아 선물할 수 없습니다." };
-    }
+  if (!gameData) {
+    return { ok: false, message: "게임이 아직 로딩되지 않았습니다." };
+  }
+  if (payload.kind === "pokemon" && !gameData.dexData[payload.speciesId]?.caughtAttr) {
+    return { ok: false, message: "이 포켓몬을 보유하고 있지 않아 선물할 수 없습니다." };
+  }
+  if (payload.kind === "voucher" && (gameData.voucherCounts[payload.voucherType] ?? 0) <= 0) {
+    return { ok: false, message: "이 바우처를 보유하고 있지 않아 선물할 수 없습니다." };
   }
 
   try {
@@ -119,7 +120,7 @@ export async function sendGift(
     return { ok: false, message: "선물을 보내는 중 오류가 발생했습니다." };
   }
 
-  if (payload.kind === "pokemon" && gameData) {
+  if (payload.kind === "pokemon") {
     revokeSpeciesEntry(gameData, payload.speciesId);
     await gameData.saveSystem();
     return {
@@ -128,7 +129,12 @@ export async function sendGift(
     };
   }
 
-  return { ok: true, message: "선물을 보냈습니다! 상대가 다음에 메뉴를 열 때 받게 됩니다." };
+  gameData.voucherCounts[payload.voucherType]--;
+  await gameData.saveSystem();
+  return {
+    ok: true,
+    message: "선물을 보냈습니다! 이 바우처는 더 이상 내 계정에 없습니다.",
+  };
 }
 
 /** Applies any pending gifts to the current save and removes them from the inbox. Safe to call repeatedly. */
