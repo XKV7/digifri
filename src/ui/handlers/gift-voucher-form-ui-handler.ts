@@ -4,21 +4,22 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { type GiftPayload, getCloudSaveContext, sendGift } from "#app/gift";
+import { getCloudSaveContext, sendGift } from "#app/gift";
 import { globalScene } from "#app/global-scene";
 import { UiMode } from "#enums/ui-mode";
+import type { VoucherType } from "#system/voucher";
 import type { InputFieldConfig } from "#ui/form-modal-ui-handler";
 import { FormModalUiHandler } from "#ui/form-modal-ui-handler";
 import type { ModalConfig } from "#ui/modal-ui-handler";
 
-export interface GiftFormConfig extends ModalConfig {
-  giftPayload: GiftPayload;
+export interface GiftVoucherFormConfig extends ModalConfig {
+  voucherType: VoucherType;
 }
 
-/** Asks for a recipient's Google account email, then sends the gift chosen by the caller (see gift.ts). */
-export class GiftEmailFormUiHandler extends FormModalUiHandler {
+/** Asks for a quantity and a recipient's Google account email, then sends that many vouchers (see gift.ts). */
+export class GiftVoucherFormUiHandler extends FormModalUiHandler {
   override getModalTitle(): string {
-    return "선물 받는 사람";
+    return "바우처 선물";
   }
 
   override getWidth(): number {
@@ -34,10 +35,10 @@ export class GiftEmailFormUiHandler extends FormModalUiHandler {
   }
 
   override getInputFieldConfigs(): InputFieldConfig[] {
-    return [{ label: "받는 사람 Google 이메일", maxLength: 254 }];
+    return [{ label: "보낼 수량" }, { label: "받는 사람 Google 이메일", maxLength: 254 }];
   }
 
-  override show(args: [GiftFormConfig, ...any]): boolean {
+  override show(args: [GiftVoucherFormConfig, ...any]): boolean {
     if (!super.show(args)) {
       return false;
     }
@@ -49,19 +50,28 @@ export class GiftEmailFormUiHandler extends FormModalUiHandler {
         return;
       }
       this.sanitizeInputs();
-      const email = this.inputs[0]?.text ?? "";
+      const countText = this.inputs[0]?.text ?? "";
+      const email = this.inputs[1]?.text ?? "";
+      const count = Number.parseInt(countText, 10);
+
+      const fail = (errorMessage: string) => {
+        globalScene.ui.setMode(UiMode.GIFT_VOUCHER_FORM, Object.assign(config, { errorMessage }));
+        globalScene.ui.playError();
+      };
+
+      if (!Number.isInteger(count) || count <= 0 || String(count) !== countText.trim()) {
+        fail("수량은 1 이상의 정수로 입력해주세요.");
+        return;
+      }
+
       const ctx = getCloudSaveContext();
       if (!ctx) {
-        globalScene.ui.setMode(
-          UiMode.GIFT_EMAIL_FORM,
-          Object.assign(config, { errorMessage: "클라우드 저장(Google 로그인)이 필요합니다." }),
-        );
-        globalScene.ui.playError();
+        fail("클라우드 저장(Google 로그인)이 필요합니다.");
         return;
       }
 
       globalScene.ui.setMode(UiMode.LOADING, { buttonActions: [] });
-      sendGift(ctx.app, ctx.user, email, config.giftPayload).then(result => {
+      sendGift(ctx.app, ctx.user, email, { kind: "voucher", voucherType: config.voucherType, count }).then(result => {
         if (result.ok) {
           globalScene.ui.playSelect();
           for (const input of this.inputs) {
@@ -69,8 +79,7 @@ export class GiftEmailFormUiHandler extends FormModalUiHandler {
           }
           onSent(result.message);
         } else {
-          globalScene.ui.setMode(UiMode.GIFT_EMAIL_FORM, Object.assign(config, { errorMessage: result.message }));
-          globalScene.ui.playError();
+          fail(result.message);
         }
       });
     };

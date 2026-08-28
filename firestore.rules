@@ -35,7 +35,7 @@ service cloud.firestore {
       allow read, delete: if request.auth != null && request.auth.uid == targetUid;
       allow create: if request.auth != null
                     && request.auth.uid != targetUid
-                    && request.resource.data.keys().hasOnly(['kind', 'voucherType', 'speciesId', 'fromEmail', 'createdAt'])
+                    && request.resource.data.keys().hasOnly(['kind', 'voucherType', 'count', 'speciesId', 'fromEmail', 'createdAt'])
                     && request.resource.data.kind in ['voucher', 'pokemon']
                     && request.resource.data.createdAt is number;
       allow update: if false;

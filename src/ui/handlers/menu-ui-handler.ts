@@ -531,6 +531,20 @@ export class MenuUiHandler extends MessageUiHandler {
     });
   }
 
+  private openGiftVoucherForm(voucherType: VoucherType): void {
+    const ui = this.getUi();
+    ui.setOverlayMode(UiMode.GIFT_VOUCHER_FORM, {
+      voucherType,
+      buttonActions: [
+        (message: string) => {
+          ui.revertMode();
+          ui.showText(message, null, () => ui.showText(""), fixedInt(3000));
+        },
+        () => ui.revertMode(),
+      ],
+    });
+  }
+
   show(args: any[]): boolean {
     this.render();
     super.show(args);
@@ -761,7 +775,7 @@ export class MenuUiHandler extends MessageUiHandler {
               label: `${getVoucherTypeName(voucherType)} (${globalScene.gameData.voucherCounts[voucherType]}개)`,
               handler: () => {
                 ui.revertMode();
-                this.openGiftEmailForm({ kind: "voucher", voucherType });
+                this.openGiftVoucherForm(voucherType);
                 return true;
               },
             }));

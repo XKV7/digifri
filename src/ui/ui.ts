@@ -26,6 +26,7 @@ import { FightUiHandler } from "#ui/fight-ui-handler";
 import { GameStatsUiHandler } from "#ui/game-stats-ui-handler";
 import { GamepadBindingUiHandler } from "#ui/gamepad-binding-ui-handler";
 import { GiftEmailFormUiHandler } from "#ui/gift-email-form-ui-handler";
+import { GiftVoucherFormUiHandler } from "#ui/gift-voucher-form-ui-handler";
 import { KeyboardBindingUiHandler } from "#ui/keyboard-binding-ui-handler";
 import { LegendaryPickerUiHandler } from "#ui/legendary-picker-ui-handler";
 import { LoadingModalUiHandler } from "#ui/loading-modal-ui-handler";
@@ -111,6 +112,7 @@ const noTransitionModes = [
   UiMode.CHANGE_PASSWORD_FORM,
   UiMode.ALERT_MODAL,
   UiMode.GIFT_EMAIL_FORM,
+  UiMode.GIFT_VOUCHER_FORM,
 ];
 
 // biome-ignore lint/style/useNamingConvention: a unique case (only 2 letters)
@@ -187,6 +189,7 @@ export class UI extends Phaser.GameObjects.Container {
       new AlertModalUiHandler(),
       new LegendaryPickerUiHandler(),
       new GiftEmailFormUiHandler(),
+      new GiftVoucherFormUiHandler(),
     ];
   }
 

@@ -36,7 +36,9 @@ import {
   where,
 } from "firebase/firestore";
 
-export type GiftPayload = { kind: "voucher"; voucherType: VoucherType } | { kind: "pokemon"; speciesId: SpeciesId };
+export type GiftPayload =
+  | { kind: "voucher"; voucherType: VoucherType; count: number }
+  | { kind: "pokemon"; speciesId: SpeciesId };
 
 interface CloudSaveContext {
   app: FirebaseApp;
@@ -105,8 +107,13 @@ export async function sendGift(
   if (payload.kind === "pokemon" && !gameData.dexData[payload.speciesId]?.caughtAttr) {
     return { ok: false, message: "이 포켓몬을 보유하고 있지 않아 선물할 수 없습니다." };
   }
-  if (payload.kind === "voucher" && (gameData.voucherCounts[payload.voucherType] ?? 0) <= 0) {
-    return { ok: false, message: "이 바우처를 보유하고 있지 않아 선물할 수 없습니다." };
+  if (payload.kind === "voucher") {
+    if (!Number.isInteger(payload.count) || payload.count <= 0) {
+      return { ok: false, message: "수량은 1 이상의 정수여야 합니다." };
+    }
+    if ((gameData.voucherCounts[payload.voucherType] ?? 0) < payload.count) {
+      return { ok: false, message: "보유한 바우처 수량보다 많이 보낼 수 없습니다." };
+    }
   }
 
   try {
@@ -129,11 +136,11 @@ export async function sendGift(
     };
   }
 
-  gameData.voucherCounts[payload.voucherType]--;
+  gameData.voucherCounts[payload.voucherType] -= payload.count;
   await gameData.saveSystem();
   return {
     ok: true,
-    message: "선물을 보냈습니다! 이 바우처는 더 이상 내 계정에 없습니다.",
+    message: `선물을 보냈습니다! 바우처 ${payload.count}개가 더 이상 내 계정에 없습니다.`,
   };
 }
 
@@ -167,8 +174,9 @@ export async function claimGifts(): Promise<void> {
     const from = data.fromEmail || "알 수 없음";
     if (data.kind === "voucher" && typeof data.voucherType === "number" && data.voucherType in VoucherType) {
       const voucherType = data.voucherType;
-      gameData.voucherCounts[voucherType] = (gameData.voucherCounts[voucherType] ?? 0) + 1;
-      received.push(`바우처 (${VoucherType[voucherType]}) - ${from}`);
+      const count = typeof data.count === "number" && Number.isInteger(data.count) && data.count > 0 ? data.count : 1;
+      gameData.voucherCounts[voucherType] = (gameData.voucherCounts[voucherType] ?? 0) + count;
+      received.push(`바우처 (${VoucherType[voucherType]}) x${count} - ${from}`);
     } else if (
       data.kind === "pokemon"
       && typeof data.speciesId === "number"
