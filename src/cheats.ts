@@ -111,10 +111,17 @@ async function unlockAllPokemon(): Promise<void> {
 
 /**
  * Reverses {@linkcode unlockDexEntry}/{@linkcode unlockStarterEntry} for a single species: clears its
- * caught status (so it no longer counts as owned/selectable as a starter) and removes its starter data
- * (candy, abilities, passives). `seenAttr` is left untouched — having encountered the species in the
- * wild is dex knowledge, not ownership. Used by the Pokemon-gift flow (gift.ts) to make a gifted species
- * disappear from the sender's own account.
+ * caught status (so it no longer counts as owned/selectable as a starter) and resets its starter data
+ * (candy, abilities, passives) back to the same zeroed shape {@linkcode GameData}#initStarterData gives
+ * every starter at account creation. `seenAttr` is left untouched — having encountered the species in
+ * the wild is dex knowledge, not ownership. Used by the Pokemon-gift flow (gift.ts) to make a gifted
+ * species disappear from the sender's own account.
+ *
+ * @remarks
+ * The starter data entry is reset in place, never deleted: GameData#validateSystemData requires every
+ * non-default-starter species to have a starterData entry (even an all-zero one meaning "not owned"),
+ * and treats a missing entry as save corruption — deleting it made saveSystem() fail validation and
+ * silently discard the whole gift (species not actually removed, but reported as sent).
  */
 export function revokeSpeciesEntry(gameData: GameData, speciesId: SpeciesId): void {
   const entry = gameData.dexData[speciesId];
@@ -123,7 +130,16 @@ export function revokeSpeciesEntry(gameData: GameData, speciesId: SpeciesId): vo
     entry.caughtCount = 0;
     entry.ivs = [0, 0, 0, 0, 0, 0];
   }
-  delete gameData.starterData[speciesId];
+  gameData.starterData[speciesId] = {
+    moveset: null,
+    eggMoves: 0,
+    candyCount: 0,
+    friendship: 0,
+    abilityAttr: 0,
+    passiveAttr: 0,
+    valueReduction: 0,
+    classicWinCount: 0,
+  };
 }
 
 /**

@@ -20,6 +20,7 @@ import { allNatureAttr, revokeSpeciesEntry, unlockDexEntry, unlockStarterEntry }
 import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
 import type { SpeciesId } from "#enums/species-id";
+import type { GameData } from "#system/game-data";
 import { VoucherType } from "#system/voucher";
 import type { FirebaseApp } from "firebase/app";
 import type { User } from "firebase/auth";
@@ -116,8 +117,9 @@ export async function sendGift(
     }
   }
 
+  let giftDocRef: Awaited<ReturnType<typeof addDoc>>;
   try {
-    await addDoc(collection(db, "gifts", targetUid, "inbox"), {
+    giftDocRef = await addDoc(collection(db, "gifts", targetUid, "inbox"), {
       ...payload,
       fromEmail: fromUser.email ?? "",
       createdAt: Date.now(),
@@ -127,20 +129,52 @@ export async function sendGift(
     return { ok: false, message: "선물을 보내는 중 오류가 발생했습니다." };
   }
 
+  // The gift is already in the recipient's inbox at this point, so a failure to save the
+  // deduction locally must undo the send (restore the in-memory state and delete the inbox
+  // doc) rather than report success — otherwise the sender would keep their copy while the
+  // recipient also received one.
+  const undo =
+    payload.kind === "pokemon"
+      ? snapshotSpeciesEntries(gameData, payload.speciesId)
+      : snapshotVoucherCount(gameData, payload.voucherType);
+
   if (payload.kind === "pokemon") {
     revokeSpeciesEntry(gameData, payload.speciesId);
-    await gameData.saveSystem();
-    return {
-      ok: true,
-      message: "선물을 보냈습니다! 이 포켓몬은 더 이상 내 계정에서 사용할 수 없습니다.",
-    };
+  } else {
+    gameData.voucherCounts[payload.voucherType] -= payload.count;
   }
 
-  gameData.voucherCounts[payload.voucherType] -= payload.count;
-  await gameData.saveSystem();
-  return {
-    ok: true,
-    message: `선물을 보냈습니다! 바우처 ${payload.count}개가 더 이상 내 계정에 없습니다.`,
+  const saved = await gameData.saveSystem();
+  if (!saved) {
+    undo();
+    await deleteDoc(giftDocRef).catch(err => console.error("Failed to roll back cancelled gift:", err));
+    return { ok: false, message: "저장에 실패해 선물을 취소했습니다. 다시 시도해주세요." };
+  }
+
+  return payload.kind === "pokemon"
+    ? { ok: true, message: "선물을 보냈습니다! 이 포켓몬은 더 이상 내 계정에서 사용할 수 없습니다." }
+    : { ok: true, message: `선물을 보냈습니다! 바우처 ${payload.count}개가 더 이상 내 계정에 없습니다.` };
+}
+
+/** Snapshots a species' dex/starter entries so a failed save can restore them exactly. */
+function snapshotSpeciesEntries(gameData: GameData, speciesId: SpeciesId): () => void {
+  const prevDexEntry = gameData.dexData[speciesId] ? { ...gameData.dexData[speciesId] } : undefined;
+  const prevStarterEntry = gameData.starterData[speciesId] ? { ...gameData.starterData[speciesId] } : undefined;
+  return () => {
+    if (prevDexEntry) {
+      gameData.dexData[speciesId] = prevDexEntry;
+    }
+    if (prevStarterEntry) {
+      gameData.starterData[speciesId] = prevStarterEntry;
+    }
+  };
+}
+
+/** Snapshots a voucher's count so a failed save can restore it exactly. */
+function snapshotVoucherCount(gameData: GameData, voucherType: VoucherType): () => void {
+  const prevCount = gameData.voucherCounts[voucherType];
+  return () => {
+    gameData.voucherCounts[voucherType] = prevCount;
   };
 }
 
