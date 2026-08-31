@@ -66,6 +66,8 @@ function setMirrorTs(key: string, t: number): void {
 
 let badge: HTMLDivElement | undefined;
 let pendingUploads = 0;
+let cloudApp: ReturnType<typeof initializeApp> | undefined;
+let cloudAuth: ReturnType<typeof getAuth> | undefined;
 
 function setBadge(state: "off" | "ok" | "busy" | "error", tooltip: string): void {
   if (!badge) {
@@ -141,6 +143,8 @@ export async function initCloudSave(): Promise<void> {
     console.error("Cloud save unavailable:", err);
     return;
   }
+  cloudApp = app;
+  cloudAuth = auth;
 
   try {
     await getRedirectResult(auth); // completes a signInWithRedirect round-trip, if any
@@ -161,26 +165,39 @@ export async function initCloudSave(): Promise<void> {
 
   if (!user) {
     setBadge("off", "클라우드 저장 꺼짐 — 클릭하여 Google 계정으로 로그인");
-    badge!.onclick = async () => {
-      const u = await login(auth);
-      if (u) {
-        localStorage.removeItem(OPTOUT_KEY);
-        await startSync(app, u);
-      }
-    };
+    badge!.onclick = () => void triggerCloudLogin();
     return;
   }
 
   await startSync(app, user);
 
   // allow signing out via the badge
-  badge!.onclick = async () => {
-    if (confirm("클라우드 저장에서 로그아웃할까요?\n(세이브는 이 기기와 클라우드 양쪽에 남아 있습니다)")) {
-      await signOut(auth).catch(() => {});
-      rawSetItem(OPTOUT_KEY, "1");
-      window.location.reload();
-    }
-  };
+  badge!.onclick = () => void triggerCloudLogout();
+}
+
+/** Starts the Google sign-in flow. Usable from the badge or the in-game menu (see menu-ui-handler.ts). */
+export async function triggerCloudLogin(): Promise<void> {
+  if (!cloudApp || !cloudAuth) {
+    return;
+  }
+  const u = await login(cloudAuth);
+  if (u) {
+    localStorage.removeItem(OPTOUT_KEY);
+    await startSync(cloudApp, u);
+  }
+}
+
+/** Signs out of cloud save (after confirmation) and reloads. Usable from the badge or the in-game menu. */
+export async function triggerCloudLogout(): Promise<void> {
+  if (!cloudAuth) {
+    return;
+  }
+  if (!confirm("클라우드 저장에서 로그아웃할까요?\n(세이브는 이 기기와 클라우드 양쪽에 남아 있습니다)")) {
+    return;
+  }
+  await signOut(cloudAuth).catch(() => {});
+  rawSetItem(OPTOUT_KEY, "1");
+  window.location.reload();
 }
 
 async function login(auth: ReturnType<typeof getAuth>): Promise<User | null> {

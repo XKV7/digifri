@@ -1,5 +1,6 @@
 import { pokerogueApi } from "#api/api";
 import { loggedInUser, updateUserInfo } from "#app/account";
+import { triggerCloudLogin, triggerCloudLogout } from "#app/cloud-save";
 import { claimGifts, type GiftPayload, getCloudSaveContext } from "#app/gift";
 import { audioManager } from "#app/global-audio-manager";
 import { globalScene } from "#app/global-scene";
@@ -37,6 +38,7 @@ enum MenuOptions {
   LOG_OUT,
   GIFT_VOUCHER,
   GIFT_POKEMON,
+  CLOUD_ACCOUNT,
 }
 
 const KOREAN_MENU_LABELS: Partial<Record<MenuOptions, string>> = {
@@ -152,9 +154,7 @@ export class MenuUiHandler extends MessageUiHandler {
     this.optionSelectText = addTextObject(
       0,
       0,
-      this.menuOptions
-        .map(o => KOREAN_MENU_LABELS[o] ?? `${i18next.t(`menuUiHandler:${toCamelCase(MenuOptions[o])}`)}`)
-        .join("\n"),
+      this.menuOptions.map(o => this.getMenuOptionLabel(o)).join("\n"),
       TextStyle.WINDOW,
       { maxLines: this.menuOptions.length },
     );
@@ -517,6 +517,13 @@ export class MenuUiHandler extends MessageUiHandler {
     this.setCursor(0);
   }
 
+  private getMenuOptionLabel(o: MenuOptions): string {
+    if (o === MenuOptions.CLOUD_ACCOUNT) {
+      return getCloudSaveContext() ? "클라우드 로그아웃" : "Google 계정으로 로그인";
+    }
+    return KOREAN_MENU_LABELS[o] ?? `${i18next.t(`menuUiHandler:${toCamelCase(MenuOptions[o])}`)}`;
+  }
+
   private openGiftEmailForm(giftPayload: GiftPayload): void {
     const ui = this.getUi();
     ui.setOverlayMode(UiMode.GIFT_EMAIL_FORM, {
@@ -813,6 +820,16 @@ export class MenuUiHandler extends MessageUiHandler {
               ownedSpeciesIds,
               "Z: 선물(내 계정에서 사라짐)   X: 취소",
             );
+          }
+          success = true;
+          break;
+        }
+        case MenuOptions.CLOUD_ACCOUNT: {
+          ui.revertMode();
+          if (getCloudSaveContext()) {
+            void triggerCloudLogout();
+          } else {
+            void triggerCloudLogin();
           }
           success = true;
           break;
