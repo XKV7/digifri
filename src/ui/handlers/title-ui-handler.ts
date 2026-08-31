@@ -1,6 +1,7 @@
 import { pokerogueApi } from "#api/api";
 import { loggedInUser } from "#app/account";
 import { FAKE_TITLE_LOGO_CHANCE } from "#app/constants";
+import { getCloudSaveContext } from "#app/gift";
 import { timedEventManager } from "#app/global-event-manager";
 import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
@@ -40,9 +41,13 @@ export class TitleUiHandler extends OptionSelectUiHandler {
       globalScene.gameData.gender === PlayerGender.FEMALE ? "trainerNames:playerF" : "trainerNames:playerM",
     );
 
+    // The offline save itself always lives under the fixed "Guest" username (baked into every
+    // localStorage key), so prefer the signed-in Google account's own name/email for display
+    // when cloud save is active, rather than showing that internal placeholder.
+    const cloudUser = getCloudSaveContext()?.user;
     const displayName = globalScene.hideUsername
       ? usernameReplacement
-      : (loggedInUser?.username ?? i18next.t("common:guest"));
+      : (cloudUser?.displayName ?? cloudUser?.email ?? loggedInUser?.username ?? i18next.t("common:guest"));
 
     return i18next.t("menu:loggedInAs", { username: displayName });
   }

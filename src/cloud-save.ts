@@ -184,6 +184,11 @@ export async function triggerCloudLogin(): Promise<void> {
   if (u) {
     localStorage.removeItem(OPTOUT_KEY);
     await startSync(cloudApp, u);
+    // startSync() only reloads itself when it actually pulled in changed data; an interactive
+    // login should always end in a reload regardless, so every screen (title username label,
+    // in-game menu options, badge) picks up the newly signed-in state consistently. If startSync
+    // already reloaded, execution never reaches here (it halts on an unresolved promise).
+    window.location.reload();
   }
 }
 
