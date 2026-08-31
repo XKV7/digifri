@@ -187,7 +187,12 @@ export async function triggerCloudLogin(): Promise<void> {
   }
 }
 
-/** Signs out of cloud save (after confirmation) and reloads. Usable from the badge or the in-game menu. */
+/**
+ * Signs out of cloud save (after confirmation) and reloads. Usable from the badge or the in-game
+ * menu. Clears (rather than sets) OPTOUT_KEY, so the Google-login-or-local-play choice screen
+ * always reappears on the reload that follows, instead of silently landing back in local-only
+ * play the way a first-time opt-out would.
+ */
 export async function triggerCloudLogout(): Promise<void> {
   if (!cloudAuth) {
     return;
@@ -196,7 +201,7 @@ export async function triggerCloudLogout(): Promise<void> {
     return;
   }
   await signOut(cloudAuth).catch(() => {});
-  rawSetItem(OPTOUT_KEY, "1");
+  rawRemoveItem(OPTOUT_KEY);
   window.location.reload();
 }
 
