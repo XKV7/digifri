@@ -16,12 +16,15 @@
  * relies on — they must be published in the Firebase console for this to work.
  */
 
-import { allNatureAttr, revokeSpeciesEntry, unlockDexEntry, unlockStarterEntry } from "#app/cheats";
+import { revokeSpeciesEntry } from "#app/cheats";
 import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
 import type { SpeciesId } from "#enums/species-id";
 import type { GameData } from "#system/game-data";
+import { RibbonData } from "#system/ribbons/ribbon-data";
 import { VoucherType } from "#system/voucher";
+import type { DexEntry } from "#types/dex-data";
+import type { StarterDataEntry } from "#types/save-data";
 import type { FirebaseApp } from "firebase/app";
 import type { User } from "firebase/auth";
 import {
@@ -37,9 +40,96 @@ import {
   where,
 } from "firebase/firestore";
 
+/** What the sender's UI asks for. Enriched with a snapshot of the actual data before it's sent — see sendGift(). */
 export type GiftPayload =
   | { kind: "voucher"; voucherType: VoucherType; count: number }
   | { kind: "pokemon"; speciesId: SpeciesId };
+
+/** Firestore doesn't support bigint, so seenAttr/caughtAttr/ribbons are stored as strings. */
+interface DexSnapshot {
+  seenAttr: string;
+  caughtAttr: string;
+  natureAttr: number;
+  seenCount: number;
+  caughtCount: number;
+  hatchedCount: number;
+  ivs: number[];
+  ribbons: string;
+}
+
+/** The gift documents actually written to/read from `gifts/{uid}/inbox/{id}`. */
+type StoredGift =
+  | { kind: "voucher"; voucherType: VoucherType; count: number; fromEmail: string; createdAt: number }
+  | {
+      kind: "pokemon";
+      speciesId: SpeciesId;
+      dexSnapshot: DexSnapshot;
+      starterSnapshot?: StarterDataEntry;
+      fromEmail: string;
+      createdAt: number;
+    };
+
+function serializeDexEntry(entry: DexEntry): DexSnapshot {
+  return {
+    seenAttr: entry.seenAttr.toString(),
+    caughtAttr: entry.caughtAttr.toString(),
+    natureAttr: entry.natureAttr,
+    seenCount: entry.seenCount,
+    caughtCount: entry.caughtCount,
+    hatchedCount: entry.hatchedCount,
+    ivs: [...entry.ivs],
+    ribbons: entry.ribbons.toJSON(),
+  };
+}
+
+/** Merges a sender's dex snapshot into the recipient's own entry (union of attrs, max of counts/IVs) rather than overwriting it, so the recipient never loses dex progress they already had. */
+function mergeDexSnapshot(gameData: GameData, speciesId: SpeciesId, snap: DexSnapshot): void {
+  const seenAttr = BigInt(snap.seenAttr);
+  const caughtAttr = BigInt(snap.caughtAttr);
+  const ribbons = RibbonData.fromJSON(snap.ribbons);
+
+  const existing = gameData.dexData[speciesId];
+  if (!existing) {
+    gameData.dexData[speciesId] = {
+      seenAttr,
+      caughtAttr,
+      natureAttr: snap.natureAttr,
+      seenCount: snap.seenCount,
+      caughtCount: snap.caughtCount,
+      hatchedCount: snap.hatchedCount,
+      ivs: [...snap.ivs],
+      ribbons,
+    };
+    return;
+  }
+
+  existing.seenAttr |= seenAttr;
+  existing.caughtAttr |= caughtAttr;
+  existing.natureAttr |= snap.natureAttr;
+  existing.seenCount = Math.max(existing.seenCount, snap.seenCount);
+  existing.caughtCount = Math.max(existing.caughtCount, snap.caughtCount);
+  existing.hatchedCount = Math.max(existing.hatchedCount, snap.hatchedCount);
+  existing.ivs = existing.ivs.map((v, i) => Math.max(v, snap.ivs[i] ?? 0));
+  existing.ribbons = new RibbonData(existing.ribbons.getRibbons() | ribbons.getRibbons());
+}
+
+/** Merges a sender's starter snapshot into the recipient's own entry (candy adds, flags union, everything else takes the max) rather than overwriting it. */
+function mergeStarterSnapshot(gameData: GameData, speciesId: SpeciesId, snap: StarterDataEntry): void {
+  const existing = gameData.starterData[speciesId];
+  if (!existing) {
+    gameData.starterData[speciesId] = { ...snap };
+    return;
+  }
+
+  existing.moveset = existing.moveset ?? snap.moveset;
+  existing.eggMoves |= snap.eggMoves;
+  existing.candyCount += snap.candyCount;
+  existing.friendship = Math.max(existing.friendship, snap.friendship);
+  existing.abilityAttr |= snap.abilityAttr;
+  existing.passiveAttr |= snap.passiveAttr;
+  existing.valueReduction = Math.max(existing.valueReduction, snap.valueReduction);
+  existing.classicWinCount = Math.max(existing.classicWinCount, snap.classicWinCount);
+}
 
 interface CloudSaveContext {
   app: FirebaseApp;
@@ -105,7 +195,8 @@ export async function sendGift(
   if (!gameData) {
     return { ok: false, message: "게임이 아직 로딩되지 않았습니다." };
   }
-  if (payload.kind === "pokemon" && !gameData.dexData[payload.speciesId]?.caughtAttr) {
+  const dexEntry = payload.kind === "pokemon" ? gameData.dexData[payload.speciesId] : undefined;
+  if (payload.kind === "pokemon" && !dexEntry?.caughtAttr) {
     return { ok: false, message: "이 포켓몬을 보유하고 있지 않아 선물할 수 없습니다." };
   }
   if (payload.kind === "voucher") {
@@ -117,13 +208,34 @@ export async function sendGift(
     }
   }
 
+  // Snapshot the sender's actual dex/starter state now, before it's zeroed out below, so the
+  // recipient receives the same shinies/IVs/nature/candy/abilities the sender actually had
+  // instead of a generic "everything unlocked" placeholder.
+  const starterEntry = payload.kind === "pokemon" ? gameData.starterData[payload.speciesId] : undefined;
+  const storedGift: StoredGift =
+    payload.kind === "voucher"
+      ? {
+          kind: "voucher",
+          voucherType: payload.voucherType,
+          count: payload.count,
+          fromEmail: fromUser.email ?? "",
+          createdAt: Date.now(),
+        }
+      : {
+          kind: "pokemon",
+          speciesId: payload.speciesId,
+          dexSnapshot: serializeDexEntry(dexEntry!),
+          fromEmail: fromUser.email ?? "",
+          createdAt: Date.now(),
+          // Firestore's SDK rejects a field explicitly set to `undefined`, so a species with no
+          // starter entry (a caught-only, non-starter species) must omit the key entirely rather
+          // than including it as undefined.
+          ...(starterEntry ? { starterSnapshot: { ...starterEntry } } : {}),
+        };
+
   let giftDocRef: Awaited<ReturnType<typeof addDoc>>;
   try {
-    giftDocRef = await addDoc(collection(db, "gifts", targetUid, "inbox"), {
-      ...payload,
-      fromEmail: fromUser.email ?? "",
-      createdAt: Date.now(),
-    });
+    giftDocRef = await addDoc(collection(db, "gifts", targetUid, "inbox"), storedGift);
   } catch (err) {
     console.error("Sending gift failed:", err);
     return { ok: false, message: "선물을 보내는 중 오류가 발생했습니다." };
@@ -200,11 +312,9 @@ export async function claimGifts(): Promise<void> {
   }
 
   const received: string[] = [];
-  const natureAttr = allNatureAttr();
-  const starterIds = new Set(speciesDataRegistry.getAllStarters());
 
   for (const gift of snapshot.docs) {
-    const data = gift.data() as GiftPayload & { fromEmail?: string };
+    const data = gift.data() as Partial<StoredGift>;
     const from = data.fromEmail || "알 수 없음";
     if (data.kind === "voucher" && typeof data.voucherType === "number" && data.voucherType in VoucherType) {
       const voucherType = data.voucherType;
@@ -215,11 +325,12 @@ export async function claimGifts(): Promise<void> {
       data.kind === "pokemon"
       && typeof data.speciesId === "number"
       && speciesDataRegistry.data[data.speciesId]
+      && data.dexSnapshot
     ) {
       const { speciesId } = data;
-      unlockDexEntry(gameData, speciesId, natureAttr);
-      if (starterIds.has(speciesId)) {
-        unlockStarterEntry(gameData, speciesId);
+      mergeDexSnapshot(gameData, speciesId, data.dexSnapshot);
+      if (data.starterSnapshot) {
+        mergeStarterSnapshot(gameData, speciesId, data.starterSnapshot);
       }
       received.push(`${speciesDataRegistry.getSpecies(speciesId).getName()} - ${from}`);
     }
