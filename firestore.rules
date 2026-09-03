@@ -49,5 +49,38 @@ service cloud.firestore {
       allow get: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == uid;
     }
+
+    // PvP lobby rooms (see src/pvp-room.ts). Any signed-in user may list/read
+    // rooms (to show the open-room lobby and watch a joined room live). A room
+    // is created by its host (status must start "waiting"); after that, only
+    // the host may update it (e.g. cancel it), or a different signed-in user
+    // may join it once by claiming the still-empty guest slot while it's still
+    // "waiting", moving it to "team_preview".
+    match /pvpRooms/{roomId} {
+      allow get, list: if request.auth != null;
+
+      allow create: if request.auth != null
+                    && request.resource.data.hostUid == request.auth.uid
+                    && request.resource.data.hostName is string
+                    && request.resource.data.status == 'waiting'
+                    && request.resource.data.keys().hasOnly(['hostUid', 'hostName', 'status', 'createdAt'])
+                    && request.resource.data.createdAt == request.time;
+
+      allow update: if request.auth != null
+                    && (
+                      resource.data.hostUid == request.auth.uid
+                      || (
+                        resource.data.status == 'waiting'
+                        && resource.data.hostUid != request.auth.uid
+                        && request.resource.data.hostUid == resource.data.hostUid
+                        && request.resource.data.hostName == resource.data.hostName
+                        && request.resource.data.guestUid == request.auth.uid
+                        && request.resource.data.guestName is string
+                        && request.resource.data.status == 'team_preview'
+                      )
+                    );
+
+      allow delete: if false;
+    }
   }
 }

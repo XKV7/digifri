@@ -5,7 +5,17 @@ import { claimGifts, type GiftPayload, getCloudSaveContext } from "#app/gift";
 import { audioManager } from "#app/global-audio-manager";
 import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
-import { beginPvpTeamEditMode, endPvpTeamEditMode, savePvpTeam } from "#app/pvp-team";
+import {
+  cancelPvpRoom,
+  createPvpRoom,
+  getMyActivePvpRoomId,
+  getPvpRoomOnce,
+  joinPvpRoom,
+  listOpenPvpRoomsOnce,
+  type PvpRoomWithId,
+  setMyActivePvpRoomId,
+} from "#app/pvp-room";
+import { beginPvpTeamEditMode, endPvpTeamEditMode, loadPvpTeam, savePvpTeam } from "#app/pvp-team";
 import { handleTutorial, Tutorial } from "#app/tutorial";
 import { bypassLogin, isApp, isBeta, isDev } from "#constants/app-constants";
 import { AdminMode, getAdminModeName } from "#enums/admin-mode";
@@ -41,6 +51,7 @@ enum MenuOptions {
   GIFT_VOUCHER,
   GIFT_POKEMON,
   PVP_TEAM,
+  PVP_LOBBY,
   CLOUD_ACCOUNT,
 }
 
@@ -48,6 +59,7 @@ const KOREAN_MENU_LABELS: Partial<Record<MenuOptions, string>> = {
   [MenuOptions.GIFT_VOUCHER]: "바우처 선물하기",
   [MenuOptions.GIFT_POKEMON]: "포켓몬 선물하기",
   [MenuOptions.PVP_TEAM]: "PvP 팀 등록",
+  [MenuOptions.PVP_LOBBY]: "PvP 대전",
 };
 
 let wikiUrl = "https://wiki.pokerogue.net/start";
@@ -95,7 +107,7 @@ export class MenuUiHandler extends MessageUiHandler {
       { condition: bypassLogin, options: [MenuOptions.LOG_OUT] },
       {
         condition: !getCloudSaveContext(),
-        options: [MenuOptions.GIFT_VOUCHER, MenuOptions.GIFT_POKEMON, MenuOptions.PVP_TEAM],
+        options: [MenuOptions.GIFT_VOUCHER, MenuOptions.GIFT_POKEMON, MenuOptions.PVP_TEAM, MenuOptions.PVP_LOBBY],
       },
     ];
 
@@ -153,7 +165,7 @@ export class MenuUiHandler extends MessageUiHandler {
       { condition: !globalScene.currentBattle, options: [MenuOptions.SAVE_AND_QUIT] },
       {
         condition: !getCloudSaveContext(),
-        options: [MenuOptions.GIFT_VOUCHER, MenuOptions.GIFT_POKEMON, MenuOptions.PVP_TEAM],
+        options: [MenuOptions.GIFT_VOUCHER, MenuOptions.GIFT_POKEMON, MenuOptions.PVP_TEAM, MenuOptions.PVP_LOBBY],
       },
     ];
 
@@ -562,6 +574,139 @@ export class MenuUiHandler extends MessageUiHandler {
     });
   }
 
+  /**
+   * Opens the PvP lobby: if the caller already has an active room (created or joined,
+   * remembered locally), shows its current status; otherwise lists open rooms to join,
+   * plus an option to create a new one. See src/pvp-room.ts.
+   */
+  private async openPvpLobby(): Promise<void> {
+    const ui = this.getUi();
+    const ctx = getCloudSaveContext();
+    if (!ctx) {
+      return;
+    }
+    const myName = ctx.user.displayName ?? ctx.user.email ?? ctx.user.uid;
+
+    const activeRoomId = getMyActivePvpRoomId();
+    if (activeRoomId) {
+      const room = await getPvpRoomOnce(activeRoomId);
+      const amHost = room?.hostUid === ctx.user.uid;
+      const amGuest = room?.guestUid === ctx.user.uid;
+      if (room && amHost && room.status === "waiting") {
+        this.showPvpWaitingRoomOptions(room);
+        return;
+      }
+      if (room && (amHost || amGuest) && (room.status === "team_preview" || room.status === "battling")) {
+        const opponentName = amHost ? room.guestName : room.hostName;
+        ui.showText(
+          `상대(${opponentName})가 입장했습니다! 팀 선출/대전 기능은 다음 업데이트에서 제공됩니다.`,
+          null,
+          () => ui.showText(""),
+          fixedInt(4000),
+        );
+        return;
+      }
+      // Stale pointer: room finished/cancelled/missing, or belongs to neither of us.
+      setMyActivePvpRoomId(null);
+    }
+
+    const rooms = (await listOpenPvpRoomsOnce()).filter(r => r.hostUid !== ctx.user.uid);
+    const options: OptionSelectItem[] = rooms.map(r => ({
+      label: `${r.hostName}의 방 입장하기`,
+      handler: () => {
+        void this.tryJoinPvpRoom(r.id, myName);
+        return true;
+      },
+    }));
+    options.push(
+      {
+        label: "새 방 만들기",
+        handler: () => {
+          void this.tryCreatePvpRoom(myName);
+          return true;
+        },
+      },
+      {
+        label: i18next.t("menu:cancel"),
+        handler: () => {
+          ui.revertMode();
+          return true;
+        },
+      },
+    );
+    ui.setOverlayMode(UiMode.OPTION_SELECT, { options });
+  }
+
+  private showPvpWaitingRoomOptions(room: PvpRoomWithId): void {
+    const ui = this.getUi();
+    const options: OptionSelectItem[] = [
+      {
+        label: "새로고침 (상대 대기 중)",
+        handler: () => {
+          ui.revertMode();
+          void this.openPvpLobby();
+          return true;
+        },
+      },
+      {
+        label: "방 취소하기",
+        handler: () => {
+          ui.revertMode();
+          void cancelPvpRoom(room.id).then(() => {
+            ui.showText("방을 취소했습니다.", null, () => ui.showText(""), fixedInt(2000));
+          });
+          return true;
+        },
+      },
+      {
+        label: i18next.t("menu:cancel"),
+        handler: () => {
+          ui.revertMode();
+          return true;
+        },
+      },
+    ];
+    ui.setOverlayMode(UiMode.OPTION_SELECT, { options });
+  }
+
+  private async tryCreatePvpRoom(myName: string): Promise<void> {
+    const ui = this.getUi();
+    const team = await loadPvpTeam();
+    if (!team || team.length === 0) {
+      ui.showText("PvP 팀을 먼저 등록해주세요. (메뉴 > PvP 팀 등록)", null, () => ui.showText(""), fixedInt(3000));
+      return;
+    }
+    const roomId = await createPvpRoom(myName);
+    if (!roomId) {
+      ui.showText("방 생성에 실패했습니다.", null, () => ui.showText(""), fixedInt(2000));
+      return;
+    }
+    ui.showText(
+      "방을 만들었습니다. 상대가 들어올 때까지 기다려주세요. (메뉴 > PvP 대전에서 다시 확인)",
+      null,
+      () => ui.showText(""),
+      fixedInt(4000),
+    );
+  }
+
+  private async tryJoinPvpRoom(roomId: string, myName: string): Promise<void> {
+    const ui = this.getUi();
+    const team = await loadPvpTeam();
+    if (!team || team.length === 0) {
+      ui.showText("PvP 팀을 먼저 등록해주세요. (메뉴 > PvP 팀 등록)", null, () => ui.showText(""), fixedInt(3000));
+      return;
+    }
+    const ok = await joinPvpRoom(roomId, myName);
+    ui.showText(
+      ok
+        ? "입장했습니다! 팀 선출/대전 기능은 다음 업데이트에서 제공됩니다."
+        : "입장에 실패했습니다. 이미 다른 사람이 들어갔을 수 있어요.",
+      null,
+      () => ui.showText(""),
+      fixedInt(3000),
+    );
+  }
+
   show(args: any[]): boolean {
     this.render();
     super.show(args);
@@ -853,6 +998,12 @@ export class MenuUiHandler extends MessageUiHandler {
               );
             });
           });
+          success = true;
+          break;
+        }
+        case MenuOptions.PVP_LOBBY: {
+          ui.revertMode();
+          void this.openPvpLobby();
           success = true;
           break;
         }
