@@ -1197,6 +1197,17 @@ export class StarterSelectUiHandler extends MessageUiHandler {
 
     this.allowTera = Object.hasOwn(globalScene.gameData.achvUnlocks, achvs.TERASTALLIZE.id);
 
+    if (isPvpTeamEditMode()) {
+      // Reached here via a non-clearing overlay (see pvp-team.ts), stacked on top of
+      // whatever menu/title was showing without hiding it. That's normally invisible
+      // since this screen's own background fully covers it — except this container's
+      // position in the display list was never moved to the top (unlike the normal
+      // run-start flow, where the previous screen is long gone by the time this shows),
+      // so anything with a later insertion order can still render over it. Bring it to
+      // the very top so nothing shows through the gaps in that background.
+      this.getUi().moveTo(this.starterSelectContainer, this.getUi().length - 1);
+    }
+
     if (args.length > 0 && args[0] instanceof Function) {
       super.show(args);
       this.starterSelectCallback = args[0] as StarterSelectCallback;
