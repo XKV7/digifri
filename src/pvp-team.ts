@@ -85,10 +85,22 @@ export function beginPvpTeamEditMode(): void {
   pvpTeamEditModeActive = true;
   hiddenUnderlyingHandler = globalScene.ui.getHandler();
   hiddenUnderlyingHandler.clear();
+  // Hides the per-slot cycle buttons (form/gender/shiny/ability/nature/tera) on
+  // the mobile touch pad — see the [data-pvp-edit] rule in index.css — since
+  // they're not needed just to pick species and only add to an already-crowded
+  // corner of the screen.
+  document.getElementById("touchControls")?.setAttribute("data-pvp-edit", "1");
+  // If a touch was mid-press when this screen transition happened, its
+  // touchend/pointerup can be missed, leaving that direction/button "stuck"
+  // held down (TouchControl#buttonLock) and unresponsive afterward — same
+  // failure mode the game already guards against on window blur.
+  globalScene.inputController?.loseFocus();
 }
 
 export function endPvpTeamEditMode(): void {
   pvpTeamEditModeActive = false;
   hiddenUnderlyingHandler?.show([]);
   hiddenUnderlyingHandler = null;
+  document.getElementById("touchControls")?.removeAttribute("data-pvp-edit");
+  globalScene.inputController?.loseFocus();
 }

@@ -239,6 +239,15 @@ input:-internal-autofill-selected {
   display: none;
 }
 
+/* PvP team registration reuses the STARTER_SELECT screen just to pick species
+ * (see src/pvp-team.ts), with no need for the per-slot cycle buttons above —
+ * hiding them here (toggled via the #touchControls[data-pvp-edit] attribute)
+ * frees up the crowded bottom-right corner they'd otherwise add to. */
+#touchControls[data-pvp-edit="1"] #control-group-extra-1,
+#touchControls[data-pvp-edit="1"] #control-group-extra-2 {
+  display: none;
+}
+
 /* Configuration toolbar */
 
 #configToolbar {
