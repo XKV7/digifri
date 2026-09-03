@@ -182,6 +182,20 @@ export class MenuUiHandler extends MessageUiHandler {
     );
     this.optionSelectText.setLineSpacing(12);
 
+    // With enough menu entries (gift/PvP options on top of the usual ones), the list at full
+    // size can run taller than the window and spill off the bottom of the screen. Scale the
+    // whole list down just enough to fit; setCursor() measures the resulting line pitch
+    // directly from the text object's rendered size rather than assuming a fixed one, so the
+    // cursor stays aligned to it regardless of how much (if any) shrinking happened here.
+    const availableTextHeight = globalScene.scaledCanvas.height - 2 - 16;
+    if (this.optionSelectText.displayHeight > availableTextHeight) {
+      // addTextObject() already applies its own baseline scale for TextStyle.WINDOW (bitmap
+      // fonts are authored large and scaled down) — shrink relative to that, not to an
+      // absolute 1, or this would blow the text up instead of shrinking it.
+      const shrinkFactor = availableTextHeight / this.optionSelectText.displayHeight;
+      this.optionSelectText.setScale(this.optionSelectText.scale * shrinkFactor);
+    }
+
     this.scale = getTextStyleOptions(TextStyle.WINDOW).scale;
     this.menuBg = addWindow(
       globalScene.scaledCanvas.width - (this.optionSelectText.displayWidth + 25),
@@ -1092,8 +1106,15 @@ export class MenuUiHandler extends MessageUiHandler {
       this.menuContainer.add(this.cursorObj);
     }
 
+    // The per-item vertical step used to be a flat 96 (at this.scale), matching the option
+    // list's line spacing before it could shrink to fit more items (see render()) — measuring
+    // it from the text object's actual rendered height keeps the cursor aligned regardless.
+    const itemPitch =
+      this.optionSelectText && this.menuOptions.length > 0
+        ? this.optionSelectText.displayHeight / this.menuOptions.length
+        : 96 * this.scale;
     this.cursorObj.setScale(this.scale * 6);
-    this.cursorObj.setPositionRelative(this.menuBg, 7, 6 + (18 + this.cursor * 96) * this.scale);
+    this.cursorObj.setPositionRelative(this.menuBg, 7, 6 + 18 * this.scale + this.cursor * itemPitch);
 
     return ret;
   }
