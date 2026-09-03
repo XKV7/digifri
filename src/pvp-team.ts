@@ -17,7 +17,6 @@
 import { getCloudSaveContext } from "#app/gift";
 import { globalScene } from "#app/global-scene";
 import type { Starter } from "#types/save-data";
-import type { UiHandler } from "#ui/ui-handler";
 import { doc, getDoc, getFirestore, setDoc } from "firebase/firestore";
 
 export async function savePvpTeam(starters: Starter[]): Promise<boolean> {
@@ -74,17 +73,22 @@ export function isPvpTeamEditMode(): boolean {
  * was showing before it (SelectStarterPhase, always from a freshly-cleared
  * title screen). Opening it here instead as a non-clearing `setOverlayMode()`
  * overlay (so we can cleanly `ui.revertMode()` back to wherever the menu was
- * opened from, title or mid-run) leaves the previous screen's own visuals
- * still rendered underneath, which bleeds through the gaps in the starter
- * select screen's own background/instruction box. Explicitly hiding it while
- * the editor is open — and restoring it once done — avoids that.
+ * opened from, title or mid-run) can leave the previous screen's own visuals
+ * rendered underneath, occasionally visible through gaps in the starter
+ * select screen's own background/instruction box.
+ *
+ * Explicitly hiding/restoring the underlying handler (`.clear()` on entry,
+ * `.show([])` on exit) was tried here and reverted: `UiHandler#show(args)`
+ * contracts vary wildly — several handlers (e.g. any OptionSelectUiHandler
+ * subclass, including the title screen) require specific args and simply
+ * no-op — skipping ALL their own setup, leaving nothing visible at all —
+ * when called with none. That left the screen completely blank and
+ * unresponsive after finishing, which is far worse than the cosmetic
+ * bleed-through it was meant to fix, so it's been backed out; the rare
+ * visual overlap is an accepted tradeoff for now.
  */
-let hiddenUnderlyingHandler: UiHandler | null = null;
-
 export function beginPvpTeamEditMode(): void {
   pvpTeamEditModeActive = true;
-  hiddenUnderlyingHandler = globalScene.ui.getHandler();
-  hiddenUnderlyingHandler.clear();
   // Hides the per-slot cycle buttons (form/gender/shiny/ability/nature/tera) on
   // the mobile touch pad — see the [data-pvp-edit] rule in index.css — since
   // they're not needed just to pick species and only add to an already-crowded
@@ -99,8 +103,6 @@ export function beginPvpTeamEditMode(): void {
 
 export function endPvpTeamEditMode(): void {
   pvpTeamEditModeActive = false;
-  hiddenUnderlyingHandler?.show([]);
-  hiddenUnderlyingHandler = null;
   document.getElementById("touchControls")?.removeAttribute("data-pvp-edit");
   globalScene.inputController?.loseFocus();
 }
