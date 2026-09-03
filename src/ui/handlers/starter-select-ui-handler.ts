@@ -5,6 +5,7 @@ import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
 import { getStarterColors } from "#app/global-vars/starter-colors";
 import { activeOverrides } from "#app/overrides";
+import { isPvpTeamEditMode } from "#app/pvp-team";
 import { handleTutorial, Tutorial } from "#app/tutorial";
 import { speciesEggMoves } from "#balance/moves/egg-moves";
 import {
@@ -3076,6 +3077,12 @@ export class StarterSelectUiHandler extends MessageUiHandler {
   }
 
   getValueLimit(): number {
+    if (isPvpTeamEditMode()) {
+      // Registering a standing PvP team isn't a run subject to the usual
+      // starter-cost balance cap.
+      return 999;
+    }
+
     const valueLimit = new NumberHolder(0);
     switch (globalScene.gameMode.modeId) {
       case GameModes.ENDLESS:
@@ -4486,6 +4493,15 @@ export class StarterSelectUiHandler extends MessageUiHandler {
       ui.setModeWithoutClear(
         UiMode.CONFIRM,
         () => {
+          this.clearText();
+          if (isPvpTeamEditMode()) {
+            // Opened mid-run as a menu overlay (not via SelectStarterPhase), so
+            // there's no run-start phase queue or title screen to fall back to —
+            // just close the overlay and leave the run untouched.
+            ui.revertMode();
+            this.blockInput = false;
+            return;
+          }
           ui.setMode(UiMode.STARTER_SELECT);
           // Non-challenge modes go directly back to title, while challenge modes go to the selection screen.
           if (globalScene.gameMode.isChallenge) {
@@ -4495,7 +4511,6 @@ export class StarterSelectUiHandler extends MessageUiHandler {
           } else {
             globalScene.phaseManager.toTitleScreen();
           }
-          this.clearText();
           globalScene.phaseManager.getCurrentPhase().end();
         },
         cancel,
@@ -4529,7 +4544,9 @@ export class StarterSelectUiHandler extends MessageUiHandler {
           UiMode.CONFIRM,
           () => {
             const startRun = () => {
-              globalScene.money = globalScene.gameMode.getStartingMoney();
+              if (!isPvpTeamEditMode()) {
+                globalScene.money = globalScene.gameMode.getStartingMoney();
+              }
               const starters = this.starters.slice(0);
               ui.setMode(UiMode.STARTER_SELECT);
               const originalStarterSelectCallback = this.starterSelectCallback;

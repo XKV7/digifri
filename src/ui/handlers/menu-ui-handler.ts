@@ -5,6 +5,7 @@ import { claimGifts, type GiftPayload, getCloudSaveContext } from "#app/gift";
 import { audioManager } from "#app/global-audio-manager";
 import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
+import { savePvpTeam, setPvpTeamEditMode } from "#app/pvp-team";
 import { handleTutorial, Tutorial } from "#app/tutorial";
 import { bypassLogin, isApp, isBeta, isDev } from "#constants/app-constants";
 import { AdminMode, getAdminModeName } from "#enums/admin-mode";
@@ -13,6 +14,7 @@ import { GameDataType } from "#enums/game-data-type";
 import { TextStyle } from "#enums/text-style";
 import { UiMode } from "#enums/ui-mode";
 import { getVoucherTypeName, VoucherType } from "#system/voucher";
+import type { Starter } from "#types/save-data";
 import type { AwaitableUiHandler } from "#ui/awaitable-ui-handler";
 import type { OptionSelectConfig, OptionSelectItem } from "#ui/base-option-select-ui-handler";
 import { BgmBar } from "#ui/bgm-bar";
@@ -38,12 +40,14 @@ enum MenuOptions {
   LOG_OUT,
   GIFT_VOUCHER,
   GIFT_POKEMON,
+  PVP_TEAM,
   CLOUD_ACCOUNT,
 }
 
 const KOREAN_MENU_LABELS: Partial<Record<MenuOptions, string>> = {
   [MenuOptions.GIFT_VOUCHER]: "바우처 선물하기",
   [MenuOptions.GIFT_POKEMON]: "포켓몬 선물하기",
+  [MenuOptions.PVP_TEAM]: "PvP 팀 등록",
 };
 
 let wikiUrl = "https://wiki.pokerogue.net/start";
@@ -89,7 +93,10 @@ export class MenuUiHandler extends MessageUiHandler {
         options: [MenuOptions.EGG_GACHA, MenuOptions.EGG_LIST],
       },
       { condition: bypassLogin, options: [MenuOptions.LOG_OUT] },
-      { condition: !getCloudSaveContext(), options: [MenuOptions.GIFT_VOUCHER, MenuOptions.GIFT_POKEMON] },
+      {
+        condition: !getCloudSaveContext(),
+        options: [MenuOptions.GIFT_VOUCHER, MenuOptions.GIFT_POKEMON, MenuOptions.PVP_TEAM],
+      },
     ];
 
     this.menuOptions = getEnumValues(MenuOptions).filter(m => {
@@ -144,7 +151,10 @@ export class MenuUiHandler extends MessageUiHandler {
       },
       { condition: bypassLogin, options: [MenuOptions.LOG_OUT] },
       { condition: !globalScene.currentBattle, options: [MenuOptions.SAVE_AND_QUIT] },
-      { condition: !getCloudSaveContext(), options: [MenuOptions.GIFT_VOUCHER, MenuOptions.GIFT_POKEMON] },
+      {
+        condition: !getCloudSaveContext(),
+        options: [MenuOptions.GIFT_VOUCHER, MenuOptions.GIFT_POKEMON, MenuOptions.PVP_TEAM],
+      },
     ];
 
     this.menuOptions = getEnumValues(MenuOptions).filter(m => {
@@ -821,6 +831,28 @@ export class MenuUiHandler extends MessageUiHandler {
               "Z: 선물(내 계정에서 사라짐)   X: 취소",
             );
           }
+          success = true;
+          break;
+        }
+        case MenuOptions.PVP_TEAM: {
+          ui.revertMode();
+          const prevMoney = globalScene.money;
+          setPvpTeamEditMode(true);
+          ui.setOverlayMode(UiMode.STARTER_SELECT, (starters: Starter[]) => {
+            setPvpTeamEditMode(false);
+            globalScene.money = prevMoney;
+            ui.setMode(UiMode.MENU);
+            void savePvpTeam(starters).then(ok => {
+              ui.showText(
+                ok
+                  ? `PvP 팀이 저장되었습니다. (${starters.length}마리)`
+                  : "PvP 팀 저장에 실패했습니다. 다시 시도해주세요.",
+                null,
+                () => ui.showText(""),
+                fixedInt(2000),
+              );
+            });
+          });
           success = true;
           break;
         }
