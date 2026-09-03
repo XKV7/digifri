@@ -15,7 +15,9 @@
  */
 
 import { getCloudSaveContext } from "#app/gift";
+import { globalScene } from "#app/global-scene";
 import type { Starter } from "#types/save-data";
+import type { UiHandler } from "#ui/ui-handler";
 import { doc, getDoc, getFirestore, setDoc } from "firebase/firestore";
 
 export async function savePvpTeam(starters: Starter[]): Promise<boolean> {
@@ -57,16 +59,36 @@ export async function loadPvpTeam(uid?: string): Promise<Starter[] | null> {
  * While true, StarterSelectUiHandler relaxes the normal per-run starter-cost
  * value limit and skips the run-affecting side effects (starting money reset,
  * title-screen/phase-queue changes on exit) that only make sense when the
- * screen is opened via SelectStarterPhase to actually start a run. Set around
- * opening the screen for PvP team registration (which can happen mid-run,
- * from the ESC menu) and cleared once that flow ends.
+ * screen is opened via SelectStarterPhase to actually start a run. Set by
+ * beginPvpTeamEditMode()/endPvpTeamEditMode() below.
  */
 let pvpTeamEditModeActive = false;
 
-export function setPvpTeamEditMode(active: boolean): void {
-  pvpTeamEditModeActive = active;
-}
-
 export function isPvpTeamEditMode(): boolean {
   return pvpTeamEditModeActive;
+}
+
+/**
+ * The screen reused for PvP team registration (StarterSelectUiHandler) is
+ * normally only ever entered via a full `ui.setMode()` that clears whatever
+ * was showing before it (SelectStarterPhase, always from a freshly-cleared
+ * title screen). Opening it here instead as a non-clearing `setOverlayMode()`
+ * overlay (so we can cleanly `ui.revertMode()` back to wherever the menu was
+ * opened from, title or mid-run) leaves the previous screen's own visuals
+ * still rendered underneath, which bleeds through the gaps in the starter
+ * select screen's own background/instruction box. Explicitly hiding it while
+ * the editor is open — and restoring it once done — avoids that.
+ */
+let hiddenUnderlyingHandler: UiHandler | null = null;
+
+export function beginPvpTeamEditMode(): void {
+  pvpTeamEditModeActive = true;
+  hiddenUnderlyingHandler = globalScene.ui.getHandler();
+  hiddenUnderlyingHandler.clear();
+}
+
+export function endPvpTeamEditMode(): void {
+  pvpTeamEditModeActive = false;
+  hiddenUnderlyingHandler?.show([]);
+  hiddenUnderlyingHandler = null;
 }

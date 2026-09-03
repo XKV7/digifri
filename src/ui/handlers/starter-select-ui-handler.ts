@@ -5,7 +5,7 @@ import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
 import { getStarterColors } from "#app/global-vars/starter-colors";
 import { activeOverrides } from "#app/overrides";
-import { isPvpTeamEditMode } from "#app/pvp-team";
+import { endPvpTeamEditMode, isPvpTeamEditMode } from "#app/pvp-team";
 import { handleTutorial, Tutorial } from "#app/tutorial";
 import { speciesEggMoves } from "#balance/moves/egg-moves";
 import {
@@ -4498,6 +4498,7 @@ export class StarterSelectUiHandler extends MessageUiHandler {
             // Opened mid-run as a menu overlay (not via SelectStarterPhase), so
             // there's no run-start phase queue or title screen to fall back to —
             // just close the overlay and leave the run untouched.
+            endPvpTeamEditMode();
             ui.revertMode();
             this.blockInput = false;
             return;

@@ -5,7 +5,7 @@ import { claimGifts, type GiftPayload, getCloudSaveContext } from "#app/gift";
 import { audioManager } from "#app/global-audio-manager";
 import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
-import { savePvpTeam, setPvpTeamEditMode } from "#app/pvp-team";
+import { beginPvpTeamEditMode, endPvpTeamEditMode, savePvpTeam } from "#app/pvp-team";
 import { handleTutorial, Tutorial } from "#app/tutorial";
 import { bypassLogin, isApp, isBeta, isDev } from "#constants/app-constants";
 import { AdminMode, getAdminModeName } from "#enums/admin-mode";
@@ -837,11 +837,11 @@ export class MenuUiHandler extends MessageUiHandler {
         case MenuOptions.PVP_TEAM: {
           ui.revertMode();
           const prevMoney = globalScene.money;
-          setPvpTeamEditMode(true);
+          beginPvpTeamEditMode();
           ui.setOverlayMode(UiMode.STARTER_SELECT, (starters: Starter[]) => {
-            setPvpTeamEditMode(false);
+            endPvpTeamEditMode();
             globalScene.money = prevMoney;
-            ui.setMode(UiMode.MENU);
+            ui.revertMode();
             void savePvpTeam(starters).then(ok => {
               ui.showText(
                 ok
