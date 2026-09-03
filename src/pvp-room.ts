@@ -26,6 +26,7 @@ import {
   query,
   runTransaction,
   serverTimestamp,
+  setDoc,
   type Timestamp,
   where,
 } from "firebase/firestore";
@@ -60,14 +61,14 @@ export async function createPvpRoom(hostName: string): Promise<string | null> {
     return null;
   }
   try {
+    // A brand-new document, so a plain write is enough — no read-modify-write race to guard
+    // against a transaction would be for (unlike join/cancel below, which do have one).
     const roomRef = doc(collection(db(), "pvpRooms"));
-    await runTransaction(db(), async transaction => {
-      transaction.set(roomRef, {
-        hostUid: ctx.user.uid,
-        hostName,
-        status: "waiting",
-        createdAt: serverTimestamp(),
-      });
+    await setDoc(roomRef, {
+      hostUid: ctx.user.uid,
+      hostName,
+      status: "waiting",
+      createdAt: serverTimestamp(),
     });
     setMyActivePvpRoomId(roomRef.id);
     return roomRef.id;

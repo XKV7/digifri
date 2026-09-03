@@ -30,6 +30,7 @@ import { Device } from "#enums/devices";
 import { DexAttr } from "#enums/dex-attr";
 import { DropDownColumn } from "#enums/drop-down-column";
 import { EggSourceType } from "#enums/egg-source-types";
+import { EggTier } from "#enums/egg-type";
 import { GameModes } from "#enums/game-modes";
 import type { MoveId } from "#enums/move-id";
 import type { Nature } from "#enums/nature";
@@ -1834,7 +1835,11 @@ export class StarterSelectUiHandler extends MessageUiHandler {
             );
             const isCaught = this.getSpeciesData(species.speciesId).dexEntry.caughtAttr;
             return (
-              !isDupe && isValidForChallenge && currentPartyValue + starterCost <= this.getValueLimit() && isCaught
+              !isDupe
+              && isValidForChallenge
+              && currentPartyValue + starterCost <= this.getValueLimit()
+              && isCaught
+              && this.isPvpTierAllowed(species)
             );
           });
           if (validStarters.length === 0) {
@@ -1958,6 +1963,7 @@ export class StarterSelectUiHandler extends MessageUiHandler {
             && isValidForChallenge
             && currentPartyValue + newCost <= this.getValueLimit()
             && this.starterSpecies.length < PLAYER_PARTY_MAX_SIZE
+            && this.isPvpTierAllowed(this.lastSpecies)
           ) {
             options = [
               {
@@ -2813,6 +2819,25 @@ export class StarterSelectUiHandler extends MessageUiHandler {
       }
     }
     return [isDupe, removeIndex];
+  }
+
+  /**
+   * For a PvP team, at most one Epic-tier (전설, sub-legendary) or Legendary-tier
+   * (환상, mythical) egg-tier species — i.e. one from either of the two rarest egg
+   * pools — may be on the roster at a time. Always true outside PvP team editing.
+   */
+  private isPvpTierAllowed(species: PokemonSpecies): boolean {
+    if (!isPvpTeamEditMode()) {
+      return true;
+    }
+    const isRestrictedTier = (id: SpeciesId) => {
+      const tier = speciesDataRegistry.getEggTier(id);
+      return tier === EggTier.EPIC || tier === EggTier.LEGENDARY;
+    };
+    if (!isRestrictedTier(species.speciesId)) {
+      return true;
+    }
+    return !this.starterSpecies.some(s => isRestrictedTier(s.speciesId));
   }
 
   addToParty(

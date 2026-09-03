@@ -64,7 +64,7 @@ service cloud.firestore {
                     && request.resource.data.hostName is string
                     && request.resource.data.status == 'waiting'
                     && request.resource.data.keys().hasOnly(['hostUid', 'hostName', 'status', 'createdAt'])
-                    && request.resource.data.createdAt == request.time;
+                    && request.resource.data.createdAt is timestamp;
 
       allow update: if request.auth != null
                     && (
