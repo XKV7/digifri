@@ -628,6 +628,7 @@ export class MenuUiHandler extends MessageUiHandler {
     const options: OptionSelectItem[] = rooms.map(r => ({
       label: `${r.hostName}의 방 입장하기`,
       handler: () => {
+        ui.revertMode();
         void this.tryJoinPvpRoom(r.id, myName);
         return true;
       },
@@ -636,6 +637,7 @@ export class MenuUiHandler extends MessageUiHandler {
       {
         label: "새 방 만들기",
         handler: () => {
+          ui.revertMode();
           void this.tryCreatePvpRoom(myName);
           return true;
         },
