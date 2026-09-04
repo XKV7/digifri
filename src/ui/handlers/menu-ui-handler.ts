@@ -9,6 +9,7 @@ import {
   cancelPvpRoom,
   closePvpWaitingPanel,
   createPvpRoom,
+  finishPvpTeamPreview,
   getMyActivePvpRoomId,
   getPvpRoomOnce,
   joinPvpRoom,
@@ -16,6 +17,8 @@ import {
   type PvpRoomWithId,
   setMyActivePvpRoomId,
   showPvpWaitingPanel,
+  submitPvpTeamPreviewPicks,
+  subscribePvpRoom,
 } from "#app/pvp-room";
 import { beginPvpTeamEditMode, endPvpTeamEditMode, loadPvpTeam, savePvpTeam } from "#app/pvp-team";
 import { handleTutorial, Tutorial } from "#app/tutorial";
@@ -89,6 +92,9 @@ export class MenuUiHandler extends MessageUiHandler {
 
   protected manageDataConfig: OptionSelectConfig;
   protected communityConfig: OptionSelectConfig;
+
+  /** Live watch (unsubscribe fn) started after submitting team-preview picks — see watchPvpTeamPreviewCompletion(). */
+  private pvpTeamPreviewUnsub: (() => void) | null = null;
 
   // Windows for the default message box and the message box for testing dialogue
   private menuMessageBox: Phaser.GameObjects.NineSlice;
@@ -619,11 +625,15 @@ export class MenuUiHandler extends MessageUiHandler {
         this.showPvpWaitingRoomOptions(room);
         return;
       }
-      if (room && (amHost || amGuest) && (room.status === "team_preview" || room.status === "battling")) {
+      if (room && (amHost || amGuest) && room.status === "team_preview") {
         closePvpWaitingPanel();
-        const opponentName = amHost ? room.guestName : room.hostName;
+        void this.openPvpTeamPreview(room, amHost);
+        return;
+      }
+      if (room && (amHost || amGuest) && room.status === "battling") {
+        closePvpWaitingPanel();
         ui.showText(
-          `상대(${opponentName})가 입장했습니다! 팀 선출/대전 기능은 다음 업데이트에서 제공됩니다.`,
+          "대전이 진행 중입니다. 실제 대전 기능은 다음 업데이트에서 제공됩니다.",
           null,
           () => ui.showText(""),
           fixedInt(4000),
@@ -700,6 +710,126 @@ export class MenuUiHandler extends MessageUiHandler {
       },
     );
     ui.setOverlayMode(UiMode.OPTION_SELECT, { options });
+  }
+
+  /**
+   * Opens team preview for a room that's moved past "waiting" (a guest has joined): shows the
+   * opponent's registered 6-Pokemon PvP team, then lets the caller pick 3 of their own to bring
+   * into the battle. Re-entrant — safe to call again after already submitting (e.g. reopening
+   * the menu while still waiting on the opponent), in which case it just resumes watching for
+   * their picks instead of re-showing the picker.
+   */
+  private async openPvpTeamPreview(room: PvpRoomWithId, amHost: boolean): Promise<void> {
+    const ui = this.getUi();
+    const myPicks = amHost ? room.hostPicks : room.guestPicks;
+    const opponentPicks = amHost ? room.guestPicks : room.hostPicks;
+
+    if (myPicks && opponentPicks) {
+      // Shouldn't normally be reachable — finishPvpTeamPreview() clears the local active-room
+      // pointer once both sides are in — but guard anyway in case of a stale reopen.
+      ui.showText(
+        "양쪽 다 팀 선출을 완료했습니다! 실제 대전 기능은 다음 업데이트에서 제공됩니다.",
+        null,
+        () => ui.showText(""),
+        fixedInt(4000),
+      );
+      return;
+    }
+    if (myPicks) {
+      ui.showText("선택을 완료했습니다. 상대의 선택을 기다리는 중...", null);
+      this.watchPvpTeamPreviewCompletion(room);
+      return;
+    }
+
+    const opponentUid = amHost ? room.guestUid : room.hostUid;
+    const opponentName = amHost ? room.guestName : room.hostName;
+    const myTeam = await loadPvpTeam();
+    const opponentTeam = opponentUid ? await loadPvpTeam(opponentUid) : null;
+    if (!myTeam || myTeam.length === 0 || !opponentTeam || opponentTeam.length === 0) {
+      ui.showText("팀 정보를 불러오지 못했습니다.", null, () => ui.showText(""), fixedInt(3000));
+      return;
+    }
+
+    const speciesName = (starter: Starter) =>
+      speciesDataRegistry.getSpecies(starter.speciesId).getName(starter.formIndex);
+    const opponentListText = opponentTeam.map((s, i) => `${i + 1}. ${speciesName(s)}`).join("\n");
+    ui.showText(
+      `상대(${opponentName})의 등록 팀:$${opponentListText}$내 팀에서 대전에 데려갈 3마리를 선택하세요.`,
+      null,
+      () => this.showPvpTeamPickSelector(room, amHost, myTeam, []),
+      null,
+      true,
+    );
+  }
+
+  /** Toggleable species picker for team preview — select exactly 3, then confirm. */
+  private showPvpTeamPickSelector(room: PvpRoomWithId, amHost: boolean, myTeam: Starter[], selected: number[]): void {
+    const ui = this.getUi();
+    const speciesName = (starter: Starter) =>
+      speciesDataRegistry.getSpecies(starter.speciesId).getName(starter.formIndex);
+
+    const options: OptionSelectItem[] = myTeam.map((starter, i) => ({
+      label: `${selected.includes(i) ? "✔ " : "　"}${speciesName(starter)}`,
+      handler: () => {
+        ui.revertMode();
+        const alreadyPicked = selected.includes(i);
+        const next = alreadyPicked ? selected.filter(x => x !== i) : selected.length < 3 ? [...selected, i] : selected; // already 3 picked and this one isn't among them — tap does nothing
+        this.showPvpTeamPickSelector(room, amHost, myTeam, next);
+        return true;
+      },
+    }));
+
+    options.push({
+      label: selected.length === 3 ? "확정하기" : `확정하기 (${selected.length}/3 선택됨)`,
+      handler: () => {
+        ui.revertMode();
+        if (selected.length !== 3) {
+          this.showPvpTeamPickSelector(room, amHost, myTeam, selected);
+          return true;
+        }
+        void this.confirmPvpTeamPreviewPicks(room, amHost, selected);
+        return true;
+      },
+    });
+
+    ui.setOverlayMode(UiMode.OPTION_SELECT, { options });
+  }
+
+  private async confirmPvpTeamPreviewPicks(room: PvpRoomWithId, amHost: boolean, picks: number[]): Promise<void> {
+    const ui = this.getUi();
+    const ok = await submitPvpTeamPreviewPicks(room.id, amHost, picks);
+    if (!ok) {
+      ui.showText("선택 제출에 실패했습니다. 다시 시도해주세요.", null, () => ui.showText(""), fixedInt(3000));
+      return;
+    }
+    ui.showText("선택을 완료했습니다. 상대의 선택을 기다리는 중...", null);
+    this.watchPvpTeamPreviewCompletion(room);
+  }
+
+  /** Watches the room live for the opponent's picks to arrive, then wraps up team preview for both sides. */
+  private watchPvpTeamPreviewCompletion(room: PvpRoomWithId): void {
+    if (this.pvpTeamPreviewUnsub) {
+      this.pvpTeamPreviewUnsub();
+      this.pvpTeamPreviewUnsub = null;
+    }
+    const ui = this.getUi();
+    this.pvpTeamPreviewUnsub = subscribePvpRoom(room.id, updated => {
+      const bothPicked = !!updated && !!updated.hostPicks && !!updated.guestPicks;
+      if (!bothPicked) {
+        return;
+      }
+      if (this.pvpTeamPreviewUnsub) {
+        this.pvpTeamPreviewUnsub();
+        this.pvpTeamPreviewUnsub = null;
+      }
+      void finishPvpTeamPreview(room.id);
+      ui.showText(
+        "양쪽 다 팀 선출을 완료했습니다! 실제 대전 기능은 다음 업데이트에서 제공됩니다.",
+        null,
+        () => ui.showText(""),
+        fixedInt(5000),
+      );
+    });
   }
 
   private showPvpWaitingRoomOptions(room: PvpRoomWithId): void {

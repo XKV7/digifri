@@ -52,10 +52,15 @@ service cloud.firestore {
 
     // PvP lobby rooms (see src/pvp-room.ts). Any signed-in user may list/read
     // rooms (to show the open-room lobby and watch a joined room live). A room
-    // is created by its host (status must start "waiting"); after that, only
-    // the host may update it (e.g. cancel it), or a different signed-in user
-    // may join it once by claiming the still-empty guest slot while it's still
-    // "waiting", moving it to "team_preview".
+    // is created by its host (status must start "waiting"); after that, the
+    // host may update it freely (cancel it, submit team-preview picks, mark it
+    // finished), a different signed-in user may join it once by claiming the
+    // still-empty guest slot while it's still "waiting" (moving it to
+    // "team_preview"), and once they're the guest they may likewise update it
+    // freely (submit their own picks, mark it finished). Not locked down
+    // further than "must already be host/guest of this room" — per the
+    // project's own stated threat model, cheating by directly editing PvP data
+    // isn't a concern here.
     match /pvpRooms/{roomId} {
       allow get, list: if request.auth != null;
 
@@ -69,6 +74,7 @@ service cloud.firestore {
       allow update: if request.auth != null
                     && (
                       resource.data.hostUid == request.auth.uid
+                      || resource.data.guestUid == request.auth.uid
                       || (
                         resource.data.status == 'waiting'
                         && resource.data.hostUid != request.auth.uid

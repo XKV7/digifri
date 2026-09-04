@@ -28,6 +28,7 @@ import {
   serverTimestamp,
   setDoc,
   type Timestamp,
+  updateDoc,
   where,
 } from "firebase/firestore";
 
@@ -40,6 +41,9 @@ export interface PvpRoom {
   createdAt: Timestamp;
   guestUid?: string;
   guestName?: string;
+  /** Indices (0-5) into the host's/guest's registered PvP team, chosen during team preview. */
+  hostPicks?: number[];
+  guestPicks?: number[];
 }
 
 export interface PvpRoomWithId extends PvpRoom {
@@ -272,6 +276,47 @@ export async function cancelPvpRoom(roomId: string): Promise<void> {
     });
   } catch (err) {
     console.error("Failed to cancel PvP room:", err);
+  } finally {
+    if (getMyActivePvpRoomId() === roomId) {
+      setMyActivePvpRoomId(null);
+    }
+  }
+}
+
+/**
+ * Submits the caller's chosen 3-of-6 team-preview picks (indices into their own registered
+ * PvP team — see pvp-team.ts). `isHost` says which side's field to write, since the caller
+ * already knows this from the room doc they're looking at.
+ */
+export async function submitPvpTeamPreviewPicks(roomId: string, isHost: boolean, picks: number[]): Promise<boolean> {
+  const ctx = getCloudSaveContext();
+  if (!ctx) {
+    return false;
+  }
+  try {
+    await updateDoc(doc(db(), "pvpRooms", roomId), isHost ? { hostPicks: picks } : { guestPicks: picks });
+    return true;
+  } catch (err) {
+    console.error("Failed to submit PvP team preview picks:", err);
+    return false;
+  }
+}
+
+/**
+ * Marks a room "finished" once both sides' team-preview picks are in. Either participant may
+ * call this (both do, independently, on seeing both picks arrive — see
+ * watchPvpTeamPreviewCompletion in menu-ui-handler.ts) — idempotent, so a race between them is
+ * harmless. Also clears the caller's own local active-room pointer.
+ */
+export async function finishPvpTeamPreview(roomId: string): Promise<void> {
+  const ctx = getCloudSaveContext();
+  if (!ctx) {
+    return;
+  }
+  try {
+    await updateDoc(doc(db(), "pvpRooms", roomId), { status: "finished" });
+  } catch (err) {
+    console.error("Failed to finish PvP team preview:", err);
   } finally {
     if (getMyActivePvpRoomId() === roomId) {
       setMyActivePvpRoomId(null);
