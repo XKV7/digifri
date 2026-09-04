@@ -39,7 +39,6 @@ import type { MoveId } from "#enums/move-id";
 import type { Nature } from "#enums/nature";
 import { Passive as PassiveAttr } from "#enums/passive";
 import { MAX_REGULAR_POKEMON_TYPE, MIN_REGULAR_POKEMON_TYPE, PokemonType } from "#enums/pokemon-type";
-import { SpeciesFormKey } from "#enums/species-form-key";
 import { SpeciesId } from "#enums/species-id";
 import { TextStyle } from "#enums/text-style";
 import { UiMode } from "#enums/ui-mode";
@@ -3130,10 +3129,12 @@ export class StarterSelectUiHandler extends MessageUiHandler {
 
   /**
    * PvP team registration only: builds the pool of held items offered for a given species/form —
-   * every berry, every mega stone that species/form can actually use (matched via its
-   * SpeciesFormChangeItemTrigger form changes, same lookup FormChangeItemModifierType itself uses
-   * to gray out inapplicable items in the normal in-run item screen), every attack-type booster
-   * (Silk Scarf, Charcoal, ...), and a curated set of the game's other genuinely per-Pokemon held
+   * every berry, every form-change item that species/form can actually use — mega stones (e.g.
+   * Charizardite X), legendary form items (Rusted Sword, Reveal Glass, the Griseous Core, ...),
+   * and the other item-triggered form changes (Plates, Drives, Masks, ...) alike, all matched via
+   * the same SpeciesFormChangeItemTrigger lookup FormChangeItemModifierType itself uses to gray
+   * out inapplicable items in the normal in-run item screen — plus every attack-type booster
+   * (Silk Scarf, Charcoal, ...) and a curated set of the game's other genuinely per-Pokemon held
    * items. Deliberately excludes run-wide/non-held modifiers (Nugget, Exp Share, ...) and one-shot
    * consumable vitamins (HP Up, Protein, ...), neither of which are things a Pokemon "holds".
    */
@@ -3149,15 +3150,15 @@ export class StarterSelectUiHandler extends MessageUiHandler {
     }
 
     const formKey = species.forms[formIndex]?.formKey ?? "";
-    const megaStoneItems = new Set(
+    const formChangeItems = new Set(
       speciesDataRegistry
         .getFormChanges(species.speciesId)
-        .filter(fc => fc.preFormKey === formKey && fc.formKey.indexOf(SpeciesFormKey.MEGA) !== -1)
+        .filter(fc => fc.preFormKey === formKey)
         .map(fc => fc.findTrigger(SpeciesFormChangeItemTrigger) as SpeciesFormChangeItemTrigger | null | undefined)
         .filter((trigger): trigger is SpeciesFormChangeItemTrigger => !!trigger?.active)
         .map(trigger => trigger.item),
     );
-    for (const item of megaStoneItems) {
+    for (const item of formChangeItems) {
       pool.push({ typeId: "FORM_CHANGE_ITEM", pregenArgs: [item as FormChangeItem] });
     }
 
