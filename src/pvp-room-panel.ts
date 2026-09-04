@@ -278,7 +278,7 @@ async function renderForRoom(roomId: string, isHost: boolean, room: PvpRoom): Pr
 
   const opponentUid = isHost ? room.guestUid : room.hostUid;
   const [myTeam, opponentTeam] = await Promise.all([loadPvpTeam(), opponentUid ? loadPvpTeam(opponentUid) : null]);
-  if (myTeam?.length === 0 || opponentTeam?.length === 0) {
+  if (!myTeam || myTeam.length === 0 || !opponentTeam || opponentTeam.length === 0) {
     renderError("팀 정보를 불러오지 못했습니다.");
     return;
   }
