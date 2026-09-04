@@ -253,6 +253,8 @@ const GENERAL_PVP_HELD_ITEM_IDS = [
   "LUCKY_EGG",
   "GOLDEN_EGG",
   "SOOTHE_BELL",
+  "WHITE_HERB",
+  "MYSTICAL_ROCK",
 ];
 
 /** A stable string key for a `Starter.heldItem` reference, used to detect duplicate held-item assignments across a PvP team. */
