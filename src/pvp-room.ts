@@ -22,7 +22,6 @@ import {
   getDocs,
   getFirestore,
   onSnapshot,
-  orderBy,
   query,
   runTransaction,
   serverTimestamp,
@@ -82,12 +81,21 @@ export async function createPvpRoom(hostName: string): Promise<string | null> {
   }
 }
 
+/** Newest-first, guarding against createdAt still being an unresolved server-timestamp sentinel (null) locally. */
+function byCreatedAtDesc(a: PvpRoom, b: PvpRoom): number {
+  return (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0);
+}
+
 /** One-shot fetch of the currently open ("waiting") rooms, newest first. */
 export async function listOpenPvpRoomsOnce(): Promise<PvpRoomWithId[]> {
   try {
-    const q = query(collection(db(), "pvpRooms"), where("status", "==", "waiting"), orderBy("createdAt", "desc"));
+    // Sorted client-side rather than via a second `orderBy("createdAt")` clause — combining
+    // that with the `where("status", ...)` filter above would need a composite index created
+    // manually in the Firebase console, which nothing here prompts for or checks; skipping it
+    // avoids that trap entirely.
+    const q = query(collection(db(), "pvpRooms"), where("status", "==", "waiting"));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as PvpRoom) }));
+    return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as PvpRoom) })).sort(byCreatedAtDesc);
   } catch (err) {
     console.error("Failed to list PvP rooms:", err);
     return [];
@@ -125,11 +133,11 @@ export function setMyActivePvpRoomId(roomId: string | null): void {
  * with the current list every time it changes. Returns an unsubscribe function.
  */
 export function subscribeOpenPvpRooms(onUpdate: (rooms: PvpRoomWithId[]) => void): () => void {
-  const q = query(collection(db(), "pvpRooms"), where("status", "==", "waiting"), orderBy("createdAt", "desc"));
+  const q = query(collection(db(), "pvpRooms"), where("status", "==", "waiting"));
   return onSnapshot(
     q,
     snapshot => {
-      onUpdate(snapshot.docs.map(d => ({ id: d.id, ...(d.data() as PvpRoom) })));
+      onUpdate(snapshot.docs.map(d => ({ id: d.id, ...(d.data() as PvpRoom) })).sort(byCreatedAtDesc));
     },
     err => console.error("PvP room list subscription failed:", err),
   );
