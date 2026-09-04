@@ -592,8 +592,8 @@ export class MenuUiHandler extends MessageUiHandler {
 
   /**
    * Opens the PvP lobby: if the caller already has an active room (created or joined,
-   * remembered locally), shows its current status; otherwise lists open rooms to join,
-   * plus an option to create a new one. See src/pvp-room.ts.
+   * remembered locally), shows its current status; otherwise offers to browse open rooms
+   * to join (showPvpRoomList()) or create a new one. See src/pvp-room.ts.
    */
   private async openPvpLobby(): Promise<void> {
     const ui = this.getUi();
@@ -634,7 +634,46 @@ export class MenuUiHandler extends MessageUiHandler {
       setMyActivePvpRoomId(null);
     }
 
+    const options: OptionSelectItem[] = [
+      {
+        label: "입장하기",
+        handler: () => {
+          ui.revertMode();
+          void this.showPvpRoomList(myName);
+          return true;
+        },
+      },
+      {
+        label: "새 방 만들기",
+        handler: () => {
+          ui.revertMode();
+          void this.tryCreatePvpRoom(myName);
+          return true;
+        },
+      },
+      {
+        label: i18next.t("menu:cancel"),
+        handler: () => {
+          ui.revertMode();
+          return true;
+        },
+      },
+    ];
+    ui.setOverlayMode(UiMode.OPTION_SELECT, { options });
+  }
+
+  /** Lists the currently open ("waiting") rooms to join, reachable via the lobby's "입장하기" button. */
+  private async showPvpRoomList(myName: string): Promise<void> {
+    const ui = this.getUi();
+    const ctx = getCloudSaveContext();
+    if (!ctx) {
+      return;
+    }
     const rooms = (await listOpenPvpRoomsOnce()).filter(r => r.hostUid !== ctx.user.uid);
+    if (rooms.length === 0) {
+      ui.showText("현재 대기중인 방이 없습니다.", null, () => ui.showText(""), fixedInt(2000));
+      return;
+    }
     const options: OptionSelectItem[] = rooms.map(r => ({
       label: `${r.hostName}의 방 입장하기`,
       handler: () => {
@@ -645,10 +684,10 @@ export class MenuUiHandler extends MessageUiHandler {
     }));
     options.push(
       {
-        label: "새 방 만들기",
+        label: "새로고침",
         handler: () => {
           ui.revertMode();
-          void this.tryCreatePvpRoom(myName);
+          void this.showPvpRoomList(myName);
           return true;
         },
       },
