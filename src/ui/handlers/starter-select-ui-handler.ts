@@ -1978,15 +1978,25 @@ export class StarterSelectUiHandler extends MessageUiHandler {
                     this.starterCursorObjs[this.starterSpecies.length]
                       .setVisible(true)
                       .setPosition(this.cursorObj.x, this.cursorObj.y);
-                    this.addToParty(
-                      this.lastSpecies,
-                      this.dexAttrCursor,
-                      this.abilityCursor,
-                      this.natureCursor as unknown as Nature,
-                      this.starterMoveset?.slice(0) as StarterMoveset,
-                      this.teraCursor,
-                    );
-                    ui.playSelect();
+                    if (isPvpTeamEditMode()) {
+                      void this.addToPartyPvp(
+                        this.lastSpecies,
+                        this.dexAttrCursor,
+                        this.abilityCursor,
+                        this.natureCursor as unknown as Nature,
+                        this.teraCursor,
+                      );
+                    } else {
+                      this.addToParty(
+                        this.lastSpecies,
+                        this.dexAttrCursor,
+                        this.abilityCursor,
+                        this.natureCursor as unknown as Nature,
+                        this.starterMoveset?.slice(0) as StarterMoveset,
+                        this.teraCursor,
+                      );
+                      ui.playSelect();
+                    }
                   } else {
                     ui.playError(); // this should be redundant as there is now a trigger for when a pokemon can't be added to party
                   }
@@ -2889,6 +2899,181 @@ export class StarterSelectUiHandler extends MessageUiHandler {
       getPokemonSpeciesForm(species.speciesId, props.formIndex).cry();
     }
     this.updateInstructions();
+  }
+
+  /**
+   * PvP team registration only: like addToParty(), but first lets the player pick any stage of
+   * the hovered species' evolution line (not just the unevolved form shown in the grid) and a
+   * moveset drawn from that stage's full learnable movepool (every level-up move, not just the
+   * normal 1-5 range, plus every compatible TM) rather than the constrained starting moveset.
+   * The resulting Starter is fixed at level 100 with evolution paused, so it never evolves past
+   * whichever stage was registered.
+   *
+   * Reuses the base (grid) species' dex-derived shiny/variant/gender/IVs — the evolved stage
+   * itself need not be individually caught/unlocked, since only the base species has to be.
+   */
+  private async addToPartyPvp(
+    baseSpecies: PokemonSpecies,
+    dexAttr: bigint,
+    abilityIndex: number,
+    nature: Nature,
+    teraType: PokemonType,
+  ): Promise<void> {
+    const ui = this.getUi();
+    const chosenSpecies = await this.choosePvpEvolutionStage(baseSpecies);
+    if (!chosenSpecies) {
+      return;
+    }
+    const moveset = await this.choosePvpMoveset(chosenSpecies);
+    if (!moveset) {
+      return;
+    }
+
+    const props = globalScene.gameData.getSpeciesDexAttrProps(baseSpecies, dexAttr);
+    const { dexEntry } = this.getSpeciesData(baseSpecies.speciesId);
+
+    this.starterIcons[this.starterSpecies.length].setTexture(
+      chosenSpecies.getIconAtlasKey(props.formIndex, props.shiny, props.variant),
+    );
+    this.starterIcons[this.starterSpecies.length].setFrame(
+      chosenSpecies.getIconId(props.female, props.formIndex, props.shiny, props.variant),
+    );
+    this.checkIconId(
+      this.starterIcons[this.starterSpecies.length],
+      chosenSpecies,
+      props.female,
+      props.formIndex,
+      props.shiny,
+      props.variant,
+    );
+
+    const starter: Starter = {
+      speciesId: chosenSpecies.speciesId,
+      shiny: props.shiny,
+      variant: props.variant,
+      formIndex: props.formIndex,
+      female: props.female,
+      abilityIndex,
+      passive: false,
+      nature,
+      moveset,
+      pokerus: false,
+      teraType,
+      ivs: dexEntry.ivs,
+      level: 100,
+      pauseEvolutions: true,
+    };
+
+    this.starters.push(starter);
+    this.starterSpecies.push(chosenSpecies);
+    this.updateInstructions();
+    ui.playSelect();
+  }
+
+  /** PvP team registration only: lets the player pick which stage of a species' evolution line to actually register. Resolves the base species immediately if it has no evolutions, no prompt shown. */
+  private choosePvpEvolutionStage(baseSpecies: PokemonSpecies): Promise<PokemonSpecies | null> {
+    const evolutionChain = speciesDataRegistry.getEvolutionChain(baseSpecies.speciesId);
+    if (evolutionChain.length === 0) {
+      return Promise.resolve(baseSpecies);
+    }
+    const stages = [baseSpecies, ...evolutionChain.map(id => speciesDataRegistry.getSpecies(id))];
+    const ui = this.getUi();
+    return new Promise(resolve => {
+      ui.setMode(UiMode.STARTER_SELECT).then(() => {
+        ui.showText("어떤 진화 단계로 등록하시겠습니까?", null, () => {
+          const options: OptionSelectItem[] = stages.map(stage => ({
+            label: stage.getName(),
+            handler: () => {
+              this.clearText();
+              ui.setMode(UiMode.STARTER_SELECT);
+              resolve(stage);
+              return true;
+            },
+          }));
+          options.push({
+            label: i18next.t("menu:cancel"),
+            handler: () => {
+              this.clearText();
+              ui.setMode(UiMode.STARTER_SELECT);
+              resolve(null);
+              return true;
+            },
+          });
+          ui.setModeWithoutClear(UiMode.OPTION_SELECT, { options, maxOptions: 8, yOffset: 19 });
+        });
+      });
+    });
+  }
+
+  /**
+   * PvP team registration only: lets the player pick up to 4 moves from a species' full
+   * learnable movepool — every level-up move (not just levels 1-5) plus every TM it (or any of
+   * its prevolutions) can learn — rather than the normal constrained starting moveset.
+   */
+  private choosePvpMoveset(species: PokemonSpecies): Promise<StarterMoveset | null> {
+    const levelMoves = speciesDataRegistry.getLevelMoves(species.speciesId).map(([, moveId]) => moveId);
+    const tms = speciesDataRegistry.getTms(species.speciesId);
+    const pool = Array.from(new Set([...levelMoves, ...tms])).filter(moveId => !!allMoves[moveId]);
+    let chosen: MoveId[] = [];
+    const ui = this.getUi();
+
+    return new Promise(resolve => {
+      const render = () => {
+        ui.setMode(UiMode.STARTER_SELECT).then(() => {
+          if (pool.length > 0) {
+            this.moveInfoOverlay.show(allMoves[pool[0]]);
+          }
+          const options: OptionSelectItem[] = pool.map(moveId => ({
+            label: `${chosen.includes(moveId) ? "✔ " : "　"}${allMoves[moveId].name}`,
+            handler: () => {
+              if (chosen.includes(moveId)) {
+                chosen = chosen.filter(m => m !== moveId);
+              } else if (chosen.length < 4) {
+                chosen = [...chosen, moveId];
+              }
+              render();
+              return true;
+            },
+            onHover: () => this.moveInfoOverlay.show(allMoves[moveId]),
+          }));
+          options.push(
+            {
+              label: chosen.length > 0 ? "확정하기" : "확정하기 (최소 1개 선택)",
+              handler: () => {
+                if (chosen.length === 0) {
+                  render();
+                  return true;
+                }
+                this.moveInfoOverlay.clear();
+                ui.setMode(UiMode.STARTER_SELECT);
+                resolve(chosen.slice(0, 4) as StarterMoveset);
+                return true;
+              },
+              onHover: () => this.moveInfoOverlay.clear(),
+            },
+            {
+              label: i18next.t("menu:cancel"),
+              handler: () => {
+                this.moveInfoOverlay.clear();
+                ui.setMode(UiMode.STARTER_SELECT);
+                resolve(null);
+                return true;
+              },
+              onHover: () => this.moveInfoOverlay.clear(),
+            },
+          );
+          ui.setModeWithoutClear(UiMode.OPTION_SELECT, {
+            options,
+            supportHover: true,
+            maxOptions: 8,
+            yOffset: 19,
+          });
+        });
+      };
+      ui.setMode(UiMode.STARTER_SELECT).then(() => {
+        ui.showText(`${species.getName()}이(가) 배울 수 있는 기술 중 최대 4개를 선택하세요.`, null, () => render());
+      });
+    });
   }
 
   updatePartyIcon(species: PokemonSpecies, index: number) {

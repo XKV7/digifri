@@ -136,6 +136,10 @@ export interface Starter {
   nickname?: string | undefined;
   teraType?: PokemonType | undefined;
   ivs: number[];
+  /** PvP team registration only: fixes the Pokemon at this level (100) regardless of game-mode starting level. */
+  level?: number | undefined;
+  /** PvP team registration only: mirrors Pokemon#pauseEvolutions — locks the registered evolution stage in place at level 100 instead of letting it evolve further. */
+  pauseEvolutions?: boolean | undefined;
 }
 
 // TODO: What type of number does this store?
