@@ -4535,6 +4535,14 @@ export class StarterSelectUiHandler extends MessageUiHandler {
             // there's no run-start phase queue or title screen to fall back to —
             // just close the overlay and leave the run untouched.
             endPvpTeamEditMode();
+            // ui.mode is still CONFIRM here (opened via setModeWithoutClear, which
+            // doesn't touch it), so revertMode() would clear() ConfirmUiHandler and
+            // pop straight past this screen without ever calling its own clear() —
+            // leaving it undestroyed and stuck on top (it's brought to front for PvP
+            // mode) with nothing responding to input. Point ui.mode back at this
+            // handler first, same trick tryStart()'s startRun() and the branch below
+            // use, so revertMode() tears down the right one.
+            ui.setMode(UiMode.STARTER_SELECT);
             ui.revertMode();
             this.blockInput = false;
             return;

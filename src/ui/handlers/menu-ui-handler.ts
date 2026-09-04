@@ -7,6 +7,7 @@ import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
 import {
   cancelPvpRoom,
+  closePvpWaitingPanel,
   createPvpRoom,
   getMyActivePvpRoomId,
   getPvpRoomOnce,
@@ -14,6 +15,7 @@ import {
   listOpenPvpRoomsOnce,
   type PvpRoomWithId,
   setMyActivePvpRoomId,
+  showPvpWaitingPanel,
 } from "#app/pvp-room";
 import { beginPvpTeamEditMode, endPvpTeamEditMode, loadPvpTeam, savePvpTeam } from "#app/pvp-team";
 import { handleTutorial, Tutorial } from "#app/tutorial";
@@ -607,10 +609,18 @@ export class MenuUiHandler extends MessageUiHandler {
       const amHost = room?.hostUid === ctx.user.uid;
       const amGuest = room?.guestUid === ctx.user.uid;
       if (room && amHost && room.status === "waiting") {
+        // Re-anchor the live-update panel in case it isn't already showing (e.g. after a
+        // page reload) — see showPvpWaitingPanel() in pvp-room.ts.
+        showPvpWaitingPanel(room.id, room.hostName, () => {
+          void cancelPvpRoom(room.id).then(() => {
+            ui.showText("방을 취소했습니다.", null, () => ui.showText(""), fixedInt(2000));
+          });
+        });
         this.showPvpWaitingRoomOptions(room);
         return;
       }
       if (room && (amHost || amGuest) && (room.status === "team_preview" || room.status === "battling")) {
+        closePvpWaitingPanel();
         const opponentName = amHost ? room.guestName : room.hostName;
         ui.showText(
           `상대(${opponentName})가 입장했습니다! 팀 선출/대전 기능은 다음 업데이트에서 제공됩니다.`,
@@ -668,6 +678,7 @@ export class MenuUiHandler extends MessageUiHandler {
         label: "방 취소하기",
         handler: () => {
           ui.revertMode();
+          closePvpWaitingPanel();
           void cancelPvpRoom(room.id).then(() => {
             ui.showText("방을 취소했습니다.", null, () => ui.showText(""), fixedInt(2000));
           });
@@ -697,11 +708,18 @@ export class MenuUiHandler extends MessageUiHandler {
       ui.showText("방 생성에 실패했습니다.", null, () => ui.showText(""), fixedInt(2000));
       return;
     }
+    // Live-updating panel (plain DOM, not a Phaser UI mode — see pvp-room.ts) that shows the
+    // guest's name the moment they join, without needing to reopen the lobby and refresh.
+    showPvpWaitingPanel(roomId, myName, () => {
+      void cancelPvpRoom(roomId).then(() => {
+        ui.showText("방을 취소했습니다.", null, () => ui.showText(""), fixedInt(2000));
+      });
+    });
     ui.showText(
-      "방을 만들었습니다. 상대가 들어올 때까지 기다려주세요. (메뉴 > PvP 대전에서 다시 확인)",
+      "방을 만들었습니다. 상대가 들어오면 화면에 바로 알려드립니다.",
       null,
       () => ui.showText(""),
-      fixedInt(4000),
+      fixedInt(3000),
     );
   }
 
