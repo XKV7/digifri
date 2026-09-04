@@ -26,7 +26,13 @@ export async function savePvpTeam(starters: Starter[]): Promise<boolean> {
   }
   try {
     const db = getFirestore(ctx.app);
-    await setDoc(doc(db, "pvpTeams", ctx.user.uid), { starters, updatedAt: Date.now() });
+    // Starter has several optional fields (female, moveset, nickname, teraType, ...) that the
+    // starter-select screen can leave as an explicit `undefined` rather than just omitting the
+    // key — the Firestore SDK rejects any value containing `undefined` outright. Round-tripping
+    // through JSON drops those keys entirely (JSON.stringify skips undefined properties), giving
+    // a payload Firestore will actually accept.
+    const sanitizedStarters = JSON.parse(JSON.stringify(starters));
+    await setDoc(doc(db, "pvpTeams", ctx.user.uid), { starters: sanitizedStarters, updatedAt: Date.now() });
     return true;
   } catch (err) {
     console.error("Failed to save PvP team:", err);
