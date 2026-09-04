@@ -66,6 +66,8 @@ export class TurnInitPhase extends FieldPhase {
 
         if (pokemon.isPlayer()) {
           globalScene.phaseManager.pushNew("CommandPhase", i);
+        } else if (globalScene.currentBattle.isPvpBattle) {
+          globalScene.phaseManager.pushNew("PvpEnemyCommandPhase", i - BattlerIndex.ENEMY);
         } else {
           globalScene.phaseManager.pushNew("EnemyCommandPhase", i - BattlerIndex.ENEMY);
         }

@@ -106,6 +106,14 @@ export class Battle {
    */
   public failedRunAway = false;
 
+  /**
+   * True for an ad-hoc PvP battle between two logged-in accounts (see pvp-battle.ts), constructed
+   * directly rather than through the normal run/wave-progression flow. Phases that would otherwise
+   * grant real-save rewards, run AI on the enemy side, or roll wild/trainer-template species must
+   * check this and branch accordingly.
+   */
+  public isPvpBattle = false;
+
   constructor(
     gameMode: GameMode,
     { waveIndex, battleType, trainer, mysteryEncounterType, double = false }: NewBattleResolvedProps,

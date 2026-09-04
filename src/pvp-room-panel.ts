@@ -26,10 +26,12 @@
 
 import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
+import { startPvpBattle as launchPvpBattle } from "#app/pvp-battle";
 import {
   cancelPvpRoom,
   finishPvpTeamPreview,
-  type PvpRoom,
+  initiatePvpBattle,
+  type PvpRoomWithId,
   submitPvpTeamPreviewPicks,
   subscribePvpRoom,
 } from "#app/pvp-room";
@@ -40,6 +42,8 @@ let panelEl: HTMLDivElement | undefined;
 let panelUnsub: (() => void) | null = null;
 let selected: number[] = [];
 let submitting = false;
+/** Guards startPvpBattle() from firing more than once per panel-open lifecycle — the room doc can snapshot-update multiple times while status stays "battling". */
+let battleLaunchAttempted = false;
 
 /** Closes the panel and stops watching the room, if either is currently active. */
 export function closePvpRoomPanel(): void {
@@ -51,6 +55,7 @@ export function closePvpRoomPanel(): void {
   panelEl = undefined;
   selected = [];
   submitting = false;
+  battleLaunchAttempted = false;
 }
 
 function ensurePanel(): HTMLDivElement {
@@ -154,7 +159,7 @@ function renderTeamRow(team: Starter[], onClick?: (index: number) => void): HTML
   return row;
 }
 
-function renderWaitingForGuest(roomId: string, room: PvpRoom): void {
+function renderWaitingForGuest(roomId: string, room: PvpRoomWithId): void {
   const panel = ensurePanel();
   panel.replaceChildren(
     renderHeader(`"${room.hostName}"의 방`),
@@ -178,8 +183,13 @@ function renderBothDone(): void {
   const panel = ensurePanel();
   panel.replaceChildren(
     renderHeader("팀 선출 완료"),
-    renderStatusLine("양쪽 다 팀 선출을 완료했습니다! 실제 대전 기능은 다음 업데이트에서 제공됩니다."),
+    renderStatusLine("양쪽 다 팀 선출을 완료했습니다! 대전을 준비하는 중..."),
   );
+}
+
+function renderStartingBattle(): void {
+  const panel = ensurePanel();
+  panel.replaceChildren(renderHeader("대전 시작"), renderStatusLine("대전을 불러오는 중..."));
 }
 
 function renderError(message: string): void {
@@ -236,7 +246,7 @@ function renderPicker(
   panel.appendChild(confirmBtn);
 }
 
-async function renderForRoom(roomId: string, isHost: boolean, room: PvpRoom): Promise<void> {
+async function renderForRoom(roomId: string, isHost: boolean, room: PvpRoomWithId): Promise<void> {
   if (room.status === "waiting") {
     renderWaitingForGuest(roomId, room);
     return;
@@ -251,8 +261,24 @@ async function renderForRoom(roomId: string, isHost: boolean, room: PvpRoom): Pr
     setTimeout(() => closePvpRoomPanel(), 6000);
     return;
   }
+  if (room.status === "battling") {
+    renderStartingBattle();
+    if (battleLaunchAttempted) {
+      return;
+    }
+    battleLaunchAttempted = true;
+    const result = await launchPvpBattle(room, isHost);
+    if (result.ok) {
+      // The battle scene has taken over the whole screen from here — nothing left for this
+      // DOM overlay to show.
+      closePvpRoomPanel();
+    } else {
+      battleLaunchAttempted = false;
+      renderError(result.reason);
+    }
+    return;
+  }
   if (room.status !== "team_preview") {
-    // "battling" isn't built yet — leave whatever's already showing rather than clear it.
     return;
   }
 
@@ -262,8 +288,9 @@ async function renderForRoom(roomId: string, isHost: boolean, room: PvpRoom): Pr
 
   if (myPicks && opponentPicks) {
     renderBothDone();
-    void finishPvpTeamPreview(roomId);
-    setTimeout(() => closePvpRoomPanel(), 6000);
+    void initiatePvpBattle(roomId);
+    // No timed close here — the live subscription picks up the "battling" transition on its own
+    // (from either side, since initiatePvpBattle is idempotent) and re-renders into the branch above.
     return;
   }
   if (myPicks) {
@@ -297,6 +324,7 @@ export function openPvpRoomPanel(roomId: string, isHost: boolean): void {
   }
   selected = [];
   submitting = false;
+  battleLaunchAttempted = false;
   panelUnsub = subscribePvpRoom(roomId, room => {
     if (!room || room.status === "cancelled") {
       closePvpRoomPanel();

@@ -14,6 +14,7 @@
  */
 
 import { getCloudSaveContext } from "#app/gift";
+import { randomString } from "#utils/common";
 import {
   collection,
   doc,
@@ -33,6 +34,17 @@ import {
 
 export type PvpRoomStatus = "waiting" | "team_preview" | "battling" | "finished" | "cancelled";
 
+/**
+ * One side's chosen action for a given turn of an in-progress PvP battle (see pvp-battle.ts).
+ * Only "fight" exists so far — switching (voluntary or forced-on-faint) isn't synced yet, so
+ * PvpEnemyCommandPhase / the local CommandPhase hook both only ever produce/expect this shape.
+ */
+export interface PvpTurnCommand {
+  command: "fight";
+  /** Index (0-3) into the active Pokemon's moveset. */
+  moveIndex: number;
+}
+
 export interface PvpRoom {
   hostUid: string;
   hostName: string;
@@ -43,6 +55,11 @@ export interface PvpRoom {
   /** Indices (0-5) into the host's/guest's registered PvP team, chosen during team preview. */
   hostPicks?: number[];
   guestPicks?: number[];
+  /** Shared RNG seed for the battle, set once by whichever side reaches "battling" first (see initiatePvpBattle). Both clients seed their local RNG with this so their independently-run battle simulations stay in lockstep. */
+  pvpSeed?: string;
+  /** This turn's command from each side, keyed by battle turn number. Written by the side that owns it, read by the other side's PvpEnemyCommandPhase. */
+  hostTurnCommands?: Record<number, PvpTurnCommand>;
+  guestTurnCommands?: Record<number, PvpTurnCommand>;
 }
 
 export interface PvpRoomWithId extends PvpRoom {
@@ -256,4 +273,86 @@ export async function finishPvpTeamPreview(roomId: string): Promise<void> {
       setMyActivePvpRoomId(null);
     }
   }
+}
+
+/**
+ * Moves a room from "team_preview" (both picks in) to "battling" by writing a shared RNG seed.
+ * Idempotent and safe to call from both accounts at once (see pvp-room-panel.ts): a transaction
+ * guards against the two sides racing to pick different seeds, so whichever call commits first
+ * wins and the other just observes the result. Does not itself construct any battle state — see
+ * pvp-battle.ts's startPvpBattle() for that, called by each client once it sees "battling".
+ */
+export async function initiatePvpBattle(roomId: string): Promise<boolean> {
+  const ctx = getCloudSaveContext();
+  if (!ctx) {
+    return false;
+  }
+  try {
+    const roomRef = doc(db(), "pvpRooms", roomId);
+    await runTransaction(db(), async transaction => {
+      const snapshot = await transaction.get(roomRef);
+      const room = snapshot.data() as PvpRoom | undefined;
+      if (!room) {
+        throw new Error("Room no longer exists.");
+      }
+      if (room.status === "battling" || room.pvpSeed) {
+        // Already started by the other side (or a previous call of our own) — nothing to do.
+        return;
+      }
+      if (room.status !== "team_preview" || !room.hostPicks || !room.guestPicks) {
+        throw new Error("Room isn't ready to battle yet.");
+      }
+      transaction.update(roomRef, { status: "battling", pvpSeed: randomString(24) });
+    });
+    return true;
+  } catch (err) {
+    console.error("Failed to initiate PvP battle:", err);
+    return false;
+  }
+}
+
+/** Writes the caller's chosen action for the given battle turn, for the opposing client's PvpEnemyCommandPhase to pick up. */
+export async function submitPvpTurnCommand(
+  roomId: string,
+  isHost: boolean,
+  turn: number,
+  command: PvpTurnCommand,
+): Promise<void> {
+  const ctx = getCloudSaveContext();
+  if (!ctx) {
+    return;
+  }
+  try {
+    const field = isHost ? "hostTurnCommands" : "guestTurnCommands";
+    await updateDoc(doc(db(), "pvpRooms", roomId), { [`${field}.${turn}`]: command });
+  } catch (err) {
+    console.error("Failed to submit PvP turn command:", err);
+  }
+}
+
+/**
+ * Waits for the opposing side's command for the given turn to appear, then calls `onCommand`
+ * once and automatically unsubscribes. `wantHostSide` says whose command to watch for (the
+ * OPPONENT's side, from the caller's perspective — see PvpEnemyCommandPhase). Returns an
+ * unsubscribe function in case the caller needs to cancel early (e.g. the phase never runs).
+ */
+export function subscribePvpTurnCommand(
+  roomId: string,
+  wantHostSide: boolean,
+  turn: number,
+  onCommand: (command: PvpTurnCommand) => void,
+): () => void {
+  const unsub = onSnapshot(
+    doc(db(), "pvpRooms", roomId),
+    snapshot => {
+      const room = snapshot.data() as PvpRoom | undefined;
+      const command = (wantHostSide ? room?.hostTurnCommands : room?.guestTurnCommands)?.[turn];
+      if (command) {
+        unsub();
+        onCommand(command);
+      }
+    },
+    err => console.error("PvP turn command subscription failed:", err),
+  );
+  return unsub;
 }

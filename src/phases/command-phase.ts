@@ -2,6 +2,8 @@ import type { TurnCommand } from "#app/battle";
 import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
 import { getPokemonNameWithAffix } from "#app/messages";
+import { getPvpBattleContext } from "#app/pvp-battle";
+import { submitPvpTurnCommand } from "#app/pvp-room";
 import { TrappedTag } from "#data/battler-tags";
 import { getDailyEventSeedBoss } from "#data/daily-seed/daily-run";
 import { isDailyFinalBoss } from "#data/daily-seed/daily-seed-utils";
@@ -337,6 +339,23 @@ export class CommandPhase extends FieldPhase {
     );
   }
 
+  /** Same as queueShowText(), but for a literal (non-i18next-keyed) string — PvP-only messages don't have locale entries. */
+  private queuePvpLiteralText(text: string): void {
+    globalScene.ui.setMode(UiMode.COMMAND, this.fieldIndex);
+    globalScene.ui.setMode(UiMode.MESSAGE);
+
+    globalScene.ui.showText(
+      text,
+      null,
+      () => {
+        globalScene.ui.showText("", 0);
+        globalScene.ui.setMode(UiMode.COMMAND, this.fieldIndex);
+      },
+      null,
+      true,
+    );
+  }
+
   /**
    * Helper method for {@linkcode handleBallCommand} that checks if a pokeball can be thrown
    * and displays the appropriate error message.
@@ -619,6 +638,7 @@ export class CommandPhase extends FieldPhase {
     move?: TurnMove,
   ): boolean {
     let success = false;
+    const isPvp = globalScene.currentBattle.isPvpBattle;
 
     switch (command) {
       case Command.TERA:
@@ -629,6 +649,12 @@ export class CommandPhase extends FieldPhase {
         success = this.handleBallCommand(cursor);
         break;
       case Command.POKEMON:
+        if (isPvp) {
+          // Switching isn't synced to the opponent's client yet (see pvp-enemy-command-phase.ts) —
+          // block it here rather than let the two sides' battle states silently diverge.
+          this.queuePvpLiteralText("PvP 대전에서는 아직 포켓몬 교체를 지원하지 않습니다.");
+          break;
+        }
         this.isSwitch = true;
         success = this.tryLeaveField(cursor, typeof useMode === "boolean" ? useMode : undefined);
         this.isSwitch = false;
@@ -638,6 +664,17 @@ export class CommandPhase extends FieldPhase {
     }
 
     if (success) {
+      if (isPvp && (command === Command.FIGHT || command === Command.TERA)) {
+        // Tera activation itself isn't synced (a known, narrow gap — see PvpEnemyCommandPhase),
+        // only the move choice; the opponent's client just sees a normal fight command either way.
+        const ctx = getPvpBattleContext();
+        if (ctx) {
+          void submitPvpTurnCommand(ctx.roomId, ctx.isHost, globalScene.currentBattle.turn, {
+            command: "fight",
+            moveIndex: cursor,
+          });
+        }
+      }
       this.end();
     }
 
