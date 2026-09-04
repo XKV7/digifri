@@ -192,80 +192,6 @@ export async function joinPvpRoom(roomId: string, guestName: string): Promise<bo
   }
 }
 
-let waitingPanel: HTMLDivElement | undefined;
-let waitingPanelUnsub: (() => void) | null = null;
-
-/** Closes the live waiting-room panel opened by showPvpWaitingPanel(), if one is open. */
-export function closePvpWaitingPanel(): void {
-  if (waitingPanelUnsub) {
-    waitingPanelUnsub();
-    waitingPanelUnsub = null;
-  }
-  waitingPanel?.remove();
-  waitingPanel = undefined;
-}
-
-/**
- * Opens a small floating panel (plain DOM, positioned over the canvas — same pattern as
- * cloud-save.ts's badge/login overlay, independent of Phaser's UI mode stack) that watches
- * a room the caller is hosting via a live Firestore listener (subscribePvpRoom). The host
- * doesn't have to reopen the lobby and click "새로고침" to find out someone joined — the
- * panel updates with the guest's name itself, as soon as their join reaches us (subject to
- * ordinary network/listener latency).
- */
-export function showPvpWaitingPanel(roomId: string, hostName: string, onCancel: () => void): void {
-  closePvpWaitingPanel();
-
-  waitingPanel = document.createElement("div");
-  waitingPanel.id = "pvp-waiting-panel";
-  waitingPanel.style.cssText =
-    "position:fixed;right:6px;top:6px;z-index:9999;max-width:220px;padding:8px 10px;border-radius:8px;"
-    + "background:rgba(0,0,0,0.75);color:#fff;font-family:sans-serif;font-size:12px;line-height:1.4;";
-
-  const status = document.createElement("div");
-  status.textContent = `"${hostName}"의 방 — 상대를 기다리는 중...`;
-  waitingPanel.appendChild(status);
-
-  const buttonRow = document.createElement("div");
-  buttonRow.style.cssText = "margin-top:6px;display:flex;gap:6px;";
-
-  const cancelBtn = document.createElement("button");
-  cancelBtn.textContent = "방 취소";
-  cancelBtn.style.cssText = "cursor:pointer;font-size:11px;padding:2px 6px;";
-  cancelBtn.onclick = () => {
-    closePvpWaitingPanel();
-    onCancel();
-  };
-
-  const hideBtn = document.createElement("button");
-  hideBtn.textContent = "숨기기";
-  hideBtn.style.cssText = "cursor:pointer;font-size:11px;padding:2px 6px;";
-  hideBtn.onclick = () => closePvpWaitingPanel();
-
-  buttonRow.append(cancelBtn, hideBtn);
-  waitingPanel.appendChild(buttonRow);
-  document.body.appendChild(waitingPanel);
-
-  let announced = false;
-  waitingPanelUnsub = subscribePvpRoom(roomId, room => {
-    if (!waitingPanel) {
-      return;
-    }
-    if (!room || room.status === "cancelled" || room.status === "finished") {
-      closePvpWaitingPanel();
-      return;
-    }
-    if (room.status === "waiting" || announced) {
-      return;
-    }
-    // team_preview or battling: the guest has joined.
-    announced = true;
-    status.textContent = `상대(${room.guestName ?? "?"})가 입장했습니다!`;
-    cancelBtn.remove();
-    setTimeout(() => closePvpWaitingPanel(), 8000);
-  });
-}
-
 /** Cancels a room the caller is hosting (only valid while still "waiting"). */
 export async function cancelPvpRoom(roomId: string): Promise<void> {
   const ctx = getCloudSaveContext();
@@ -312,9 +238,9 @@ export async function submitPvpTeamPreviewPicks(roomId: string, isHost: boolean,
 
 /**
  * Marks a room "finished" once both sides' team-preview picks are in. Either participant may
- * call this (both do, independently, on seeing both picks arrive — see
- * watchPvpTeamPreviewCompletion in menu-ui-handler.ts) — idempotent, so a race between them is
- * harmless. Also clears the caller's own local active-room pointer.
+ * call this (both do, independently, on seeing both picks arrive — see pvp-room-panel.ts) —
+ * idempotent, so a race between them is harmless. Also clears the caller's own local
+ * active-room pointer.
  */
 export async function finishPvpTeamPreview(roomId: string): Promise<void> {
   const ctx = getCloudSaveContext();
