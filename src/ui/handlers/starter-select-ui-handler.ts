@@ -18,11 +18,13 @@ import {
 import { allAbilities, allMoves } from "#data/data-lists";
 import { Egg } from "#data/egg";
 import { GrowthRate, getGrowthRateColor } from "#data/exp";
+import { SpeciesFormChangeItemTrigger } from "#data/form-change-triggers";
 import { Gender, getGenderColor, getGenderSymbol } from "#data/gender";
 import { getNatureName } from "#data/nature";
 import type { PokemonSpecies } from "#data/pokemon-species";
 import { AbilityAttr } from "#enums/ability-attr";
 import { AbilityId } from "#enums/ability-id";
+import { BerryType } from "#enums/berry-type";
 import { Button } from "#enums/buttons";
 import { ChallengeType } from "#enums/challenge-type";
 import { Challenges } from "#enums/challenges";
@@ -31,17 +33,20 @@ import { DexAttr } from "#enums/dex-attr";
 import { DropDownColumn } from "#enums/drop-down-column";
 import { EggSourceType } from "#enums/egg-source-types";
 import { EggTier } from "#enums/egg-type";
+import type { FormChangeItem } from "#enums/form-change-item";
 import { GameModes } from "#enums/game-modes";
 import type { MoveId } from "#enums/move-id";
 import type { Nature } from "#enums/nature";
 import { Passive as PassiveAttr } from "#enums/passive";
-import { PokemonType } from "#enums/pokemon-type";
+import { MAX_REGULAR_POKEMON_TYPE, MIN_REGULAR_POKEMON_TYPE, PokemonType } from "#enums/pokemon-type";
+import { SpeciesFormKey } from "#enums/species-form-key";
 import { SpeciesId } from "#enums/species-id";
 import { TextStyle } from "#enums/text-style";
 import { UiMode } from "#enums/ui-mode";
 import { UiTheme } from "#enums/ui-theme";
 import type { CandyUpgradeNotificationChangedEvent } from "#events/battle-scene";
 import { BattleSceneEventType } from "#events/battle-scene";
+import { getModifierTypeFuncById, type ModifierType, ModifierTypeGenerator } from "#modifiers/modifier-type";
 import type { Variant } from "#sprites/variant";
 import { getVariantIcon, getVariantTint } from "#sprites/variant";
 import { achvs } from "#system/achv";
@@ -74,6 +79,7 @@ import {
 } from "#utils/common";
 import type { StarterPreferences } from "#utils/data";
 import { deepCopy, loadStarterPreferences, saveStarterPreferences } from "#utils/data";
+import { getEnumValues } from "#utils/enums";
 import { getDexNumber, getPokemonSpeciesForm, getPokerusStarters } from "#utils/pokemon-utils";
 import { toCamelCase, toTitleCase } from "#utils/strings";
 import i18next from "i18next";
@@ -221,6 +227,39 @@ const teamWindowY = 38;
 const teamWindowWidth = 34;
 const teamWindowHeight = 107;
 const randomSelectionWindowHeight = 20;
+
+/**
+ * PvP team registration only: the general (non-berry, non-mega-stone, non-attack-type-booster)
+ * held items offered by choosePvpHeldItem, restricted to `modifierTypeInitObj` keys that are
+ * genuinely per-Pokemon held items (as opposed to run-wide modifiers like Nugget/Exp Share, or
+ * one-shot consumable vitamins like Protein).
+ */
+const GENERAL_PVP_HELD_ITEM_IDS = [
+  "SCOPE_LENS",
+  "LEEK",
+  "EVIOLITE",
+  "SOUL_DEW",
+  "GOLDEN_PUNCH",
+  "GRIP_CLAW",
+  "WIDE_LENS",
+  "MULTI_LENS",
+  "FOCUS_BAND",
+  "QUICK_CLAW",
+  "KINGS_ROCK",
+  "LEFTOVERS",
+  "SHELL_BELL",
+  "TOXIC_ORB",
+  "FLAME_ORB",
+  "BATON",
+  "LUCKY_EGG",
+  "GOLDEN_EGG",
+  "SOOTHE_BELL",
+];
+
+/** A stable string key for a `Starter.heldItem` reference, used to detect duplicate held-item assignments across a PvP team. */
+function pvpHeldItemKey(item: NonNullable<Starter["heldItem"]>): string {
+  return `${item.typeId}:${JSON.stringify(item.pregenArgs ?? [])}`;
+}
 
 /**
  * Calculates the starter position for a Pokemon of a given UI index
@@ -2930,6 +2969,18 @@ export class StarterSelectUiHandler extends MessageUiHandler {
     }
 
     const props = globalScene.gameData.getSpeciesDexAttrProps(baseSpecies, dexAttr);
+
+    const excludedHeldItems = new Set(
+      this.starters
+        .map(s => s.heldItem)
+        .filter((item): item is NonNullable<Starter["heldItem"]> => !!item)
+        .map(pvpHeldItemKey),
+    );
+    const heldItem = await this.choosePvpHeldItem(chosenSpecies, props.formIndex, excludedHeldItems);
+    if (!heldItem) {
+      return;
+    }
+
     const { dexEntry } = this.getSpeciesData(baseSpecies.speciesId);
 
     this.starterIcons[this.starterSpecies.length].setTexture(
@@ -2962,6 +3013,7 @@ export class StarterSelectUiHandler extends MessageUiHandler {
       ivs: dexEntry.ivs,
       level: 100,
       pauseEvolutions: true,
+      heldItem,
     };
 
     this.starters.push(starter);
@@ -3072,6 +3124,96 @@ export class StarterSelectUiHandler extends MessageUiHandler {
       };
       ui.setMode(UiMode.STARTER_SELECT).then(() => {
         ui.showText(`${species.getName()}이(가) 배울 수 있는 기술 중 최대 4개를 선택하세요.`, null, () => render());
+      });
+    });
+  }
+
+  /**
+   * PvP team registration only: builds the pool of held items offered for a given species/form —
+   * every berry, every mega stone that species/form can actually use (matched via its
+   * SpeciesFormChangeItemTrigger form changes, same lookup FormChangeItemModifierType itself uses
+   * to gray out inapplicable items in the normal in-run item screen), every attack-type booster
+   * (Silk Scarf, Charcoal, ...), and a curated set of the game's other genuinely per-Pokemon held
+   * items. Deliberately excludes run-wide/non-held modifiers (Nugget, Exp Share, ...) and one-shot
+   * consumable vitamins (HP Up, Protein, ...), neither of which are things a Pokemon "holds".
+   */
+  private buildPvpHeldItemPool(species: PokemonSpecies, formIndex: number): NonNullable<Starter["heldItem"]>[] {
+    const pool: NonNullable<Starter["heldItem"]>[] = GENERAL_PVP_HELD_ITEM_IDS.map(typeId => ({ typeId }));
+
+    for (const berryType of getEnumValues(BerryType)) {
+      pool.push({ typeId: "BERRY", pregenArgs: [berryType] });
+    }
+
+    for (let type = MIN_REGULAR_POKEMON_TYPE; type <= MAX_REGULAR_POKEMON_TYPE; type++) {
+      pool.push({ typeId: "ATTACK_TYPE_BOOSTER", pregenArgs: [type] });
+    }
+
+    const formKey = species.forms[formIndex]?.formKey ?? "";
+    const megaStoneItems = new Set(
+      speciesDataRegistry
+        .getFormChanges(species.speciesId)
+        .filter(fc => fc.preFormKey === formKey && fc.formKey.indexOf(SpeciesFormKey.MEGA) !== -1)
+        .map(fc => fc.findTrigger(SpeciesFormChangeItemTrigger) as SpeciesFormChangeItemTrigger | null | undefined)
+        .filter((trigger): trigger is SpeciesFormChangeItemTrigger => !!trigger?.active)
+        .map(trigger => trigger.item),
+    );
+    for (const item of megaStoneItems) {
+      pool.push({ typeId: "FORM_CHANGE_ITEM", pregenArgs: [item as FormChangeItem] });
+    }
+
+    return pool;
+  }
+
+  /** Resolves a `Starter.heldItem`-shaped reference into the actual `ModifierType` it points at, purely to read its localized `.name` for display. */
+  private resolvePvpHeldItemType(item: NonNullable<Starter["heldItem"]>): ModifierType | null {
+    const typeFunc = getModifierTypeFuncById(item.typeId);
+    if (!typeFunc) {
+      return null;
+    }
+    let type: ModifierType | null = typeFunc();
+    if (type instanceof ModifierTypeGenerator) {
+      type = type.generateType([], item.pregenArgs);
+    }
+    return type;
+  }
+
+  /**
+   * PvP team registration only: lets the player pick exactly one held item (berry, mega stone, or
+   * general tool) for a registered Pokemon. `excluded` holds the items already claimed by
+   * previously-registered team members (see addToPartyPvp) so the same item can't be handed to two
+   * Pokemon on one team.
+   */
+  private choosePvpHeldItem(
+    species: PokemonSpecies,
+    formIndex: number,
+    excluded: Set<string>,
+  ): Promise<NonNullable<Starter["heldItem"]> | null> {
+    const pool = this.buildPvpHeldItemPool(species, formIndex).filter(item => !excluded.has(pvpHeldItemKey(item)));
+    const ui = this.getUi();
+
+    return new Promise(resolve => {
+      ui.setMode(UiMode.STARTER_SELECT).then(() => {
+        ui.showText(`${species.getName(formIndex)}이(가) 지닐 도구를 하나 선택하세요.`, null, () => {
+          const options: OptionSelectItem[] = pool.map(item => ({
+            label: this.resolvePvpHeldItemType(item)?.name ?? item.typeId,
+            handler: () => {
+              this.clearText();
+              ui.setMode(UiMode.STARTER_SELECT);
+              resolve(item);
+              return true;
+            },
+          }));
+          options.push({
+            label: i18next.t("menu:cancel"),
+            handler: () => {
+              this.clearText();
+              ui.setMode(UiMode.STARTER_SELECT);
+              resolve(null);
+              return true;
+            },
+          });
+          ui.setModeWithoutClear(UiMode.OPTION_SELECT, { options, maxOptions: 8, yOffset: 19 });
+        });
       });
     });
   }

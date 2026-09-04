@@ -140,6 +140,14 @@ export interface Starter {
   level?: number | undefined;
   /** PvP team registration only: mirrors Pokemon#pauseEvolutions — locks the registered evolution stage in place at level 100 instead of letting it evolve further. */
   pauseEvolutions?: boolean | undefined;
+  /**
+   * PvP team registration only: the single held item (berry, mega stone, or general tool)
+   * registered for this Pokemon. `typeId` matches a key of `modifierTypeInitObj`
+   * (see modifier-type.ts); `pregenArgs` disambiguates generator-backed types (which berry,
+   * which mega stone, which attack-type booster) the same way `ModifierData.typePregenArgs`
+   * does for in-run modifiers.
+   */
+  heldItem?: { typeId: string; pregenArgs?: any[] } | undefined;
 }
 
 // TODO: What type of number does this store?
