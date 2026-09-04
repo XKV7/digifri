@@ -3038,8 +3038,12 @@ export class StarterSelectUiHandler extends MessageUiHandler {
             label: stage.getName(),
             handler: () => {
               this.clearText();
-              ui.setMode(UiMode.STARTER_SELECT);
-              resolve(stage);
+              // Must wait for setMode()'s own transition (which can involve a ~350ms fade) to
+              // actually finish before resolving — resolving synchronously lets the next PvP
+              // chooser's own setMode() call fire while this one is still mid-transition, racing
+              // two overlapping fades against each other and leaving the UI in an inconsistent
+              // state (same bug class as the "input freeze on PvP editor exit" fix).
+              ui.setMode(UiMode.STARTER_SELECT).then(() => resolve(stage));
               return true;
             },
           }));
@@ -3047,8 +3051,7 @@ export class StarterSelectUiHandler extends MessageUiHandler {
             label: i18next.t("menu:cancel"),
             handler: () => {
               this.clearText();
-              ui.setMode(UiMode.STARTER_SELECT);
-              resolve(null);
+              ui.setMode(UiMode.STARTER_SELECT).then(() => resolve(null));
               return true;
             },
           });
@@ -3098,8 +3101,7 @@ export class StarterSelectUiHandler extends MessageUiHandler {
                   return true;
                 }
                 this.moveInfoOverlay.clear();
-                ui.setMode(UiMode.STARTER_SELECT);
-                resolve(chosen.slice(0, 4) as StarterMoveset);
+                ui.setMode(UiMode.STARTER_SELECT).then(() => resolve(chosen.slice(0, 4) as StarterMoveset));
                 return true;
               },
               onHover: () => this.moveInfoOverlay.clear(),
@@ -3108,8 +3110,7 @@ export class StarterSelectUiHandler extends MessageUiHandler {
               label: i18next.t("menu:cancel"),
               handler: () => {
                 this.moveInfoOverlay.clear();
-                ui.setMode(UiMode.STARTER_SELECT);
-                resolve(null);
+                ui.setMode(UiMode.STARTER_SELECT).then(() => resolve(null));
                 return true;
               },
               onHover: () => this.moveInfoOverlay.clear(),
@@ -3201,8 +3202,7 @@ export class StarterSelectUiHandler extends MessageUiHandler {
             label: this.resolvePvpHeldItemType(item)?.name ?? item.typeId,
             handler: () => {
               this.clearText();
-              ui.setMode(UiMode.STARTER_SELECT);
-              resolve(item);
+              ui.setMode(UiMode.STARTER_SELECT).then(() => resolve(item));
               return true;
             },
           }));
@@ -3210,8 +3210,7 @@ export class StarterSelectUiHandler extends MessageUiHandler {
             label: i18next.t("menu:cancel"),
             handler: () => {
               this.clearText();
-              ui.setMode(UiMode.STARTER_SELECT);
-              resolve(null);
+              ui.setMode(UiMode.STARTER_SELECT).then(() => resolve(null));
               return true;
             },
           });
