@@ -2373,7 +2373,7 @@ export class StarterSelectUiHandler extends MessageUiHandler {
               label: `×${sameSpeciesEggCost} ${i18next.t("starterSelectUiHandler:sameSpeciesEgg")}`,
               handler: () => {
                 if (activeOverrides.FREE_CANDY_UPGRADE_OVERRIDE || candyCount >= sameSpeciesEggCost) {
-                  if (globalScene.gameData.eggs.length >= 99 && !activeOverrides.UNLIMITED_EGG_COUNT_OVERRIDE) {
+                  if (globalScene.gameData.eggs.length >= 200 && !activeOverrides.UNLIMITED_EGG_COUNT_OVERRIDE) {
                     // Egg list full, show error message at the top of the screen and abort
                     this.showText(
                       i18next.t("egg:tooManyEggs"),
