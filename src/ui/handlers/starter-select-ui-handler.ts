@@ -2020,10 +2020,16 @@ export class StarterSelectUiHandler extends MessageUiHandler {
                       true,
                     );
                     if (!isDupe && isValidForChallenge && isOverValueLimit) {
-                      this.starterCursorObjs[this.starterSpecies.length]
-                        .setVisible(true)
-                        .setPosition(this.cursorObj.x, this.cursorObj.y);
                       if (isPvpTeamEditMode()) {
+                        // Unlike addToParty() below, addToPartyPvp() is cancellable at three
+                        // separate points (evolution stage / moveset / held item) before it
+                        // actually pushes a new starter. Marking this slot's cursor visible here,
+                        // before that chain even starts, left a permanent stray cursor marker
+                        // frozen at today's grid position whenever the player backed out of one
+                        // of those pickers — updateScroll() only ever repositions cursor objects
+                        // for species actually present in starterSpecies, so an orphaned one from
+                        // a cancelled add is never picked up again. addToPartyPvp() now sets this
+                        // itself, only once a starter is actually pushed.
                         void this.addToPartyPvp(
                           this.lastSpecies,
                           this.dexAttrCursor,
@@ -2032,6 +2038,9 @@ export class StarterSelectUiHandler extends MessageUiHandler {
                           this.teraCursor,
                         );
                       } else {
+                        this.starterCursorObjs[this.starterSpecies.length]
+                          .setVisible(true)
+                          .setPosition(this.cursorObj.x, this.cursorObj.y);
                         this.addToParty(
                           this.lastSpecies,
                           this.dexAttrCursor,
@@ -3023,6 +3032,10 @@ export class StarterSelectUiHandler extends MessageUiHandler {
       heldItem,
     };
 
+    // Only mark this party slot's cursor now that the pick is actually final — every earlier
+    // return above (cancelling the evolution stage / moveset / held item picker) must leave no
+    // trace, since nothing was pushed to starterSpecies for it to ever track again.
+    this.starterCursorObjs[this.starterSpecies.length].setVisible(true).setPosition(this.cursorObj.x, this.cursorObj.y);
     this.starters.push(starter);
     this.starterSpecies.push(chosenSpecies);
     this.updateInstructions();
