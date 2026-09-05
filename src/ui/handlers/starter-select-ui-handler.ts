@@ -3105,6 +3105,13 @@ export class StarterSelectUiHandler extends MessageUiHandler {
     const pool = Array.from(new Set([...levelMoves, ...tms])).filter(moveId => !!allMoves[moveId]);
     let chosen: MoveId[] = [];
     const ui = this.getUi();
+    // Every toggle rebuilds the whole option list via setModeWithoutClear(), which resets the
+    // picker's own scroll/cursor position back to the top (see BaseOptionSelectUiHandler#show).
+    // With more than 8 moves in the pool that snapped the view back to the top of the list on
+    // every single toggle, forcing several DOWN presses just to get back to where the player was
+    // to toggle the next move. Track the toggled move's position and restore the cursor there
+    // once the list reopens.
+    let restoreCursorAt = 0;
 
     return new Promise(resolve => {
       const render = () => {
@@ -3112,7 +3119,7 @@ export class StarterSelectUiHandler extends MessageUiHandler {
           if (pool.length > 0) {
             this.moveInfoOverlay.show(allMoves[pool[0]]);
           }
-          const options: OptionSelectItem[] = pool.map(moveId => ({
+          const options: OptionSelectItem[] = pool.map((moveId, index) => ({
             label: `${chosen.includes(moveId) ? "✔ " : "　"}${allMoves[moveId].name}`,
             handler: () => {
               if (chosen.includes(moveId)) {
@@ -3120,6 +3127,7 @@ export class StarterSelectUiHandler extends MessageUiHandler {
               } else if (chosen.length < 4) {
                 chosen = [...chosen, moveId];
               }
+              restoreCursorAt = index;
               render();
               return true;
             },
@@ -3155,6 +3163,9 @@ export class StarterSelectUiHandler extends MessageUiHandler {
             maxOptions: 8,
             yOffset: 19,
           });
+          // Use the handler's own setCursor(), not Ui#setCursor() — the latter also plays the
+          // select sound on a change, which would double up with the toggle's own sound.
+          ui.getHandler().setCursor(restoreCursorAt);
         });
       };
       ui.setMode(UiMode.STARTER_SELECT).then(() => {
