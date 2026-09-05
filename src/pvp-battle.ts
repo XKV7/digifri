@@ -237,24 +237,55 @@ export async function startPvpBattle(
   // side is "mine" locally, so the two clients' RNG streams (and pokemon id assignment) advance in
   // the same order either way.
   const party = globalScene.getPlayerParty();
-  for (const starter of hostStarters) {
-    const pokemon = buildPvpPokemon(starter, isHost);
-    if (isHost) {
-      party.push(pokemon as PlayerPokemon);
-    } else {
-      battle.enemyParty.push(pokemon as EnemyPokemon);
+  const addedToParty: PlayerPokemon[] = [];
+  try {
+    for (const starter of hostStarters) {
+      const pokemon = buildPvpPokemon(starter, isHost);
+      if (isHost) {
+        party.push(pokemon as PlayerPokemon);
+        addedToParty.push(pokemon as PlayerPokemon);
+      } else {
+        battle.enemyParty.push(pokemon as EnemyPokemon);
+      }
     }
-  }
-  for (const starter of guestStarters) {
-    const pokemon = buildPvpPokemon(starter, !isHost);
-    if (isHost) {
-      battle.enemyParty.push(pokemon as EnemyPokemon);
-    } else {
-      party.push(pokemon as PlayerPokemon);
+    for (const starter of guestStarters) {
+      const pokemon = buildPvpPokemon(starter, !isHost);
+      if (isHost) {
+        battle.enemyParty.push(pokemon as EnemyPokemon);
+      } else {
+        party.push(pokemon as PlayerPokemon);
+        addedToParty.push(pokemon as PlayerPokemon);
+      }
     }
-  }
 
-  await Promise.all([...party, ...battle.enemyParty].map(p => p.loadAssets()));
+    await Promise.all([...party, ...battle.enemyParty].map(p => p.loadAssets()));
+  } catch (err) {
+    // Anything thrown while building Pokemon or loading their assets used to leave the scene
+    // half set up: currentBattle pointed at this broken PvP battle and the real player party
+    // (shared with normal single-player play) carried whichever of these Pokemon had already
+    // been pushed - with no run in progress to ever clean it up, that state persisted into
+    // whatever the player did next (a normal run would start with unrelated Pokemon already
+    // sitting in its party, missing arena setup this path never did, ...). Undo everything this
+    // call added before reporting failure, so the scene is left exactly as clean as it was
+    // before this function was ever called.
+    for (const pokemon of addedToParty) {
+      const idx = party.indexOf(pokemon);
+      if (idx > -1) {
+        party.splice(idx, 1);
+      }
+      pokemon.destroy();
+    }
+    for (const pokemon of battle.enemyParty) {
+      pokemon.destroy();
+    }
+    trainer.destroy();
+    globalScene.currentBattle = null!;
+    console.error("Failed to build PvP battle:", err);
+    return {
+      ok: false,
+      reason: `대전 준비 중 오류가 발생했습니다: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
 
   activeContext = { roomId: room.id, isHost };
 

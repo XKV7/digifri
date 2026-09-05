@@ -267,14 +267,24 @@ async function renderForRoom(roomId: string, isHost: boolean, room: PvpRoomWithI
       return;
     }
     battleLaunchAttempted = true;
-    const result = await launchPvpBattle(room, isHost);
-    if (result.ok) {
-      // The battle scene has taken over the whole screen from here — nothing left for this
-      // DOM overlay to show.
-      closePvpRoomPanel();
-    } else {
+    try {
+      const result = await launchPvpBattle(room, isHost);
+      if (result.ok) {
+        // The battle scene has taken over the whole screen from here — nothing left for this
+        // DOM overlay to show.
+        closePvpRoomPanel();
+      } else {
+        battleLaunchAttempted = false;
+        renderError(result.reason);
+      }
+    } catch (err) {
+      // Without this, any exception thrown while constructing the battle (a bad Pokemon/held
+      // item lookup, a failed asset load, ...) left the panel permanently stuck on "대전을
+      // 불러오는 중..." forever — battleLaunchAttempted never reset, and the thrown error never
+      // surfaced anywhere a player could see or report it.
+      console.error("Failed to start PvP battle:", err);
       battleLaunchAttempted = false;
-      renderError(result.reason);
+      renderError(`대전을 시작하지 못했습니다: ${err instanceof Error ? err.message : String(err)}`);
     }
     return;
   }
@@ -288,7 +298,15 @@ async function renderForRoom(roomId: string, isHost: boolean, room: PvpRoomWithI
 
   if (myPicks && opponentPicks) {
     renderBothDone();
-    void initiatePvpBattle(roomId);
+    // Fire-and-forget was silent on failure (a Firestore permission error, the room doc changing
+    // underneath the transaction, ...) — the panel just sat on "대전을 준비하는 중..." forever with
+    // nothing to tell the player anything went wrong, since no further room-doc change ever
+    // arrives to retrigger this branch. Surface it instead.
+    initiatePvpBattle(roomId).then(ok => {
+      if (!ok) {
+        renderError("대전을 준비하지 못했습니다. 다시 시도해주세요.");
+      }
+    });
     // No timed close here — the live subscription picks up the "battling" transition on its own
     // (from either side, since initiatePvpBattle is idempotent) and re-renders into the branch above.
     return;
