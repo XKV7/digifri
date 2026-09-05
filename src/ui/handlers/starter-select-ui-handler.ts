@@ -2975,71 +2975,85 @@ export class StarterSelectUiHandler extends MessageUiHandler {
     teraType: PokemonType,
   ): Promise<void> {
     const ui = this.getUi();
-    const chosenSpecies = await this.choosePvpEvolutionStage(baseSpecies);
-    if (!chosenSpecies) {
-      return;
+    // Every ui.showText() prompt shown by the three choosers below (the "which evolution
+    // stage?" / "pick a moveset" / "pick a held item" messages) takes as long as its typewriter
+    // effect to finish before the actual OPTION_SELECT picker appears — ui.mode stays
+    // STARTER_SELECT for that whole stretch, so without this guard StarterSelectUiHandler kept
+    // processing DOWN/UP as ordinary main-grid navigation underneath the still-typing message,
+    // silently moving the cursor/species/sprite while the message box sat on top unchanged. Same
+    // blockInput pattern tryExit()/tryStart() already use around their own ui.showText() calls.
+    this.blockInput = true;
+    try {
+      const chosenSpecies = await this.choosePvpEvolutionStage(baseSpecies);
+      if (!chosenSpecies) {
+        return;
+      }
+      const moveset = await this.choosePvpMoveset(chosenSpecies);
+      if (!moveset) {
+        return;
+      }
+
+      const props = globalScene.gameData.getSpeciesDexAttrProps(baseSpecies, dexAttr);
+
+      const excludedHeldItems = new Set(
+        this.starters
+          .map(s => s.heldItem)
+          .filter((item): item is NonNullable<Starter["heldItem"]> => !!item)
+          .map(pvpHeldItemKey),
+      );
+      const heldItem = await this.choosePvpHeldItem(chosenSpecies, props.formIndex, excludedHeldItems);
+      if (!heldItem) {
+        return;
+      }
+
+      const { dexEntry } = this.getSpeciesData(baseSpecies.speciesId);
+
+      this.starterIcons[this.starterSpecies.length].setTexture(
+        chosenSpecies.getIconAtlasKey(props.formIndex, props.shiny, props.variant),
+      );
+      this.starterIcons[this.starterSpecies.length].setFrame(
+        chosenSpecies.getIconId(props.female, props.formIndex, props.shiny, props.variant),
+      );
+      this.checkIconId(
+        this.starterIcons[this.starterSpecies.length],
+        chosenSpecies,
+        props.female,
+        props.formIndex,
+        props.shiny,
+        props.variant,
+      );
+
+      const starter: Starter = {
+        speciesId: chosenSpecies.speciesId,
+        shiny: props.shiny,
+        variant: props.variant,
+        formIndex: props.formIndex,
+        female: props.female,
+        abilityIndex,
+        passive: false,
+        nature,
+        moveset,
+        pokerus: false,
+        teraType,
+        ivs: dexEntry.ivs,
+        level: 100,
+        pauseEvolutions: true,
+        heldItem,
+      };
+
+      // Only mark this party slot's cursor now that the pick is actually final — every earlier
+      // return above (cancelling the evolution stage / moveset / held item picker) must leave no
+      // trace, since nothing was pushed to starterSpecies for it to ever track again.
+      this.starterCursorObjs[this.starterSpecies.length]
+        .setVisible(true)
+        .setPosition(this.cursorObj.x, this.cursorObj.y);
+      this.starters.push(starter);
+      this.starterSpecies.push(chosenSpecies);
+      this.updateInstructions();
+      ui.playSelect();
+    } finally {
+      this.blockInput = false;
     }
-    const moveset = await this.choosePvpMoveset(chosenSpecies);
-    if (!moveset) {
-      return;
-    }
-
-    const props = globalScene.gameData.getSpeciesDexAttrProps(baseSpecies, dexAttr);
-
-    const excludedHeldItems = new Set(
-      this.starters
-        .map(s => s.heldItem)
-        .filter((item): item is NonNullable<Starter["heldItem"]> => !!item)
-        .map(pvpHeldItemKey),
-    );
-    const heldItem = await this.choosePvpHeldItem(chosenSpecies, props.formIndex, excludedHeldItems);
-    if (!heldItem) {
-      return;
-    }
-
-    const { dexEntry } = this.getSpeciesData(baseSpecies.speciesId);
-
-    this.starterIcons[this.starterSpecies.length].setTexture(
-      chosenSpecies.getIconAtlasKey(props.formIndex, props.shiny, props.variant),
-    );
-    this.starterIcons[this.starterSpecies.length].setFrame(
-      chosenSpecies.getIconId(props.female, props.formIndex, props.shiny, props.variant),
-    );
-    this.checkIconId(
-      this.starterIcons[this.starterSpecies.length],
-      chosenSpecies,
-      props.female,
-      props.formIndex,
-      props.shiny,
-      props.variant,
-    );
-
-    const starter: Starter = {
-      speciesId: chosenSpecies.speciesId,
-      shiny: props.shiny,
-      variant: props.variant,
-      formIndex: props.formIndex,
-      female: props.female,
-      abilityIndex,
-      passive: false,
-      nature,
-      moveset,
-      pokerus: false,
-      teraType,
-      ivs: dexEntry.ivs,
-      level: 100,
-      pauseEvolutions: true,
-      heldItem,
-    };
-
-    // Only mark this party slot's cursor now that the pick is actually final — every earlier
-    // return above (cancelling the evolution stage / moveset / held item picker) must leave no
-    // trace, since nothing was pushed to starterSpecies for it to ever track again.
-    this.starterCursorObjs[this.starterSpecies.length].setVisible(true).setPosition(this.cursorObj.x, this.cursorObj.y);
-    this.starters.push(starter);
-    this.starterSpecies.push(chosenSpecies);
-    this.updateInstructions();
-    ui.playSelect();
   }
 
   /** PvP team registration only: lets the player pick which stage of a species' evolution line to actually register. Resolves the base species immediately if it has no evolutions, no prompt shown. */
