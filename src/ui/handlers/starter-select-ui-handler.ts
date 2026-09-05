@@ -4954,10 +4954,22 @@ export class StarterSelectUiHandler extends MessageUiHandler {
       this.clearText();
     };
 
+    // Guards the "정말로 시작하시겠습니까?" message below the same way choosePvpEvolutionStage()
+    // etc. guard their own ui.showText() calls: while that message is still typing out, ui.mode
+    // stays STARTER_SELECT, and without this, DOWN/LEFT/etc. pressed in that window navigated
+    // away from the start button as if nothing were pending — so the CONFIRM dialog this
+    // showText() call queues up popped up moments later on top of whatever screen the player had
+    // already moved on to, with the cursor left wherever that navigation abandoned it.
+    if (this.blockInput) {
+      return false;
+    }
+
     const canStart = this.isPartyValid();
 
     if (canStart) {
+      this.blockInput = true;
       ui.showText(i18next.t("starterSelectUiHandler:confirmStartTeam"), null, () => {
+        this.blockInput = false;
         ui.setModeWithoutClear(
           UiMode.CONFIRM,
           () => {
