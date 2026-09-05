@@ -1902,8 +1902,16 @@ export class StarterSelectUiHandler extends MessageUiHandler {
           // Load assets and add to party
           speciesForm.loadAssets(props.female, props.formIndex, props.shiny, props.variant, true).then(() => {
             if (this.tryUpdateValue(starterCost, true)) {
-              this.addToParty(randomSpecies, dexAttr, abilityIndex, nature, moveset, teraType, true);
-              ui.playSelect();
+              if (isPvpTeamEditMode()) {
+                // Route through the same evolution/moveset/held-item chain the normal "Add to
+                // Party" option uses — calling addToParty() directly here (as this used to)
+                // skipped all three, silently registering the base species at its default
+                // moveset with no level-100/pauseEvolutions/heldItem fields at all.
+                void this.addToPartyPvp(randomSpecies, dexAttr, abilityIndex, nature, teraType);
+              } else {
+                this.addToParty(randomSpecies, dexAttr, abilityIndex, nature, moveset, teraType, true);
+                ui.playSelect();
+              }
             }
           });
           break;
