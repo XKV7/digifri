@@ -162,6 +162,12 @@ export class MenuUiHandler extends MessageUiHandler {
       },
       { condition: bypassLogin, options: [MenuOptions.LOG_OUT] },
       { condition: !globalScene.currentBattle, options: [MenuOptions.SAVE_AND_QUIT] },
+      // PvP battles are title-screen-only (see pvp-battle.ts#startPvpBattle) so a saved run never
+      // gets touched - PVP_TEAM registration is explicitly fine mid-run (see
+      // beginPvpTeamEditMode()'s own doc comment), but without this the lobby option stayed
+      // selectable too, letting a player create/join a room and pick their 3 members only to be
+      // rejected at the very last step when actually starting the battle.
+      { condition: !!globalScene.currentBattle, options: [MenuOptions.PVP_LOBBY] },
       {
         condition: !getCloudSaveContext(),
         options: [MenuOptions.GIFT_VOUCHER, MenuOptions.GIFT_POKEMON, MenuOptions.PVP_TEAM, MenuOptions.PVP_LOBBY],

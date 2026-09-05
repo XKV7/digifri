@@ -3149,6 +3149,7 @@ export class StarterSelectUiHandler extends MessageUiHandler {
                   render();
                   return true;
                 }
+                this.clearText();
                 this.moveInfoOverlay.clear();
                 ui.setMode(UiMode.STARTER_SELECT).then(() => resolve(chosen.slice(0, 4) as StarterMoveset));
                 return true;
@@ -3158,6 +3159,7 @@ export class StarterSelectUiHandler extends MessageUiHandler {
             {
               label: i18next.t("menu:cancel"),
               handler: () => {
+                this.clearText();
                 this.moveInfoOverlay.clear();
                 ui.setMode(UiMode.STARTER_SELECT).then(() => resolve(null));
                 return true;
