@@ -2165,8 +2165,13 @@ export class GameData {
    * `valueReduction` only needs to be provided when testing a value reduction other than the one currently unlocked
    */
   getSpeciesStarterValue(speciesId: SpeciesId, valueReduction?: number): number {
-    const baseValue = speciesDataRegistry.getStarterCost(speciesId);
-    const reduction = valueReduction ?? this.starterData[speciesId].valueReduction;
+    // Evolved/non-starter species (e.g. a PvP team registration that registered an evolution
+    // stage rather than the base species) have neither their own starterCost nor a starterData
+    // entry - resolve to the species' actual starter first, matching how getStarter() is already
+    // used elsewhere to look up the ownable/registrable species behind an evolution line member.
+    const starterId = speciesDataRegistry.getStarter(speciesId);
+    const baseValue = speciesDataRegistry.getStarterCost(starterId);
+    const reduction = valueReduction ?? this.starterData[starterId]?.valueReduction ?? 0;
     let value = baseValue as number;
 
     const decrementValue = (v: number) => {
