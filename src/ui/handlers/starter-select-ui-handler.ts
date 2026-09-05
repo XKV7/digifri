@@ -2009,37 +2009,43 @@ export class StarterSelectUiHandler extends MessageUiHandler {
               {
                 label: i18next.t("starterSelectUiHandler:addToParty"),
                 handler: () => {
-                  ui.setMode(UiMode.STARTER_SELECT);
-                  const isOverValueLimit = this.tryUpdateValue(
-                    globalScene.gameData.getSpeciesStarterValue(this.lastSpecies.speciesId),
-                    true,
-                  );
-                  if (!isDupe && isValidForChallenge && isOverValueLimit) {
-                    this.starterCursorObjs[this.starterSpecies.length]
-                      .setVisible(true)
-                      .setPosition(this.cursorObj.x, this.cursorObj.y);
-                    if (isPvpTeamEditMode()) {
-                      void this.addToPartyPvp(
-                        this.lastSpecies,
-                        this.dexAttrCursor,
-                        this.abilityCursor,
-                        this.natureCursor as unknown as Nature,
-                        this.teraCursor,
-                      );
+                  // Must wait for setMode()'s own transition (which can involve a ~350ms fade) to
+                  // actually finish before doing anything else — proceeding synchronously lets a
+                  // subsequent setMode() call (e.g. from addToPartyPvp()'s chooser chain) fire
+                  // while this one is still mid-transition, racing two overlapping fades against
+                  // each other and leaving the UI in an inconsistent (input-dead) state.
+                  ui.setMode(UiMode.STARTER_SELECT).then(() => {
+                    const isOverValueLimit = this.tryUpdateValue(
+                      globalScene.gameData.getSpeciesStarterValue(this.lastSpecies.speciesId),
+                      true,
+                    );
+                    if (!isDupe && isValidForChallenge && isOverValueLimit) {
+                      this.starterCursorObjs[this.starterSpecies.length]
+                        .setVisible(true)
+                        .setPosition(this.cursorObj.x, this.cursorObj.y);
+                      if (isPvpTeamEditMode()) {
+                        void this.addToPartyPvp(
+                          this.lastSpecies,
+                          this.dexAttrCursor,
+                          this.abilityCursor,
+                          this.natureCursor as unknown as Nature,
+                          this.teraCursor,
+                        );
+                      } else {
+                        this.addToParty(
+                          this.lastSpecies,
+                          this.dexAttrCursor,
+                          this.abilityCursor,
+                          this.natureCursor as unknown as Nature,
+                          this.starterMoveset?.slice(0) as StarterMoveset,
+                          this.teraCursor,
+                        );
+                        ui.playSelect();
+                      }
                     } else {
-                      this.addToParty(
-                        this.lastSpecies,
-                        this.dexAttrCursor,
-                        this.abilityCursor,
-                        this.natureCursor as unknown as Nature,
-                        this.starterMoveset?.slice(0) as StarterMoveset,
-                        this.teraCursor,
-                      );
-                      ui.playSelect();
+                      ui.playError(); // this should be redundant as there is now a trigger for when a pokemon can't be added to party
                     }
-                  } else {
-                    ui.playError(); // this should be redundant as there is now a trigger for when a pokemon can't be added to party
-                  }
+                  });
                   return true;
                 },
                 overrideSound: true,
