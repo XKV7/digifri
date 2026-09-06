@@ -40,6 +40,7 @@ import type { PvpRoomWithId } from "#app/pvp-room";
 import { loadPvpTeam } from "#app/pvp-team";
 import { Gender } from "#data/gender";
 import { BattleType } from "#enums/battle-type";
+import { BiomeId } from "#enums/biome-id";
 import { TrainerSlot } from "#enums/trainer-slot";
 import { TrainerType } from "#enums/trainer-type";
 import { TrainerVariant } from "#enums/trainer-variant";
@@ -49,6 +50,9 @@ import type { PokemonHeldItemModifier } from "#modifiers/modifier";
 import { getModifierTypeFuncById, type ModifierType, ModifierTypeGenerator } from "#modifiers/modifier-type";
 import { PokemonData } from "#system/pokemon-data";
 import type { Starter } from "#types/save-data";
+
+/** Fixed biome used for every PvP battle's arena — arbitrary but must be the same on both clients (it is, since it's a constant, not read from any run state). */
+const PVP_BIOME = BiomeId.TOWN;
 
 /** Fixed wave index used for every PvP battle's seed derivation — arbitrary but must be the same on both clients (it is, since it's a constant, not read from any run state). */
 const PVP_WAVE_INDEX = 1;
@@ -207,6 +211,16 @@ export async function startPvpBattle(
   globalScene.setSeed(room.pvpSeed);
   globalScene.resetSeed(PVP_WAVE_INDEX);
 
+  // A PvP battle is launched straight from the title screen rather than via newArena()/newBattle()
+  // (see below), so give it its own explicit, guaranteed-clean arena instead of depending on
+  // whatever globalScene.arena happens to be left over from the last real run/reset(). Doesn't
+  // touch the shared RNG stream (Arena's constructor/init() are both purely deterministic), so
+  // calling this here doesn't need to be wrapped in executeWithSeedOffset like the Battle/Trainer
+  // construction below.
+  await globalScene.loadBiomeAssets(PVP_BIOME);
+  globalScene.newArena(PVP_BIOME);
+  globalScene.arena.init();
+
   let battle!: Battle;
   let trainer!: Trainer;
   globalScene.executeWithSeedOffset(
@@ -227,6 +241,16 @@ export async function startPvpBattle(
 
   battle.isPvpBattle = true;
   battle.enemyLevels = (isHost ? guestStarters : hostStarters).map(s => s.level ?? 100);
+  // Battle#turnCommands (and #preTurnCommands/#battleSeedState) are declared on the class but only
+  // ever actually assigned inside incrementTurn() (see battle.ts) — every real battle gets this for
+  // free via newBattle()'s own incrementTurn() call right after construction, but we build Battle
+  // directly here and skip newBattle() entirely. Without this, turnCommands stays undefined for the
+  // whole battle, and CommandPhase.start()'s very first read of it
+  // (`globalScene.currentBattle.turnCommands[this.fieldIndex]?.skip`) throws on `undefined[fieldIndex]`
+  // right as the post-summon ability-trigger message (e.g. Pressure's) tries to auto-advance into the
+  // move-selection UI — permanently freezing the battle on whatever message was last shown, since the
+  // throw happens before ui.setMode(UiMode.COMMAND, ...) is ever reached.
+  battle.incrementTurn();
 
   // Pokemon construction below (specifically EnemyPokemon#init() -> battle-info UI setup) reads
   // globalScene.currentBattle internally (e.g. to decide on final-boss name styling) — must be
