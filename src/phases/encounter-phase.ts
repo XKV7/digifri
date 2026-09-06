@@ -562,7 +562,12 @@ export class EncounterPhase extends BattlePhase {
       }
     }
 
-    if (!this.loaded) {
+    // PvP battles are built with loaded=true (see pvp-battle.ts) purely to skip AI party generation
+    // and session-saving above - unlike a genuinely resumed session, a PvP battle's own party was
+    // never actually summoned onto the field, so this block (which does exactly that) must still run
+    // for it or the player's Pokemon never becomes isActive()/isOnField() and TurnInitPhase never
+    // pushes a CommandPhase for it, freezing the battle right after both sides' Pokemon appear.
+    if (!this.loaded || globalScene.currentBattle.isPvpBattle) {
       const availablePartyMembers = globalScene.getPokemonAllowedInBattle();
 
       if (!availablePartyMembers[0].isOnField()) {
