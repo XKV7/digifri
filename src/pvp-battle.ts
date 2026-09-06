@@ -290,6 +290,18 @@ export async function startPvpBattle(
   activeContext = { roomId: room.id, isHost };
 
   globalScene.phaseManager.pushNew("EncounterPhase", true);
+  // pushNew() only queues the phase - it starts running once whatever phase is CURRENTLY active
+  // calls its own end(), which normally happens on its own as part of natural gameplay. But we
+  // got here from the PvP room panel, a plain DOM overlay sitting outside Phaser's phase system
+  // entirely (see pvp-room-panel.ts's file header) while the title screen's own TitlePhase is
+  // still sitting idle underneath, waiting on menu input that will never come from here. Without
+  // this, EncounterPhase just sat queued forever and the title screen kept rendering exactly as
+  // it was, even though startPvpBattle() itself had already "succeeded".
+  // Phase.end()'s base implementation (see phase.ts) is exactly this call; only bypassing it here
+  // because TitlePhase overrides end() to also start a brand new single-player run (set the game
+  // mode, push SelectStarterPhase, call newArena(), ...), none of which should ever run for a PvP
+  // battle - shiftPhase() advances the queue to our EncounterPhase without any of that.
+  globalScene.phaseManager.shiftPhase();
 
   return { ok: true };
 }
