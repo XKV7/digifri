@@ -36,11 +36,13 @@
 import { Battle } from "#app/battle";
 import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
+import type { Phase } from "#app/phase";
 import type { PvpRoomWithId } from "#app/pvp-room";
 import { submitPvpFormChangeState, subscribePvpFormChangeState } from "#app/pvp-room";
 import { loadPvpTeam } from "#app/pvp-team";
 import { SpeciesFormChangeItemTrigger } from "#data/form-change-triggers";
 import { Gender } from "#data/gender";
+import type { SpeciesFormChange } from "#data/pokemon-forms";
 import { BattleType } from "#enums/battle-type";
 import { BiomeId } from "#enums/biome-id";
 import { TrainerSlot } from "#enums/trainer-slot";
@@ -69,6 +71,18 @@ let activeContext: PvpBattleContext | null = null;
 let nextPvpPokemonId = 1;
 /** Whether this (local) side has already used its one form-change-item activation for the current battle — see togglePvpFormChangeItem. Reset at the start of every startPvpBattle() call. */
 let pvpFormChangeUsed = false;
+
+interface PendingPvpFormChangeReveal {
+  pokemon: Pokemon;
+  formChange: SpeciesFormChange;
+}
+/**
+ * Form changes (Mega Evolution etc.) toggled so far this turn, on either side, waiting to actually
+ * play at turn start — see queuePvpFormChangeReveal and turn-start-phase.ts's PvP branch. Reset at
+ * the start of every startPvpBattle() call and drained (emptied) every time turn-start-phase.ts
+ * reads it.
+ */
+let pendingFormChangeReveals: PendingPvpFormChangeReveal[] = [];
 
 /** The room/side info for the currently-running PvP battle, if any — read by PvpEnemyCommandPhase and CommandPhase's PvP hook. */
 export function getPvpBattleContext(): PvpBattleContext | null {
@@ -113,15 +127,77 @@ export function getPvpFormChangeItemIcon(pokemon: Pokemon): string | null {
 }
 
 /**
- * Toggles the given (local, player-controlled) Pokemon's form-change item active/inactive,
- * applies the resulting form change, and broadcasts the new state to the opponent's client
- * (see PvpRoom.hostFormChangeState) so it can mirror it on its view of this same Pokemon —
- * necessary since the form change can alter stats/types that both clients' damage calculations
- * must agree on. Called from command-ui-handler.ts's repurposed Tera button; a no-op if the
- * Pokemon has no such item or this side has already used its one activation for the battle.
- * Activating (not deactivating) permanently consumes that one-per-battle use, matching real Mega
- * Evolution — once used, hasPvpFormChangeItem() stops offering the button at all for the rest of
- * the battle, on any of this side's Pokemon.
+ * Finds the SpeciesFormChange matching the given item modifiers' held item(s) and the target
+ * active state, queuing it to actually play at turn start (see drainPendingPvpFormChangeReveals)
+ * instead of immediately — real Mega Evolution reveals happen at the start of the turn, in Speed
+ * order if both sides are doing it the same turn, not the instant either side declares it. Any
+ * earlier still-pending reveal for the same Pokemon this turn is replaced (not stacked), so
+ * rapidly toggling on/off/on before submitting a move only plays the final state once.
+ *
+ * Deliberately doesn't use fc.canChange(pokemon) here (see SpeciesFormChangeItemTrigger.canChange
+ * in form-change-triggers.ts) - it looks up the matching modifier via globalScene.findModifier()
+ * with no explicit isPlayer argument, which defaults to true and so always comes back empty for an
+ * EnemyPokemon. The pokemonId/item/active match it's checking for is instead done directly against
+ * `modifiers`, which the caller already fetched with the correct isPlayer() awareness.
+ */
+function queuePvpFormChangeReveal(pokemon: Pokemon, modifiers: PokemonFormChangeItemModifier[], active: boolean): void {
+  const heldItemIds = new Set(modifiers.map(m => m.formChangeItem));
+  const formChange = speciesDataRegistry.getFormChanges(pokemon.species.speciesId).find(fc => {
+    const trigger = fc.findTrigger(SpeciesFormChangeItemTrigger) as SpeciesFormChangeItemTrigger | undefined;
+    return trigger && heldItemIds.has(trigger.item) && trigger.active === active;
+  });
+  if (!formChange) {
+    return;
+  }
+  pendingFormChangeReveals = pendingFormChangeReveals.filter(r => r.pokemon !== pokemon);
+  pendingFormChangeReveals.push({ pokemon, formChange });
+}
+
+/**
+ * Drains (returns and clears) every form change queued this turn via queuePvpFormChangeReveal, on
+ * either side. Called once by turn-start-phase.ts's PvP branch, right before the turn's moves are
+ * ordered and resolved.
+ */
+export function drainPendingPvpFormChangeReveals(): PendingPvpFormChangeReveal[] {
+  const reveals = pendingFormChangeReveals;
+  pendingFormChangeReveals = [];
+  return reveals;
+}
+
+/**
+ * Builds the actual reveal Phase for one queued form change — the full-screen "MEGA EVOLUTION!"
+ * cutscene (FormChangePhase) unless the form change is marked quiet, matching what
+ * globalScene.triggerPokemonFormChange() itself picks for `pokemon.isPlayer()`. Constructing
+ * FormChangePhase with an EnemyPokemon needs a type assertion (its constructor is typed for
+ * PlayerPokemon specifically) — verified safe: the modal/item-triggered path it takes (evolution:
+ * null, so doEvolution() is fully overridden by FormChangePhase's own tween sequence) never
+ * touches anything PlayerPokemon-only like getPlayerParty()/party-slot lookups (those only run
+ * from EvolutionPhase's real level-up-evolution code, a different method FormChangePhase never
+ * calls), and its setMode() uses ui.setOverlayMode() rather than replacing the UI stack outright,
+ * so it doesn't clobber whatever the *other* side's player happens to be doing underneath when
+ * their reveal's turn comes up — it plays on top and correctly reverts back to exactly that once
+ * it ends.
+ */
+export function createPvpFormChangeRevealPhase(reveal: PendingPvpFormChangeReveal): Phase {
+  return reveal.formChange.quiet
+    ? globalScene.phaseManager.create("QuietFormChangePhase", reveal.pokemon, reveal.formChange)
+    : globalScene.phaseManager.create("FormChangePhase", reveal.pokemon as PlayerPokemon, reveal.formChange, true);
+}
+
+/**
+ * Toggles the given (local, player-controlled) Pokemon's form-change item active/inactive and
+ * broadcasts the new state to the opponent's client (see PvpRoom.hostFormChangeState) so it can
+ * mirror it on its view of this same Pokemon — necessary since the form change can alter
+ * stats/types that both clients' damage calculations must agree on. Called from
+ * command-ui-handler.ts's repurposed Tera button; a no-op if the Pokemon has no such item or this
+ * side has already used its one activation for the battle. Activating (not deactivating)
+ * permanently consumes that one-per-battle use, matching real Mega Evolution — once used,
+ * hasPvpFormChangeItem() stops offering the button at all for the rest of the battle, on any of
+ * this side's Pokemon.
+ *
+ * The item's active flag is set immediately (so this side's own move-selection screen reflects it
+ * right away), but the actual form change — and its animation — doesn't play until turn start (see
+ * queuePvpFormChangeReveal), same as the opponent's mirrored side.
  */
 export function togglePvpFormChangeItem(pokemon: Pokemon): void {
   if (pvpFormChangeUsed) {
@@ -135,10 +211,10 @@ export function togglePvpFormChangeItem(pokemon: Pokemon): void {
   for (const modifier of modifiers) {
     modifier.active = active;
   }
-  globalScene.triggerPokemonFormChange(pokemon, SpeciesFormChangeItemTrigger, false, true);
   if (active) {
     pvpFormChangeUsed = true;
   }
+  queuePvpFormChangeReveal(pokemon, modifiers, active);
 
   const ctx = activeContext;
   if (ctx) {
@@ -150,19 +226,9 @@ export function togglePvpFormChangeItem(pokemon: Pokemon): void {
  * Applies a form-change-item active state received from the opponent's client to the given
  * (local view of their) Pokemon. No-ops if already in sync or the Pokemon has no such item,
  * since this is called on every room update, not just relevant ones (see
- * subscribePvpFormChangeState).
- *
- * Deliberately doesn't reuse globalScene.triggerPokemonFormChange() here — that dispatcher only
- * ever plays the visible QuietFormChangePhase/FormChangePhase animation for `pokemon.isPlayer()`,
- * which is always false for an EnemyPokemon (i.e. every enemy-mirrored Pokemon on both clients,
- * regardless of whose real account "owns" it) unless explicitly overridden, so it silently fell
- * back to unshiftPhase() - queued behind whatever's currently running (e.g. the local player's
- * own idle CommandPhase, which won't naturally advance until they submit a move) rather than
- * shown right away, which is what made the opponent's Mega Evolution invisible in practice.
- * overridePhase() (the same mechanism togglePvpFormChangeItem's own local FormChangePhase already
- * relies on) runs it immediately instead; the modifier's active flag above is set unconditionally
- * either way, so damage/type calculations stay correct even on the rare no-op fallback below
- * (another override already in flight).
+ * subscribePvpFormChangeState). Like the local toggle above, only sets the modifier's active flag
+ * now — the actual reveal is queued for turn start (see queuePvpFormChangeReveal) so it can be
+ * ordered against a same-turn Mega Evolution on the other side by Speed.
  */
 function applyPvpFormChangeState(pokemon: Pokemon, active: boolean): void {
   const modifiers = getPvpFormChangeItemModifiers(pokemon);
@@ -172,38 +238,7 @@ function applyPvpFormChangeState(pokemon: Pokemon, active: boolean): void {
   for (const modifier of modifiers) {
     modifier.active = active;
   }
-  // Deliberately NOT fc.canChange(pokemon) here (see SpeciesFormChangeItemTrigger.canChange in
-  // form-change-triggers.ts) - it looks up the matching modifier via globalScene.findModifier()
-  // with no explicit isPlayer argument, which defaults to true and so (exactly like
-  // getPvpFormChangeItemModifiers() used to, before it was fixed) always comes back empty for an
-  // EnemyPokemon, permanently blocking this from ever finding a formChange for the opponent's
-  // mirrored side. The pokemonId/item/active match it's checking for is instead done directly
-  // against `modifiers` above, which was already fetched with the correct isPlayer() awareness.
-  const heldItemIds = new Set(modifiers.map(m => m.formChangeItem));
-  const formChange = speciesDataRegistry.getFormChanges(pokemon.species.speciesId).find(fc => {
-    const trigger = fc.findTrigger(SpeciesFormChangeItemTrigger) as SpeciesFormChangeItemTrigger | undefined;
-    return trigger && heldItemIds.has(trigger.item) && trigger.active === active;
-  });
-  if (!formChange) {
-    return;
-  }
-  // Play the same full-screen "MEGA EVOLUTION!" cutscene (FormChangePhase) the activating player's
-  // own client already gets via triggerPokemonFormChange() - normally reserved for
-  // pokemon.isPlayer() (see that function in battle-scene.ts), since FormChangePhase's constructor
-  // is typed for PlayerPokemon specifically. Verified safe to use for an EnemyPokemon here: the
-  // modal/item-triggered path it takes (evolution: null, so doEvolution() is fully overridden by
-  // FormChangePhase's own tween sequence) never touches anything PlayerPokemon-only like
-  // getPlayerParty()/party-slot lookups - those only run from EvolutionPhase's real
-  // level-up-evolution code, a different method FormChangePhase never calls. And since its
-  // setMode() uses ui.setOverlayMode() rather than replacing the UI stack outright, it doesn't
-  // clobber whatever the local player happens to be doing underneath (e.g. still picking their own
-  // move) - it plays on top and correctly reverts back to exactly that once it ends.
-  const phase = formChange.quiet
-    ? globalScene.phaseManager.create("QuietFormChangePhase", pokemon, formChange)
-    : globalScene.phaseManager.create("FormChangePhase", pokemon as PlayerPokemon, formChange, true);
-  if (!globalScene.phaseManager.overridePhase(phase)) {
-    globalScene.phaseManager.unshiftPhase(phase);
-  }
+  queuePvpFormChangeReveal(pokemon, modifiers, active);
 }
 
 /** Attaches a Starter's held item (if any) to the given Pokemon, mirroring modifier.ts's overrideHeldItems(). */
@@ -350,6 +385,7 @@ export async function startPvpBattle(
 
   nextPvpPokemonId = 1;
   pvpFormChangeUsed = false;
+  pendingFormChangeReveals = [];
   globalScene.setSeed(room.pvpSeed);
   globalScene.resetSeed(PVP_WAVE_INDEX);
 

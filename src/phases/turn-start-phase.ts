@@ -1,6 +1,7 @@
 import { applyAbAttrs } from "#abilities/apply-ab-attrs";
 import type { TurnCommand } from "#app/battle";
 import { globalScene } from "#app/global-scene";
+import { createPvpFormChangeRevealPhase, drainPendingPvpFormChangeReveals } from "#app/pvp-battle";
 import { ArenaTagSide } from "#enums/arena-tag-side";
 import type { BattlerIndex } from "#enums/battler-index";
 import { Command } from "#enums/command";
@@ -50,6 +51,29 @@ export class TurnStartPhase extends FieldPhase {
   // Also need a clearer distinction between "turn command" and queued moves
   start() {
     super.start();
+
+    // PvP Mega Evolution etc. is queued (not played) at toggle time (see pvp-battle.ts's
+    // togglePvpFormChangeItem/applyPvpFormChangeState) so that if both sides do it on the same
+    // turn, their reveals can be shown in the same Speed order the real games use, rather than
+    // whichever side's toggle happened to reach this client first over the network. Both sides'
+    // reveals are already known by the time this phase starts, since toggling only ever happens
+    // during command selection, which fully completes (both CommandPhase and PvpEnemyCommandPhase)
+    // before TurnStartPhase is ever pushed - see turn-init-phase.ts.
+    if (globalScene.currentBattle.isPvpBattle) {
+      const reveals = drainPendingPvpFormChangeReveals();
+      if (reveals.length > 0) {
+        const speedOrder = [...inSpeedOrder(ArenaTagSide.BOTH)];
+        reveals.sort((a, b) => speedOrder.indexOf(a.pokemon) - speedOrder.indexOf(b.pokemon));
+        for (const reveal of reveals) {
+          globalScene.phaseManager.unshiftPhase(createPvpFormChangeRevealPhase(reveal));
+        }
+        // Re-run turn start from scratch once every reveal has played - forms/stats are already
+        // updated by then, so the move order this phase builds below reflects them correctly.
+        globalScene.phaseManager.unshiftPhase(globalScene.phaseManager.create("TurnStartPhase"));
+        this.end();
+        return;
+      }
+    }
 
     const field = globalScene.getField();
     const moveOrder = this.getCommandOrder();
