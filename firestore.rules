@@ -119,5 +119,22 @@ service cloud.firestore {
                     || request.resource.data.pvpWins >= resource.data.pvpWins
                   );
     }
+
+    // Online presence (see src/presence.ts): one doc per signed-in account holding just a
+    // server-stamped lastSeen timestamp, refreshed on a heartbeat while the game is open. The
+    // title screen's "players online" count is a server-side aggregation over "lastSeen within
+    // the last ~90s", so any signed-in user may read (get/list) the collection; only the owner
+    // may write their own doc, and lastSeen must be the request's own server timestamp (a client
+    // can't backdate/forwarddate its own presence, though - as with the rest of this project's
+    // data - it could simply keep heartbeating to stay "online" indefinitely, which isn't treated
+    // as a concern here).
+    match /presence/{uid} {
+      allow get, list: if request.auth != null;
+
+      allow write: if request.auth != null
+                  && request.auth.uid == uid
+                  && request.resource.data.keys().hasOnly(['lastSeen'])
+                  && request.resource.data.lastSeen == request.time;
+    }
   }
 }

@@ -15,6 +15,7 @@
  */
 
 import { publishGiftProfile, setCloudSaveContext } from "#app/gift";
+import { startPresenceHeartbeat } from "#app/presence";
 import { initializeApp } from "firebase/app";
 import {
   browserLocalPersistence,
@@ -234,6 +235,7 @@ async function startSync(app: ReturnType<typeof initializeApp>, user: User): Pro
 
   setCloudSaveContext(app, user);
   void publishGiftProfile(app, user);
+  startPresenceHeartbeat();
 
   // If this device last synced with a different account, resolve whose data wins
   const prevUid = localStorage.getItem(UID_KEY);

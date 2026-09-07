@@ -5,6 +5,7 @@ import { getCloudSaveContext } from "#app/gift";
 import { timedEventManager } from "#app/global-event-manager";
 import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
+import { fetchOnlinePlayerCount } from "#app/presence";
 import { isBeta, isDev } from "#constants/app-constants";
 import { getSplashMessages } from "#data/splash-messages";
 import { PlayerGender } from "#enums/player-gender";
@@ -122,13 +123,21 @@ export class TitleUiHandler extends OptionSelectUiHandler {
   }
 
   updateTitleStats(): void {
+    // The real pokerogue.net "players online" stat is unreachable from this self-hosted fork, so
+    // the online count instead comes from this project's own Firestore presence heartbeat (see
+    // presence.ts) - null (signed out, or the fetch failed) leaves the existing "?" label as-is.
+    fetchOnlinePlayerCount().then(count => {
+      if (count != null) {
+        this.playerCountLabel.setText(`${count} ${i18next.t("menu:playersOnline")}`);
+      }
+    });
+
     pokerogueApi
       .getGameTitleStats()
       .then(stats => {
         if (stats == null) {
           return;
         }
-        this.playerCountLabel.setText(`${stats.playerCount} ${i18next.t("menu:playersOnline")}`);
         const splashMessage = this.splashMessage;
         if (splashMessage === "splashMessages:battlesWon") {
           this.splashMessageText.setText(i18next.t(splashMessage, { count: stats.battleCount }));
