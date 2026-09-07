@@ -339,23 +339,6 @@ export class CommandPhase extends FieldPhase {
     );
   }
 
-  /** Same as queueShowText(), but for a literal (non-i18next-keyed) string — PvP-only messages don't have locale entries. */
-  private queuePvpLiteralText(text: string): void {
-    globalScene.ui.setMode(UiMode.COMMAND, this.fieldIndex);
-    globalScene.ui.setMode(UiMode.MESSAGE);
-
-    globalScene.ui.showText(
-      text,
-      null,
-      () => {
-        globalScene.ui.showText("", 0);
-        globalScene.ui.setMode(UiMode.COMMAND, this.fieldIndex);
-      },
-      null,
-      true,
-    );
-  }
-
   /**
    * Helper method for {@linkcode handleBallCommand} that checks if a pokeball can be thrown
    * and displays the appropriate error message.
@@ -649,12 +632,6 @@ export class CommandPhase extends FieldPhase {
         success = this.handleBallCommand(cursor);
         break;
       case Command.POKEMON:
-        if (isPvp) {
-          // Switching isn't synced to the opponent's client yet (see pvp-enemy-command-phase.ts) —
-          // block it here rather than let the two sides' battle states silently diverge.
-          this.queuePvpLiteralText("PvP 대전에서는 아직 포켓몬 교체를 지원하지 않습니다.");
-          break;
-        }
         this.isSwitch = true;
         success = this.tryLeaveField(cursor, typeof useMode === "boolean" ? useMode : undefined);
         this.isSwitch = false;
@@ -672,6 +649,20 @@ export class CommandPhase extends FieldPhase {
           void submitPvpTurnCommand(ctx.roomId, ctx.isHost, globalScene.currentBattle.turn, {
             command: "fight",
             moveIndex: cursor,
+          });
+        }
+      } else if (isPvp && command === Command.POKEMON) {
+        // Mirror the voluntary switch to the opponent's client the same way a move choice is
+        // mirrored above - keyed by the switched-in Pokemon's own stable id (see
+        // PvpSwitchCommand's doc comment in pvp-room.ts), not the party slot index, since that
+        // index means something different on each client once parties get reordered by switches.
+        const ctx = getPvpBattleContext();
+        const switchedInId = globalScene.getPlayerParty()[cursor]?.id;
+        if (ctx && switchedInId !== undefined) {
+          void submitPvpTurnCommand(ctx.roomId, ctx.isHost, globalScene.currentBattle.turn, {
+            command: "switch",
+            pokemonId: switchedInId,
+            isBaton: typeof useMode === "boolean" ? useMode : false,
           });
         }
       }

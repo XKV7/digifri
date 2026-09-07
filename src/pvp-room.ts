@@ -35,16 +35,23 @@ import {
 export type PvpRoomStatus = "waiting" | "team_preview" | "battling" | "finished" | "cancelled";
 
 /**
- * One side's chosen action for a given turn of an in-progress PvP battle (see pvp-battle.ts).
- * Only "fight" exists so far — voluntary switching is still blocked entirely (see
- * command-phase.ts's Command.POKEMON handling); forced switch-on-faint is synced separately,
- * see {@linkcode PvpSwitchCommand} below.
+ * One side's chosen action for a given turn of an in-progress PvP battle (see pvp-battle.ts):
+ * either using a move, or voluntarily switching out (via the Pokemon command). Forced
+ * switch-on-faint is synced separately, see {@linkcode PvpSwitchCommand} below.
  */
-export interface PvpTurnCommand {
-  command: "fight";
-  /** Index (0-3) into the active Pokemon's moveset. */
-  moveIndex: number;
-}
+export type PvpTurnCommand =
+  | {
+      command: "fight";
+      /** Index (0-3) into the active Pokemon's moveset. */
+      moveIndex: number;
+    }
+  | {
+      command: "switch";
+      /** The `id` (see {@linkcode PvpSwitchCommand}'s doc comment) of the Pokemon being switched in. */
+      pokemonId: number;
+      /** Whether this is a Baton Pass-style switch (stat stages/certain effects carry over). */
+      isBaton: boolean;
+    };
 
 /**
  * One side's chosen replacement when one of their own Pokemon faints mid-battle (see

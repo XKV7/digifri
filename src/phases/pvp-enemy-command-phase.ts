@@ -57,6 +57,27 @@ export class PvpEnemyCommandPhase extends FieldPhase {
   }
 
   private applyCommand(command: PvpTurnCommand): void {
+    if (command.command === "switch") {
+      // Mirrors a voluntary switch exactly like EnemyCommandPhase's own AI-switch branch would -
+      // TurnStartPhase reads this turnCommand and creates the actual SwitchSummonPhase, so no
+      // custom phase is needed here (unlike the fainted-Pokemon case - see PvpEnemySwitchPhase -
+      // which runs outside the normal turn-command flow entirely).
+      const enemyParty = globalScene.getEnemyParty();
+      const slotIndex = enemyParty.findIndex(p => p.id === command.pokemonId);
+      if (slotIndex === -1) {
+        console.error(`PvpEnemyCommandPhase: switch target pokemonId ${command.pokemonId} not found in enemy party`);
+        this.end();
+        return;
+      }
+      globalScene.currentBattle.turnCommands[this.fieldIndex + BattlerIndex.ENEMY] = {
+        command: Command.POKEMON,
+        cursor: slotIndex,
+        args: [command.isBaton],
+      };
+      this.end();
+      return;
+    }
+
     const enemyPokemon = globalScene.getEnemyField()[this.fieldIndex];
     const moveset = enemyPokemon.getMoveset();
     const moveEntry = moveset[command.moveIndex] ?? moveset[0];
