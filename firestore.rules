@@ -96,6 +96,12 @@ service cloud.firestore {
     // stat (lower for time, higher for wave/wins) relative to whatever's already stored - this
     // stops accidental regressions, not outright fabrication of a first value, which (as with
     // the rest of this project's data) isn't treated as a concern here.
+    //
+    // `resource` is null for a brand-new document (every account's very first submission), so
+    // each monotonic check below short-circuits on `resource == null` before ever touching
+    // `resource.data` - reading .data off a null resource is a rules evaluation error, which
+    // denies the whole write. Without that guard, every account's first-ever leaderboard write
+    // would be silently rejected forever.
     match /leaderboardStats/{uid} {
       allow get, list: if request.auth != null;
 
@@ -105,16 +111,19 @@ service cloud.firestore {
                   && request.resource.data.keys().hasOnly(['displayName', 'classicBestTimeSeconds', 'endlessMaxWave', 'pvpWins'])
                   && (
                     !('classicBestTimeSeconds' in request.resource.data)
+                    || resource == null
                     || !('classicBestTimeSeconds' in resource.data)
                     || request.resource.data.classicBestTimeSeconds <= resource.data.classicBestTimeSeconds
                   )
                   && (
                     !('endlessMaxWave' in request.resource.data)
+                    || resource == null
                     || !('endlessMaxWave' in resource.data)
                     || request.resource.data.endlessMaxWave >= resource.data.endlessMaxWave
                   )
                   && (
                     !('pvpWins' in request.resource.data)
+                    || resource == null
                     || !('pvpWins' in resource.data)
                     || request.resource.data.pvpWins >= resource.data.pvpWins
                   );
