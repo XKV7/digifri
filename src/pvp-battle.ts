@@ -81,8 +81,17 @@ export function clearPvpBattleContext(): void {
 }
 
 function getPvpFormChangeItemModifiers(pokemon: Pokemon): PokemonFormChangeItemModifier[] {
+  // globalScene.findModifiers() defaults to isPlayer=true (searching only globalScene.modifiers,
+  // never globalScene.enemyModifiers) - fine for togglePvpFormChangeItem's own local Pokemon, but
+  // applyPvpFormChangeState calls this with an EnemyPokemon (the opponent's mirrored view), whose
+  // held-item modifier was attached via addEnemyModifier() and so only ever lives in
+  // enemyModifiers. Without passing pokemon.isPlayer() through explicitly, that lookup always
+  // returned empty for the enemy side, silently no-opping the whole function before it ever got
+  // to applying the form change - the actual reason the opponent's Mega Evolution never appeared,
+  // not the phase-timing issue this file's own history previously (wrongly) blamed it on.
   return globalScene.findModifiers(
     m => m.is("PokemonFormChangeItemModifier") && m.pokemonId === pokemon.id,
+    pokemon.isPlayer(),
   ) as PokemonFormChangeItemModifier[];
 }
 
