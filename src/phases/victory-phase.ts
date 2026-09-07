@@ -46,6 +46,14 @@ export class VictoryPhase extends PokemonPhase {
         .find(p => (globalScene.currentBattle.battleType === BattleType.WILD ? p.isOnField() : !p?.isFainted()))
       && !globalScene.phaseManager.hasPhaseOfType("TrainerVictoryPhase") // temporary hotfix
     ) {
+      if (globalScene.currentBattle.isPvpBattle) {
+        // Everything below (EggLapsePhase, SelectModifierPhase, NewBattlePhase, ...) is real-run
+        // wave-progression machinery - letting a PvP win fall through to it was accidentally
+        // dragging the winner into normal run progression. See pvp-battle-end-phase.ts.
+        globalScene.phaseManager.pushNew("PvpBattleEndPhase", true);
+        this.end();
+        return;
+      }
       globalScene.phaseManager.pushNew("BattleEndPhase", true);
       if (globalScene.currentBattle.battleType === BattleType.TRAINER) {
         globalScene.phaseManager.pushNew("TrainerVictoryPhase");

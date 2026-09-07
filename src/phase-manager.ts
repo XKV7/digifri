@@ -78,6 +78,7 @@ import { PositionalTagPhase } from "#phases/positional-tag-phase";
 import { PostGameOverPhase } from "#phases/post-game-over-phase";
 import { PostSummonPhase } from "#phases/post-summon-phase";
 import { PostTurnStatusEffectPhase } from "#phases/post-turn-status-effect-phase";
+import { PvpBattleEndPhase } from "#phases/pvp-battle-end-phase";
 import { PvpEnemyCommandPhase } from "#phases/pvp-enemy-command-phase";
 import { PvpEnemySwitchPhase } from "#phases/pvp-enemy-switch-phase";
 import { QuietFormChangePhase } from "#phases/quiet-form-change-phase";
@@ -187,6 +188,7 @@ const PHASES = Object.freeze({
   PostGameOverPhase,
   PostSummonPhase,
   PostTurnStatusEffectPhase,
+  PvpBattleEndPhase,
   PvpEnemyCommandPhase,
   PvpEnemySwitchPhase,
   QuietFormChangePhase,

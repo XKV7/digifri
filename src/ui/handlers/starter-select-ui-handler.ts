@@ -33,7 +33,7 @@ import { DexAttr } from "#enums/dex-attr";
 import { DropDownColumn } from "#enums/drop-down-column";
 import { EggSourceType } from "#enums/egg-source-types";
 import { EggTier } from "#enums/egg-type";
-import type { FormChangeItem } from "#enums/form-change-item";
+import { FormChangeItem } from "#enums/form-change-item";
 import { GameModes } from "#enums/game-modes";
 import type { MoveId } from "#enums/move-id";
 import type { Nature } from "#enums/nature";
@@ -3212,7 +3212,15 @@ export class StarterSelectUiHandler extends MessageUiHandler {
         .getFormChanges(species.speciesId)
         .filter(fc => fc.preFormKey === formKey)
         .map(fc => fc.findTrigger(SpeciesFormChangeItemTrigger) as SpeciesFormChangeItemTrigger | null | undefined)
-        .filter((trigger): trigger is SpeciesFormChangeItemTrigger => !!trigger?.active)
+        // PvP battle only supports Mega Evolution (see pvp-battle.ts's togglePvpFormChangeItem) -
+        // Primal Reversion (Blue/Red Orb), Rusted Sword/Shield, Origin gems, and the rest of the
+        // "rare"/"other" form-change items (form-change-item.ts's own region comments mark where
+        // Mega Stones end at value 100/BLUE_ORB) aren't wired up for battle-time activation, so
+        // don't offer them as a PvP held item in the first place.
+        .filter(
+          (trigger): trigger is SpeciesFormChangeItemTrigger =>
+            !!trigger?.active && trigger.item > FormChangeItem.NONE && trigger.item < FormChangeItem.BLUE_ORB,
+        )
         .map(trigger => trigger.item),
     );
     for (const item of formChangeItems) {

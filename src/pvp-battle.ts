@@ -97,6 +97,12 @@ export function hasPvpFormChangeItem(pokemon: Pokemon): boolean {
   return !pvpFormChangeUsed && getPvpFormChangeItemModifiers(pokemon).length > 0;
 }
 
+/** The "items" spritesheet frame name for the given Pokemon's registered form-change item (the same icon shown in the shop/party screen — see Modifier.getIcon() in modifier.ts), or null if it has none. Used to show the actual item on the command menu's repurposed Tera slot instead of a type icon. */
+export function getPvpFormChangeItemIcon(pokemon: Pokemon): string | null {
+  const modifiers = getPvpFormChangeItemModifiers(pokemon);
+  return modifiers.length > 0 ? modifiers[0].type.iconImage : null;
+}
+
 /**
  * Toggles the given (local, player-controlled) Pokemon's form-change item active/inactive,
  * applies the resulting form change, and broadcasts the new state to the opponent's client
@@ -131,7 +137,24 @@ export function togglePvpFormChangeItem(pokemon: Pokemon): void {
   }
 }
 
-/** Applies a form-change-item active state received from the opponent's client to the given (local view of their) Pokemon. No-ops if already in sync or the Pokemon has no such item, since this is called on every room update, not just relevant ones (see subscribePvpFormChangeState). */
+/**
+ * Applies a form-change-item active state received from the opponent's client to the given
+ * (local view of their) Pokemon. No-ops if already in sync or the Pokemon has no such item,
+ * since this is called on every room update, not just relevant ones (see
+ * subscribePvpFormChangeState).
+ *
+ * Deliberately doesn't reuse globalScene.triggerPokemonFormChange() here — that dispatcher only
+ * ever plays the visible QuietFormChangePhase/FormChangePhase animation for `pokemon.isPlayer()`,
+ * which is always false for an EnemyPokemon (i.e. every enemy-mirrored Pokemon on both clients,
+ * regardless of whose real account "owns" it) unless explicitly overridden, so it silently fell
+ * back to unshiftPhase() - queued behind whatever's currently running (e.g. the local player's
+ * own idle CommandPhase, which won't naturally advance until they submit a move) rather than
+ * shown right away, which is what made the opponent's Mega Evolution invisible in practice.
+ * overridePhase() (the same mechanism togglePvpFormChangeItem's own local FormChangePhase already
+ * relies on) runs it immediately instead; the modifier's active flag above is set unconditionally
+ * either way, so damage/type calculations stay correct even on the rare no-op fallback below
+ * (another override already in flight).
+ */
 function applyPvpFormChangeState(pokemon: Pokemon, active: boolean): void {
   const modifiers = getPvpFormChangeItemModifiers(pokemon);
   if (modifiers.length === 0 || modifiers[0].active === active) {
@@ -140,7 +163,16 @@ function applyPvpFormChangeState(pokemon: Pokemon, active: boolean): void {
   for (const modifier of modifiers) {
     modifier.active = active;
   }
-  globalScene.triggerPokemonFormChange(pokemon, SpeciesFormChangeItemTrigger, false, true);
+  const formChange = speciesDataRegistry
+    .getFormChanges(pokemon.species.speciesId)
+    .find(fc => fc.findTrigger(SpeciesFormChangeItemTrigger) && fc.canChange(pokemon));
+  if (!formChange) {
+    return;
+  }
+  const phase = globalScene.phaseManager.create("QuietFormChangePhase", pokemon, formChange);
+  if (!globalScene.phaseManager.overridePhase(phase)) {
+    globalScene.phaseManager.unshiftPhase(phase);
+  }
 }
 
 /** Attaches a Starter's held item (if any) to the given Pokemon, mirroring modifier.ts's overrideHeldItems(). */

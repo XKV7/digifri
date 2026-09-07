@@ -1,6 +1,6 @@
 import { MAX_TERAS_PER_ARENA } from "#app/constants";
 import { globalScene } from "#app/global-scene";
-import { hasPvpFormChangeItem, togglePvpFormChangeItem } from "#app/pvp-battle";
+import { getPvpFormChangeItemIcon, hasPvpFormChangeItem, togglePvpFormChangeItem } from "#app/pvp-battle";
 import { getTypeRgb } from "#data/type";
 import { Button } from "#enums/buttons";
 import { Command } from "#enums/command";
@@ -83,7 +83,20 @@ export class CommandUiHandler extends UiHandler {
 
     if (this.canTera()) {
       this.teraButton.setVisible(true);
-      this.teraButton.setFrame(PokemonType[globalScene.getField()[this.fieldIndex].getTeraType()].toLowerCase());
+      if (globalScene.currentBattle.isPvpBattle) {
+        // Show the actual held item's own icon (same "items" spritesheet frame the shop/party
+        // screen use, see Modifier.getIcon() in modifier.ts) rather than a type badge, since this
+        // slot no longer means Terastallize here (see canTera()/processInput()'s Command.TERA case).
+        const itemIcon = getPvpFormChangeItemIcon(
+          (globalScene.phaseManager.getCurrentPhase() as CommandPhase).getPokemon(),
+        );
+        if (itemIcon) {
+          this.teraButton.setTexture("items", itemIcon);
+        }
+      } else {
+        this.teraButton.setTexture("button_tera");
+        this.teraButton.setFrame(PokemonType[globalScene.getField()[this.fieldIndex].getTeraType()].toLowerCase());
+      }
     } else {
       this.teraButton.setVisible(false);
       if (this.getCursor() === Command.TERA) {
@@ -222,6 +235,12 @@ export class CommandUiHandler extends UiHandler {
   }
 
   toggleTeraButton() {
+    if (globalScene.currentBattle.isPvpBattle) {
+      // The Tera glow shader doesn't make sense over a plain held-item icon (see show()) - skip it
+      // entirely rather than tint the item an unrelated type color.
+      this.teraButton.resetPipeline();
+      return;
+    }
     this.teraButton.setPipeline(globalScene.spritePipeline, {
       tone: [0.0, 0.0, 0.0, 0.0],
       ignoreTimeTint: true,

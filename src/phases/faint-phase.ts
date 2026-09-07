@@ -162,7 +162,13 @@ export class FaintPhase extends PokemonPhase {
       const legalPlayerPartyPokemon = legalPlayerPokemon.filter(p => !p.isActive(true));
       if (legalPlayerPokemon.length === 0) {
         /** If the player doesn't have any legal Pokemon, end the game */
-        globalScene.phaseManager.unshiftNew("GameOverPhase");
+        if (globalScene.currentBattle.isPvpBattle) {
+          // GameOverPhase does real-run session save/run-history/achievement handling that must
+          // never run for a one-off PvP battle - see pvp-battle-end-phase.ts.
+          globalScene.phaseManager.unshiftNew("PvpBattleEndPhase", false);
+        } else {
+          globalScene.phaseManager.unshiftNew("GameOverPhase");
+        }
       } else if (
         globalScene.currentBattle.double
         && legalPlayerPokemon.length === 1
