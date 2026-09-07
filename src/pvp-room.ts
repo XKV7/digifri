@@ -79,6 +79,17 @@ export interface PvpRoom {
   /** Forced switch-in replacement from each side, keyed by the fainted Pokemon's own id (see {@linkcode PvpSwitchCommand}). Written by the side that owns it, read by the other side's PvpEnemySwitchPhase. */
   hostSwitchCommands?: Record<number, PvpSwitchCommand>;
   guestSwitchCommands?: Record<number, PvpSwitchCommand>;
+  /**
+   * Each side's Pokemon form-change held items (Mega Stone, Blue/Red Orb, ...) current
+   * active/inactive state, keyed by that Pokemon's own stable id (see
+   * {@linkcode PvpSwitchCommand}'s doc comment). A standalone, always-live broadcast (unlike the
+   * turn/switch commands above, which are each consumed once) - PvP battles have no real Tera
+   * access, so the command menu's Tera slot is repurposed to toggle this instead, and every
+   * change is written here immediately so the opponent's client can mirror it as soon as it
+   * happens, independent of turn boundaries (see togglePvpFormChangeItem in pvp-battle.ts).
+   */
+  hostFormChangeState?: Record<number, boolean>;
+  guestFormChangeState?: Record<number, boolean>;
 }
 
 export interface PvpRoomWithId extends PvpRoom {
@@ -420,4 +431,53 @@ export function subscribePvpSwitchCommand(
     err => console.error("PvP switch command subscription failed:", err),
   );
   return unsub;
+}
+
+/** Writes the caller's Pokemon's current form-change-item active state, for the opponent's client to mirror immediately (see PvpRoom.hostFormChangeState). */
+export async function submitPvpFormChangeState(
+  roomId: string,
+  isHost: boolean,
+  pokemonId: number,
+  active: boolean,
+): Promise<void> {
+  const ctx = getCloudSaveContext();
+  if (!ctx) {
+    return;
+  }
+  try {
+    const field = isHost ? "hostFormChangeState" : "guestFormChangeState";
+    await updateDoc(doc(db(), "pvpRooms", roomId), { [`${field}.${pokemonId}`]: active });
+  } catch (err) {
+    console.error("Failed to submit PvP form-change state:", err);
+  }
+}
+
+/**
+ * Subscribes for the rest of the battle (not a one-shot like the turn/switch command
+ * subscriptions above) to the opposing side's form-change-item state, calling `onUpdate` with
+ * each Pokemon id/active pair whenever the room document changes. `wantHostSide` says whose
+ * state to watch (the OPPONENT's side, from the caller's perspective). The caller (see
+ * pvp-battle.ts's startPvpBattle) is expected to no-op when the state already matches what's
+ * locally applied, since this fires on every unrelated room update too, not just form-change
+ * ones. Returns an unsubscribe function.
+ */
+export function subscribePvpFormChangeState(
+  roomId: string,
+  wantHostSide: boolean,
+  onUpdate: (pokemonId: number, active: boolean) => void,
+): () => void {
+  return onSnapshot(
+    doc(db(), "pvpRooms", roomId),
+    snapshot => {
+      const room = snapshot.data() as PvpRoom | undefined;
+      const state = wantHostSide ? room?.hostFormChangeState : room?.guestFormChangeState;
+      if (!state) {
+        return;
+      }
+      for (const [pokemonIdStr, active] of Object.entries(state)) {
+        onUpdate(Number(pokemonIdStr), active);
+      }
+    },
+    err => console.error("PvP form-change state subscription failed:", err),
+  );
 }

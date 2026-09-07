@@ -37,7 +37,9 @@ import { Battle } from "#app/battle";
 import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
 import type { PvpRoomWithId } from "#app/pvp-room";
+import { submitPvpFormChangeState, subscribePvpFormChangeState } from "#app/pvp-room";
 import { loadPvpTeam } from "#app/pvp-team";
+import { SpeciesFormChangeItemTrigger } from "#data/form-change-triggers";
 import { Gender } from "#data/gender";
 import { BattleType } from "#enums/battle-type";
 import { BiomeId } from "#enums/biome-id";
@@ -46,7 +48,7 @@ import { TrainerType } from "#enums/trainer-type";
 import { TrainerVariant } from "#enums/trainer-variant";
 import type { EnemyPokemon, PlayerPokemon, Pokemon } from "#field/pokemon";
 import { Trainer } from "#field/trainer";
-import type { PokemonHeldItemModifier } from "#modifiers/modifier";
+import type { PokemonFormChangeItemModifier, PokemonHeldItemModifier } from "#modifiers/modifier";
 import { getModifierTypeFuncById, type ModifierType, ModifierTypeGenerator } from "#modifiers/modifier-type";
 import { PokemonData } from "#system/pokemon-data";
 import type { Starter } from "#types/save-data";
@@ -76,6 +78,54 @@ export function clearPvpBattleContext(): void {
   activeContext = null;
 }
 
+function getPvpFormChangeItemModifiers(pokemon: Pokemon): PokemonFormChangeItemModifier[] {
+  return globalScene.findModifiers(
+    m => m.is("PokemonFormChangeItemModifier") && m.pokemonId === pokemon.id,
+  ) as PokemonFormChangeItemModifier[];
+}
+
+/** Whether the given Pokemon holds a form-change item (Mega Stone, Blue/Red Orb, ...) registered via PvP team registration — gates whether the command menu's repurposed Tera slot shows for it (see command-ui-handler.ts's canTera()). */
+export function hasPvpFormChangeItem(pokemon: Pokemon): boolean {
+  return getPvpFormChangeItemModifiers(pokemon).length > 0;
+}
+
+/**
+ * Toggles the given (local, player-controlled) Pokemon's form-change item active/inactive,
+ * applies the resulting form change, and broadcasts the new state to the opponent's client
+ * (see PvpRoom.hostFormChangeState) so it can mirror it on its view of this same Pokemon —
+ * necessary since the form change can alter stats/types that both clients' damage calculations
+ * must agree on. Called from command-ui-handler.ts's repurposed Tera button; a no-op if the
+ * Pokemon has no such item.
+ */
+export function togglePvpFormChangeItem(pokemon: Pokemon): void {
+  const modifiers = getPvpFormChangeItemModifiers(pokemon);
+  if (modifiers.length === 0) {
+    return;
+  }
+  const active = !modifiers[0].active;
+  for (const modifier of modifiers) {
+    modifier.active = active;
+  }
+  globalScene.triggerPokemonFormChange(pokemon, SpeciesFormChangeItemTrigger, false, true);
+
+  const ctx = activeContext;
+  if (ctx) {
+    void submitPvpFormChangeState(ctx.roomId, ctx.isHost, pokemon.id, active);
+  }
+}
+
+/** Applies a form-change-item active state received from the opponent's client to the given (local view of their) Pokemon. No-ops if already in sync or the Pokemon has no such item, since this is called on every room update, not just relevant ones (see subscribePvpFormChangeState). */
+function applyPvpFormChangeState(pokemon: Pokemon, active: boolean): void {
+  const modifiers = getPvpFormChangeItemModifiers(pokemon);
+  if (modifiers.length === 0 || modifiers[0].active === active) {
+    return;
+  }
+  for (const modifier of modifiers) {
+    modifier.active = active;
+  }
+  globalScene.triggerPokemonFormChange(pokemon, SpeciesFormChangeItemTrigger, false, true);
+}
+
 /** Attaches a Starter's held item (if any) to the given Pokemon, mirroring modifier.ts's overrideHeldItems(). */
 function applyPvpHeldItem(pokemon: Pokemon, heldItem: NonNullable<Starter["heldItem"]>, isPlayerSide: boolean): void {
   const modifierFunc = getModifierTypeFuncById(heldItem.typeId);
@@ -92,6 +142,17 @@ function applyPvpHeldItem(pokemon: Pokemon, heldItem: NonNullable<Starter["heldI
     return;
   }
   heldItemModifier.pokemonId = pokemon.id;
+  if (heldItemModifier.is("PokemonFormChangeItemModifier")) {
+    // FormChangeItemModifierType's factory (see modifier-type.ts) always constructs these with
+    // active:true, which is fine for a normal run (an item picked up mid-run applies right away)
+    // but wrong here: nothing in startPvpBattle() ever calls triggerPokemonFormChange() for the
+    // initial state, so the Pokemon would silently enter battle in its base form while this flag
+    // claims it's already active - then a player's first press of the repurposed Tera button
+    // (see command-ui-handler.ts/togglePvpFormChangeItem) would flip it to false and do nothing
+    // visible, confusingly requiring a second press to actually activate the form. Force it off
+    // so PvP Pokemon always start in their base form, consistent with needing an explicit toggle.
+    heldItemModifier.active = false;
+  }
   if (isPlayerSide) {
     globalScene.addModifier(heldItemModifier, true, false, false, true);
   } else {
@@ -312,6 +373,18 @@ export async function startPvpBattle(
   }
 
   activeContext = { roomId: room.id, isHost };
+
+  // Stays subscribed for the rest of the battle (unlike the turn/switch command channels, which
+  // are each consumed once) - mirrors the opponent's form-change-item toggles onto this client's
+  // view of their Pokemon as soon as they happen, whenever they happen (see
+  // togglePvpFormChangeItem). No teardown yet since PvP battles have no end-of-battle cleanup
+  // path at all yet - a known, pre-existing gap, not specific to this subscription.
+  subscribePvpFormChangeState(room.id, !isHost, (pokemonId, active) => {
+    const enemyPokemon = globalScene.getEnemyParty().find(p => p.id === pokemonId);
+    if (enemyPokemon) {
+      applyPvpFormChangeState(enemyPokemon, active);
+    }
+  });
 
   globalScene.phaseManager.pushNew("EncounterPhase", true);
   // pushNew() only queues the phase - it starts running once whatever phase is CURRENTLY active

@@ -1,5 +1,6 @@
 import { MAX_TERAS_PER_ARENA } from "#app/constants";
 import { globalScene } from "#app/global-scene";
+import { hasPvpFormChangeItem, togglePvpFormChangeItem } from "#app/pvp-battle";
 import { getTypeRgb } from "#data/type";
 import { Button } from "#enums/buttons";
 import { Command } from "#enums/command";
@@ -145,6 +146,17 @@ export class CommandUiHandler extends UiHandler {
             success = true;
             break;
           case Command.TERA:
+            if (globalScene.currentBattle.isPvpBattle) {
+              // PvP battles have no real Tera access (see canTera() below) - this slot is
+              // repurposed to activate/deactivate the active Pokemon's form-change held item
+              // (Mega Stone, Blue/Red Orb, ...) instead, applied immediately (with its own
+              // animation) rather than bundled into a move submission, and broadcast to the
+              // opponent's client right away (see togglePvpFormChangeItem in pvp-battle.ts) —
+              // this stays in the command menu rather than opening the move list.
+              togglePvpFormChangeItem((globalScene.phaseManager.getCurrentPhase() as CommandPhase).getPokemon());
+              success = true;
+              break;
+            }
             ui.setMode(
               UiMode.FIGHT,
               (globalScene.phaseManager.getCurrentPhase() as CommandPhase).getFieldIndex(),
@@ -196,6 +208,11 @@ export class CommandUiHandler extends UiHandler {
 
   canTera(): boolean {
     const activePokemon = globalScene.getField()[this.fieldIndex];
+    if (globalScene.currentBattle.isPvpBattle) {
+      // PvP battles have no real Tera access - this slot only ever shows here to offer the
+      // repurposed form-change-item toggle instead (see processInput()'s Command.TERA case).
+      return activePokemon.isPlayer() && hasPvpFormChangeItem(activePokemon);
+    }
     const currentTeras = globalScene.arena.playerTerasUsed;
     const canTera = activePokemon.isPlayer() && canTerastallize(activePokemon);
     const plannedTera = +(
