@@ -172,9 +172,18 @@ function applyPvpFormChangeState(pokemon: Pokemon, active: boolean): void {
   for (const modifier of modifiers) {
     modifier.active = active;
   }
-  const formChange = speciesDataRegistry
-    .getFormChanges(pokemon.species.speciesId)
-    .find(fc => fc.findTrigger(SpeciesFormChangeItemTrigger) && fc.canChange(pokemon));
+  // Deliberately NOT fc.canChange(pokemon) here (see SpeciesFormChangeItemTrigger.canChange in
+  // form-change-triggers.ts) - it looks up the matching modifier via globalScene.findModifier()
+  // with no explicit isPlayer argument, which defaults to true and so (exactly like
+  // getPvpFormChangeItemModifiers() used to, before it was fixed) always comes back empty for an
+  // EnemyPokemon, permanently blocking this from ever finding a formChange for the opponent's
+  // mirrored side. The pokemonId/item/active match it's checking for is instead done directly
+  // against `modifiers` above, which was already fetched with the correct isPlayer() awareness.
+  const heldItemIds = new Set(modifiers.map(m => m.formChangeItem));
+  const formChange = speciesDataRegistry.getFormChanges(pokemon.species.speciesId).find(fc => {
+    const trigger = fc.findTrigger(SpeciesFormChangeItemTrigger) as SpeciesFormChangeItemTrigger | undefined;
+    return trigger && heldItemIds.has(trigger.item) && trigger.active === active;
+  });
   if (!formChange) {
     return;
   }
