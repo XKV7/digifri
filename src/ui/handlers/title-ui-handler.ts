@@ -5,6 +5,7 @@ import { getCloudSaveContext } from "#app/gift";
 import { timedEventManager } from "#app/global-event-manager";
 import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
+import { resubmitLeaderboardStats } from "#app/leaderboard";
 import { fetchOnlinePlayerCount } from "#app/presence";
 import { isBeta, isDev } from "#constants/app-constants";
 import { getSplashMessages } from "#data/splash-messages";
@@ -227,6 +228,7 @@ export class TitleUiHandler extends OptionSelectUiHandler {
     this.genderSplash();
 
     this.updateTitleStats();
+    resubmitLeaderboardStats();
 
     this.titleStatsTimer = setInterval(() => {
       this.updateTitleStats();

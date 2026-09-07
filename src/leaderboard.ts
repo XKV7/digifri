@@ -20,6 +20,7 @@
  */
 
 import { getCloudSaveContext } from "#app/gift";
+import { globalScene } from "#app/global-scene";
 import {
   collection,
   doc,
@@ -77,6 +78,30 @@ export function submitLeaderboardStat(category: LeaderboardCategory, value: numb
   setDoc(doc(db(), "leaderboardStats", ctx.user.uid), { displayName, [category]: value }, { merge: true }).catch(err =>
     console.error(`Failed to submit leaderboard stat ${category}:`, err),
   );
+}
+
+/**
+ * Re-submits this account's currently-known best value for every leaderboard stat, from
+ * gameStats (the local source of truth, always updated regardless of whether a past
+ * submitLeaderboardStat() call actually reached Firestore). Fire-and-forget, called once each
+ * time the title screen loads (see title-ui-handler.ts) - a safety net for stat improvements that
+ * silently failed to upload earlier, e.g. a network hiccup, or - as happened once - a victory
+ * landing before firestore.rules' leaderboardStats rules had actually been published.
+ */
+export function resubmitLeaderboardStats(): void {
+  const stats = globalScene.gameData?.gameStats;
+  if (!stats) {
+    return;
+  }
+  if (stats.classicBestTimeSeconds > 0) {
+    submitLeaderboardStat("classicBestTimeSeconds", stats.classicBestTimeSeconds);
+  }
+  if (stats.highestEndlessWave > 0) {
+    submitLeaderboardStat("endlessMaxWave", stats.highestEndlessWave);
+  }
+  if (stats.pvpWins > 0) {
+    submitLeaderboardStat("pvpWins", stats.pvpWins);
+  }
 }
 
 /** One-shot fetch of the top `count` accounts for a category, best-first (ascending for time, descending for wave/wins). Returns an empty array on failure or if signed out. */
