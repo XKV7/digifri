@@ -36,13 +36,29 @@ export type PvpRoomStatus = "waiting" | "team_preview" | "battling" | "finished"
 
 /**
  * One side's chosen action for a given turn of an in-progress PvP battle (see pvp-battle.ts).
- * Only "fight" exists so far — switching (voluntary or forced-on-faint) isn't synced yet, so
- * PvpEnemyCommandPhase / the local CommandPhase hook both only ever produce/expect this shape.
+ * Only "fight" exists so far — voluntary switching is still blocked entirely (see
+ * command-phase.ts's Command.POKEMON handling); forced switch-on-faint is synced separately,
+ * see {@linkcode PvpSwitchCommand} below.
  */
 export interface PvpTurnCommand {
   command: "fight";
   /** Index (0-3) into the active Pokemon's moveset. */
   moveIndex: number;
+}
+
+/**
+ * One side's chosen replacement when one of their own Pokemon faints mid-battle (see
+ * FaintPhase's non-player branch and PvpEnemySwitchPhase). Keyed by the fainted Pokemon's own
+ * `id` rather than a party array index — see {@linkcode PvpRoom.hostSwitchCommands} — since
+ * SwitchSummonPhase reorders both sides' party arrays on every switch, but each of the 6
+ * Pokemon in a PvP battle gets a fixed, stable id (1-6, assigned in host-picks-then-guest-picks
+ * order — see buildPvpPokemon/nextPvpPokemonId in pvp-battle.ts) that both clients agree on
+ * without needing to exchange anything, since both build the same 6 Pokemon in the same order.
+ */
+export interface PvpSwitchCommand {
+  command: "switch";
+  /** The `id` (see above) of the Pokemon being sent in to replace the one that just fainted. */
+  pokemonId: number;
 }
 
 export interface PvpRoom {
@@ -60,6 +76,9 @@ export interface PvpRoom {
   /** This turn's command from each side, keyed by battle turn number. Written by the side that owns it, read by the other side's PvpEnemyCommandPhase. */
   hostTurnCommands?: Record<number, PvpTurnCommand>;
   guestTurnCommands?: Record<number, PvpTurnCommand>;
+  /** Forced switch-in replacement from each side, keyed by the fainted Pokemon's own id (see {@linkcode PvpSwitchCommand}). Written by the side that owns it, read by the other side's PvpEnemySwitchPhase. */
+  hostSwitchCommands?: Record<number, PvpSwitchCommand>;
+  guestSwitchCommands?: Record<number, PvpSwitchCommand>;
 }
 
 export interface PvpRoomWithId extends PvpRoom {
@@ -353,6 +372,52 @@ export function subscribePvpTurnCommand(
       }
     },
     err => console.error("PvP turn command subscription failed:", err),
+  );
+  return unsub;
+}
+
+/** Writes the caller's chosen replacement for their own fainted Pokemon, for the opposing client's PvpEnemySwitchPhase to pick up. */
+export async function submitPvpSwitchCommand(
+  roomId: string,
+  isHost: boolean,
+  faintedPokemonId: number,
+  command: PvpSwitchCommand,
+): Promise<void> {
+  const ctx = getCloudSaveContext();
+  if (!ctx) {
+    return;
+  }
+  try {
+    const field = isHost ? "hostSwitchCommands" : "guestSwitchCommands";
+    await updateDoc(doc(db(), "pvpRooms", roomId), { [`${field}.${faintedPokemonId}`]: command });
+  } catch (err) {
+    console.error("Failed to submit PvP switch command:", err);
+  }
+}
+
+/**
+ * Waits for the opposing side's replacement for the given fainted Pokemon id to appear, then
+ * calls `onCommand` once and automatically unsubscribes. `wantHostSide` says whose command to
+ * watch for (the OPPONENT's side, from the caller's perspective — see PvpEnemySwitchPhase).
+ * Returns an unsubscribe function in case the caller needs to cancel early.
+ */
+export function subscribePvpSwitchCommand(
+  roomId: string,
+  wantHostSide: boolean,
+  faintedPokemonId: number,
+  onCommand: (command: PvpSwitchCommand) => void,
+): () => void {
+  const unsub = onSnapshot(
+    doc(db(), "pvpRooms", roomId),
+    snapshot => {
+      const room = snapshot.data() as PvpRoom | undefined;
+      const command = (wantHostSide ? room?.hostSwitchCommands : room?.guestSwitchCommands)?.[faintedPokemonId];
+      if (command) {
+        unsub();
+        onCommand(command);
+      }
+    },
+    err => console.error("PvP switch command subscription failed:", err),
   );
   return unsub;
 }

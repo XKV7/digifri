@@ -1,4 +1,6 @@
 import { globalScene } from "#app/global-scene";
+import { getPvpBattleContext } from "#app/pvp-battle";
+import { submitPvpSwitchCommand } from "#app/pvp-room";
 import { PartyUiMode } from "#enums/party-ui-mode";
 import { SwitchType } from "#enums/switch-type";
 import { UiMode } from "#enums/ui-mode";
@@ -74,6 +76,21 @@ export class SwitchPhase extends BattlePhase {
       (slotIndex: number, option: PartyOption) => {
         if (slotIndex >= globalScene.currentBattle.getBattlerCount() && slotIndex < 6) {
           const switchType = option === PartyOption.PASS_BATON ? SwitchType.BATON_PASS : this.switchType;
+          if (globalScene.currentBattle.isPvpBattle) {
+            // Let the opponent's PvpEnemySwitchPhase know which of my Pokemon (by its stable id,
+            // not this array index - SwitchSummonPhase reorders the party array on every switch)
+            // I'm sending in to replace the one that just fainted, before actually performing the
+            // switch below.
+            const ctx = getPvpBattleContext();
+            const faintedPokemon = globalScene.getPlayerParty()[fieldIndex];
+            const switchedInPokemon = globalScene.getPlayerParty()[slotIndex];
+            if (ctx) {
+              submitPvpSwitchCommand(ctx.roomId, ctx.isHost, faintedPokemon.id, {
+                command: "switch",
+                pokemonId: switchedInPokemon.id,
+              });
+            }
+          }
           globalScene.phaseManager.unshiftNew("SwitchSummonPhase", switchType, fieldIndex, slotIndex, this.doReturn);
         }
         globalScene.ui.setMode(UiMode.MESSAGE).then(() => super.end());

@@ -189,7 +189,15 @@ export class FaintPhase extends PokemonPhase {
             .filter(p => p.isActive() && !p.isOnField() && p.trainerSlot === (pokemon as EnemyPokemon).trainerSlot)
             .length > 0;
         if (hasReservePartyMember) {
-          globalScene.phaseManager.pushNew("SwitchSummonPhase", SwitchType.SWITCH, this.fieldIndex, -1, false, false);
+          if (globalScene.currentBattle.isPvpBattle) {
+            // The synthetic PvP "trainer" has no real AI of its own to pick a replacement -
+            // wait for the opposing (real) account's actual choice instead of letting
+            // getNextSummonIndex() (see SwitchSummonPhase) guess, or the two clients' views of
+            // which enemy Pokemon is active would desync.
+            globalScene.phaseManager.pushNew("PvpEnemySwitchPhase", this.fieldIndex, pokemon.id);
+          } else {
+            globalScene.phaseManager.pushNew("SwitchSummonPhase", SwitchType.SWITCH, this.fieldIndex, -1, false, false);
+          }
         }
       }
     }
