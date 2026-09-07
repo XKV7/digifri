@@ -67,6 +67,8 @@ interface PvpBattleContext {
 let activeContext: PvpBattleContext | null = null;
 /** Reset at the start of every startPvpBattle() call — only needs to be unique within one battle's 6 Pokemon. */
 let nextPvpPokemonId = 1;
+/** Whether this (local) side has already used its one form-change-item activation for the current battle — see togglePvpFormChangeItem. Reset at the start of every startPvpBattle() call. */
+let pvpFormChangeUsed = false;
 
 /** The room/side info for the currently-running PvP battle, if any — read by PvpEnemyCommandPhase and CommandPhase's PvP hook. */
 export function getPvpBattleContext(): PvpBattleContext | null {
@@ -84,9 +86,15 @@ function getPvpFormChangeItemModifiers(pokemon: Pokemon): PokemonFormChangeItemM
   ) as PokemonFormChangeItemModifier[];
 }
 
-/** Whether the given Pokemon holds a form-change item (Mega Stone, Blue/Red Orb, ...) registered via PvP team registration — gates whether the command menu's repurposed Tera slot shows for it (see command-ui-handler.ts's canTera()). */
+/**
+ * Whether the given Pokemon holds a form-change item (Mega Stone, Blue/Red Orb, ...) registered
+ * via PvP team registration AND this side hasn't already used its one form-change activation for
+ * the battle (real Mega Evolution is limited to once per trainer per battle, regardless of how
+ * many of that trainer's Pokemon carry a qualifying item — see pvpFormChangeUsed) — gates whether
+ * the command menu's repurposed Tera slot shows for it (see command-ui-handler.ts's canTera()).
+ */
 export function hasPvpFormChangeItem(pokemon: Pokemon): boolean {
-  return getPvpFormChangeItemModifiers(pokemon).length > 0;
+  return !pvpFormChangeUsed && getPvpFormChangeItemModifiers(pokemon).length > 0;
 }
 
 /**
@@ -95,9 +103,15 @@ export function hasPvpFormChangeItem(pokemon: Pokemon): boolean {
  * (see PvpRoom.hostFormChangeState) so it can mirror it on its view of this same Pokemon —
  * necessary since the form change can alter stats/types that both clients' damage calculations
  * must agree on. Called from command-ui-handler.ts's repurposed Tera button; a no-op if the
- * Pokemon has no such item.
+ * Pokemon has no such item or this side has already used its one activation for the battle.
+ * Activating (not deactivating) permanently consumes that one-per-battle use, matching real Mega
+ * Evolution — once used, hasPvpFormChangeItem() stops offering the button at all for the rest of
+ * the battle, on any of this side's Pokemon.
  */
 export function togglePvpFormChangeItem(pokemon: Pokemon): void {
+  if (pvpFormChangeUsed) {
+    return;
+  }
   const modifiers = getPvpFormChangeItemModifiers(pokemon);
   if (modifiers.length === 0) {
     return;
@@ -107,6 +121,9 @@ export function togglePvpFormChangeItem(pokemon: Pokemon): void {
     modifier.active = active;
   }
   globalScene.triggerPokemonFormChange(pokemon, SpeciesFormChangeItemTrigger, false, true);
+  if (active) {
+    pvpFormChangeUsed = true;
+  }
 
   const ctx = activeContext;
   if (ctx) {
@@ -269,6 +286,7 @@ export async function startPvpBattle(
   }
 
   nextPvpPokemonId = 1;
+  pvpFormChangeUsed = false;
   globalScene.setSeed(room.pvpSeed);
   globalScene.resetSeed(PVP_WAVE_INDEX);
 
