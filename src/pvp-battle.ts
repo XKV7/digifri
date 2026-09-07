@@ -187,7 +187,20 @@ function applyPvpFormChangeState(pokemon: Pokemon, active: boolean): void {
   if (!formChange) {
     return;
   }
-  const phase = globalScene.phaseManager.create("QuietFormChangePhase", pokemon, formChange);
+  // Play the same full-screen "MEGA EVOLUTION!" cutscene (FormChangePhase) the activating player's
+  // own client already gets via triggerPokemonFormChange() - normally reserved for
+  // pokemon.isPlayer() (see that function in battle-scene.ts), since FormChangePhase's constructor
+  // is typed for PlayerPokemon specifically. Verified safe to use for an EnemyPokemon here: the
+  // modal/item-triggered path it takes (evolution: null, so doEvolution() is fully overridden by
+  // FormChangePhase's own tween sequence) never touches anything PlayerPokemon-only like
+  // getPlayerParty()/party-slot lookups - those only run from EvolutionPhase's real
+  // level-up-evolution code, a different method FormChangePhase never calls. And since its
+  // setMode() uses ui.setOverlayMode() rather than replacing the UI stack outright, it doesn't
+  // clobber whatever the local player happens to be doing underneath (e.g. still picking their own
+  // move) - it plays on top and correctly reverts back to exactly that once it ends.
+  const phase = formChange.quiet
+    ? globalScene.phaseManager.create("QuietFormChangePhase", pokemon, formChange)
+    : globalScene.phaseManager.create("FormChangePhase", pokemon as PlayerPokemon, formChange, true);
   if (!globalScene.phaseManager.overridePhase(phase)) {
     globalScene.phaseManager.unshiftPhase(phase);
   }
