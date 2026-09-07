@@ -38,6 +38,10 @@ export class GameStats {
   public epicEggsPulled: number;
   public legendaryEggsPulled: number;
   public manaphyEggsPulled: number;
+  /** Fastest completed Classic run, in seconds (globalScene.sessionPlayTime at the moment of victory) — 0 means no clear yet. Mirrored to the global leaderboard (see leaderboard.ts) whenever it improves. */
+  public classicBestTimeSeconds: number;
+  /** Total PvP battles won — mirrored to the global leaderboard (see leaderboard.ts) on every win. */
+  public pvpWins: number;
 
   constructor(source?: any) {
     this.playTime = source?.playTime || 0;
@@ -77,5 +81,7 @@ export class GameStats {
     this.epicEggsPulled = source?.epicEggsPulled || 0;
     this.legendaryEggsPulled = source?.legendaryEggsPulled || 0;
     this.manaphyEggsPulled = source?.manaphyEggsPulled || 0;
+    this.classicBestTimeSeconds = source?.classicBestTimeSeconds || 0;
+    this.pvpWins = source?.pvpWins || 0;
   }
 }

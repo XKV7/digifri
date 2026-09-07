@@ -5,6 +5,7 @@ import { claimGifts, type GiftPayload, getCloudSaveContext } from "#app/gift";
 import { audioManager } from "#app/global-audio-manager";
 import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
+import { openLeaderboardPanel } from "#app/leaderboard-panel";
 import {
   createPvpRoom,
   getMyActivePvpRoomId,
@@ -51,6 +52,7 @@ enum MenuOptions {
   GIFT_POKEMON,
   PVP_TEAM,
   PVP_LOBBY,
+  LEADERBOARD,
   CLOUD_ACCOUNT,
 }
 
@@ -59,6 +61,7 @@ const KOREAN_MENU_LABELS: Partial<Record<MenuOptions, string>> = {
   [MenuOptions.GIFT_POKEMON]: "포켓몬 선물하기",
   [MenuOptions.PVP_TEAM]: "PvP 팀 등록",
   [MenuOptions.PVP_LOBBY]: "PvP 대전",
+  [MenuOptions.LEADERBOARD]: "리더보드",
 };
 
 let wikiUrl = "https://wiki.pokerogue.net/start";
@@ -106,7 +109,13 @@ export class MenuUiHandler extends MessageUiHandler {
       { condition: bypassLogin, options: [MenuOptions.LOG_OUT] },
       {
         condition: !getCloudSaveContext(),
-        options: [MenuOptions.GIFT_VOUCHER, MenuOptions.GIFT_POKEMON, MenuOptions.PVP_TEAM, MenuOptions.PVP_LOBBY],
+        options: [
+          MenuOptions.GIFT_VOUCHER,
+          MenuOptions.GIFT_POKEMON,
+          MenuOptions.PVP_TEAM,
+          MenuOptions.PVP_LOBBY,
+          MenuOptions.LEADERBOARD,
+        ],
       },
     ];
 
@@ -170,7 +179,13 @@ export class MenuUiHandler extends MessageUiHandler {
       { condition: !!globalScene.currentBattle, options: [MenuOptions.PVP_LOBBY] },
       {
         condition: !getCloudSaveContext(),
-        options: [MenuOptions.GIFT_VOUCHER, MenuOptions.GIFT_POKEMON, MenuOptions.PVP_TEAM, MenuOptions.PVP_LOBBY],
+        options: [
+          MenuOptions.GIFT_VOUCHER,
+          MenuOptions.GIFT_POKEMON,
+          MenuOptions.PVP_TEAM,
+          MenuOptions.PVP_LOBBY,
+          MenuOptions.LEADERBOARD,
+        ],
       },
     ];
 
@@ -1031,6 +1046,12 @@ export class MenuUiHandler extends MessageUiHandler {
         case MenuOptions.PVP_LOBBY: {
           ui.revertMode();
           void this.openPvpLobby();
+          success = true;
+          break;
+        }
+        case MenuOptions.LEADERBOARD: {
+          ui.revertMode();
+          openLeaderboardPanel();
           success = true;
           break;
         }

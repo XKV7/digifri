@@ -19,6 +19,7 @@
  */
 
 import { globalScene } from "#app/global-scene";
+import { submitLeaderboardStat } from "#app/leaderboard";
 import { clearPvpBattleContext } from "#app/pvp-battle";
 import { UiMode } from "#enums/ui-mode";
 import { BattlePhase } from "#phases/battle-phase";
@@ -39,6 +40,14 @@ export class PvpBattleEndPhase extends BattlePhase {
 
     globalScene.ui.setMode(UiMode.MESSAGE);
     globalScene.ui.showText(this.won ? "대전에서 승리했습니다!" : "대전에서 패배했습니다...");
+
+    if (this.won) {
+      // gameStats is account-level (saved via saveSystem(), not the run-specific session save),
+      // so incrementing it here doesn't touch any real run's data - see pvp-battle.ts's file header.
+      globalScene.gameData.gameStats.pvpWins++;
+      submitLeaderboardStat("pvpWins", globalScene.gameData.gameStats.pvpWins);
+      void globalScene.gameData.saveSystem();
+    }
 
     globalScene.time.delayedCall(PVP_BATTLE_END_DISPLAY_MS, () => {
       clearPvpBattleContext();

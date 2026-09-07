@@ -88,5 +88,36 @@ service cloud.firestore {
 
       allow delete: if false;
     }
+
+    // Global leaderboard (see src/leaderboard.ts): one document per account holding that
+    // account's best-known value for each tracked stat (Classic fastest clear time, Endless max
+    // wave, PvP wins). Any signed-in user may read the whole collection (to render top-N lists);
+    // only the owner may write their own document, and only in the "improving" direction per
+    // stat (lower for time, higher for wave/wins) relative to whatever's already stored - this
+    // stops accidental regressions, not outright fabrication of a first value, which (as with
+    // the rest of this project's data) isn't treated as a concern here.
+    match /leaderboardStats/{uid} {
+      allow get, list: if request.auth != null;
+
+      allow write: if request.auth != null
+                  && request.auth.uid == uid
+                  && request.resource.data.displayName is string
+                  && request.resource.data.keys().hasOnly(['displayName', 'classicBestTimeSeconds', 'endlessMaxWave', 'pvpWins'])
+                  && (
+                    !('classicBestTimeSeconds' in request.resource.data)
+                    || !('classicBestTimeSeconds' in resource.data)
+                    || request.resource.data.classicBestTimeSeconds <= resource.data.classicBestTimeSeconds
+                  )
+                  && (
+                    !('endlessMaxWave' in request.resource.data)
+                    || !('endlessMaxWave' in resource.data)
+                    || request.resource.data.endlessMaxWave >= resource.data.endlessMaxWave
+                  )
+                  && (
+                    !('pvpWins' in request.resource.data)
+                    || !('pvpWins' in resource.data)
+                    || request.resource.data.pvpWins >= resource.data.pvpWins
+                  );
+    }
   }
 }

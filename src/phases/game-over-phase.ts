@@ -3,6 +3,7 @@ import { clientSessionId } from "#app/account";
 import { audioManager } from "#app/global-audio-manager";
 import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
+import { submitLeaderboardStat } from "#app/leaderboard";
 import { bypassLogin } from "#constants/app-constants";
 import { modifierTypes } from "#data/data-lists";
 import { getCharVariantFromDialogue } from "#data/dialogue";
@@ -175,6 +176,15 @@ export class GameOverPhase extends BattlePhase {
             firstClear = globalScene.validateAchv(achvs.CLASSIC_VICTORY);
             globalScene.validateAchv(achvs.UNEVOLVED_CLASSIC_VICTORY);
             globalScene.gameData.gameStats.sessionsWon++;
+            const clearTimeSeconds = globalScene.sessionPlayTime ?? 0;
+            if (
+              clearTimeSeconds > 0
+              && (globalScene.gameData.gameStats.classicBestTimeSeconds === 0
+                || clearTimeSeconds < globalScene.gameData.gameStats.classicBestTimeSeconds)
+            ) {
+              globalScene.gameData.gameStats.classicBestTimeSeconds = clearTimeSeconds;
+              submitLeaderboardStat("classicBestTimeSeconds", clearTimeSeconds);
+            }
             for (const pokemon of globalScene.getPlayerParty()) {
               this.awardFirstClassicCompletion(pokemon);
               if (pokemon.species.getRootSpeciesId() !== pokemon.species.getRootSpeciesId(true)) {

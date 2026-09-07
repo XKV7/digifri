@@ -1,5 +1,6 @@
 import { applyAbAttrs } from "#abilities/apply-ab-attrs";
 import { globalScene } from "#app/global-scene";
+import { submitLeaderboardStat } from "#app/leaderboard";
 import { LapsingPersistentModifier, LapsingPokemonHeldItemModifier } from "#modifiers/modifier";
 import { BattlePhase } from "#phases/battle-phase";
 
@@ -30,6 +31,7 @@ export class BattleEndPhase extends BattlePhase {
       && globalScene.currentBattle.waveIndex + 1 > globalScene.gameData.gameStats.highestEndlessWave
     ) {
       globalScene.gameData.gameStats.highestEndlessWave = globalScene.currentBattle.waveIndex + 1;
+      submitLeaderboardStat("endlessMaxWave", globalScene.gameData.gameStats.highestEndlessWave);
     }
 
     if (this.isVictory) {
