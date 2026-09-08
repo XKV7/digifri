@@ -16168,8 +16168,7 @@ export function initGenerationOne(): SpeciesDataMapConfig {
       genderDiffs: false,
     }),
     starter: SpeciesId.MISSING_NO,
-    // No starterCost: not selectable on the starter-select screen for now — only
-    // obtainable by hatching it from an egg (see eggTier below).
+    starterCost: 1,
     evolutions: [],
     eggTier: EggTier.COMMON,
     passives: AbilityId.PICKUP,
