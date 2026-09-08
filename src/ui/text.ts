@@ -707,5 +707,7 @@ export function getEggTierTextTint(tier: EggTier): number {
       return getModifierTierTextTint(ModifierTier.ULTRA);
     case EggTier.LEGENDARY:
       return getModifierTierTextTint(ModifierTier.MASTER);
+    case EggTier.EX:
+      return getModifierTierTextTint(ModifierTier.ROGUE);
   }
 }

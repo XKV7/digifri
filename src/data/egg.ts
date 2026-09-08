@@ -20,6 +20,10 @@ import {
   HATCH_WAVES_MANAPHY_EGG,
   HATCH_WAVES_RARE_EGG,
   MANAPHY_EGG_MANAPHY_RATE,
+  MASTER_GACHA_EPIC_EGG_THRESHOLD,
+  MASTER_GACHA_EX_EGG_THRESHOLD,
+  MASTER_GACHA_LEGENDARY_EGG_THRESHOLD,
+  MASTER_GACHA_TOTAL,
   MISSING_NO_EGG_RATE,
   RARE_EGGMOVE_RATES,
   SAME_SPECIES_EGG_HA_RATE,
@@ -231,6 +235,18 @@ export class Egg {
     return this._tier.toString();
   }
 
+  /**
+   * The EX tier uses its own standalone one-frame atlases (`egg_ex`/`egg_icons_ex`) rather than
+   * adding a frame to the shared `egg`/`egg_icons` atlases every other tier packs into.
+   */
+  public getSpriteAtlasKey(): string {
+    return this._tier === EggTier.EX ? "egg_ex" : "egg";
+  }
+
+  public getIconAtlasKey(): string {
+    return this._tier === EggTier.EX ? "egg_icons_ex" : "egg_icons";
+  }
+
   // Generates a PlayerPokemon from an egg
   public generatePlayerPokemon(): PlayerPokemon {
     let ret: PlayerPokemon;
@@ -300,6 +316,8 @@ export class Egg {
         return i18next.t("egg:ultraTier");
       case EggTier.LEGENDARY:
         return i18next.t("egg:masterTier");
+      case EggTier.EX:
+        return i18next.t("egg:exTier");
       default:
         return i18next.t("egg:defaultTier");
     }
@@ -389,10 +407,21 @@ export class Egg {
   }
 
   private rollEggTier(): EggTier {
+    // The EX gacha machine has its own flat distribution (Rare 416/512, Epic 80/512,
+    // Legendary 15/512, EX 1/512) instead of the shared Common/Rare/Epic/Legendary one below -
+    // notably it can never roll Common.
+    if (this._sourceType === EggSourceType.GACHA_MASTER) {
+      const tierValue = randInt(MASTER_GACHA_TOTAL);
+      return tierValue < MASTER_GACHA_EX_EGG_THRESHOLD
+        ? EggTier.EX
+        : tierValue < MASTER_GACHA_LEGENDARY_EGG_THRESHOLD
+          ? EggTier.LEGENDARY
+          : tierValue < MASTER_GACHA_EPIC_EGG_THRESHOLD
+            ? EggTier.EPIC
+            : EggTier.RARE;
+    }
     const tierValueOffset =
-      this._sourceType === EggSourceType.GACHA_LEGENDARY || this._sourceType === EggSourceType.GACHA_MASTER
-        ? GACHA_LEGENDARY_UP_THRESHOLD_OFFSET
-        : 0;
+      this._sourceType === EggSourceType.GACHA_LEGENDARY ? GACHA_LEGENDARY_UP_THRESHOLD_OFFSET : 0;
     const tierValue = randInt(256);
     return tierValue >= GACHA_DEFAULT_COMMON_EGG_THRESHOLD + tierValueOffset
       ? EggTier.COMMON
@@ -439,6 +468,11 @@ export class Egg {
     ) {
       // A player-chosen "pickup" legendary (set from the Legendary Gacha screen) overrides
       // the automatic daily rotation.
+      return globalScene.gameData.pinnedLegendarySpecies ?? getLegendaryGachaSpeciesForTimestamp(this.timestamp);
+    }
+    // What actually drops from an EX-tier egg hasn't been decided yet - as a placeholder, reuse
+    // the Legendary pool/pinned-legendary logic so pulling one doesn't crash in the meantime.
+    if (this.tier === EggTier.EX) {
       return globalScene.gameData.pinnedLegendarySpecies ?? getLegendaryGachaSpeciesForTimestamp(this.timestamp);
     }
 

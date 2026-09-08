@@ -143,7 +143,7 @@ export class EggListUiHandler extends MessageUiHandler {
       }
       if (i < eggsToShow) {
         const egg = globalScene.gameData.eggs[i + indexOffset];
-        icon.setFrame(egg.getKey()).setVisible(true);
+        icon.setTexture(egg.getIconAtlasKey()).setFrame(egg.getKey()).setVisible(true);
       } else {
         icon.setVisible(false);
       }
@@ -156,7 +156,7 @@ export class EggListUiHandler extends MessageUiHandler {
    */
   private setEggDetails(index: number): void {
     const egg = globalScene.gameData.eggs[index];
-    this.eggSprite.setFrame(`egg_${egg.getKey()}`);
+    this.eggSprite.setTexture(egg.getSpriteAtlasKey()).setFrame(`egg_${egg.getKey()}`);
     this.eggNameText.setText(`${i18next.t("egg:egg")} (${egg.getEggDescriptor()})`);
     this.eggDateText.setText(
       new Date(egg.timestamp).toLocaleString(undefined, {

@@ -1,0 +1,21 @@
+{
+  "textures": [
+    {
+      "image": "egg_ex.png",
+      "format": "RGBA8888",
+      "size": { "w": 28, "h": 30 },
+      "scale": 1,
+      "frames": [
+        {
+          "filename": "egg_4",
+          "rotated": false,
+          "trimmed": false,
+          "sourceSize": { "w": 28, "h": 30 },
+          "spriteSourceSize": { "x": 0, "y": 0, "w": 28, "h": 30 },
+          "frame": { "x": 0, "y": 0, "w": 28, "h": 30 }
+        }
+      ]
+    }
+  ],
+  "meta": { "app": "custom", "version": "1.0" }
+}

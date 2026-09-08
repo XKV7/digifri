@@ -594,7 +594,7 @@ export class EggGachaUiHandler extends MessageUiHandler {
           );
           ret.setScale(0.0001);
 
-          const eggSprite = globalScene.add.sprite(0, 0, "egg", `egg_${egg.getKey()}`);
+          const eggSprite = globalScene.add.sprite(0, 0, egg.getSpriteAtlasKey(), `egg_${egg.getKey()}`);
           ret.add(eggSprite);
 
           const eggText = addTextObject(0, 14, egg.getEggDescriptor(), TextStyle.PARTY, { align: "center" });

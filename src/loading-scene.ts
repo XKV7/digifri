@@ -311,6 +311,10 @@ export class LoadingScene extends SceneBase {
       .loadAtlas("egg_icons", "egg")
       .loadAtlas("egg_shard", "egg")
       .loadAtlas("egg_lightrays", "egg")
+      // Standalone one-frame atlases for the EX egg tier - kept separate from the shared
+      // egg/egg_icons atlases above so this doesn't disturb their existing tier frames.
+      .loadAtlas("egg_ex", "egg")
+      .loadAtlas("egg_icons_ex", "egg")
       .loadEggGachaImages()
       .loadImage("gacha_glass", "egg")
       .loadImage("gacha_eggs", "egg")

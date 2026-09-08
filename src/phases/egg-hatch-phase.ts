@@ -4,6 +4,7 @@ import { Phase } from "#app/phase";
 import type { BackgroundMusic } from "#audio/background-music";
 import type { Egg } from "#data/egg";
 import type { EggHatchData } from "#data/egg-hatch-data";
+import { EggTier } from "#enums/egg-type";
 import { UiMode } from "#enums/ui-mode";
 import { EggCountChangedEvent } from "#events/egg";
 import type { PlayerPokemon } from "#field/pokemon";
@@ -107,7 +108,7 @@ export class EggHatchPhase extends Phase {
         this.eggHatchBg.displayHeight / 2,
       );
 
-      this.eggSprite = globalScene.add.sprite(0, 0, "egg", `egg_${this.egg.getKey()}`);
+      this.eggSprite = globalScene.add.sprite(0, 0, this.egg.getSpriteAtlasKey(), `egg_${this.egg.getKey()}`);
       this.eggCrackSprite = globalScene.add.sprite(0, 0, "egg_crack", "0");
       this.eggCrackSprite.setVisible(false);
 
@@ -454,7 +455,12 @@ export class EggHatchPhase extends Phase {
   doSprayParticle(trigIndex: number, offsetY: number) {
     const initialX = this.eggHatchBg.displayWidth / 2;
     const initialY = this.eggHatchBg.displayHeight / 2 + offsetY;
-    const shardKey = this.egg.isManaphyEgg() ? "1" : this.egg.tier.toString();
+    // No dedicated shard art for the EX tier yet - reuse the Legendary tier's shard sprite.
+    const shardKey = this.egg.isManaphyEgg()
+      ? "1"
+      : this.egg.tier === EggTier.EX
+        ? EggTier.LEGENDARY.toString()
+        : this.egg.tier.toString();
     const particle = globalScene.add.image(initialX, initialY, "egg_shard", `${shardKey}_${Math.floor(trigIndex / 2)}`);
     this.eggHatchContainer.add(particle);
 

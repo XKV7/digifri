@@ -24,6 +24,14 @@ export const GACHA_DEFAULT_RARE_EGG_THRESHOLD = 8; // Default 44/256 chance
 export const GACHA_DEFAULT_EPIC_EGG_THRESHOLD = 1; // Default 7/256 chance, leaving Legendary as 1/256 chance
 export const GACHA_LEGENDARY_UP_THRESHOLD_OFFSET = 1; // The offset to threshold for Legendary Up gacha eggs. +x/256 Legendary Egg chance, -x/256 Common Egg chance
 
+// The EX gacha machine has its own, entirely separate tier distribution out of 512 (no Common
+// tier at all): Rare 416/512, Epic 80/512, Legendary 15/512, EX 1/512. Thresholds are cumulative
+// from the rarest end, same convention as the pity thresholds below.
+export const MASTER_GACHA_TOTAL = 512;
+export const MASTER_GACHA_EX_EGG_THRESHOLD = 1; // 1/512
+export const MASTER_GACHA_LEGENDARY_EGG_THRESHOLD = 16; // 15/512 (up to, not including, this value)
+export const MASTER_GACHA_EPIC_EGG_THRESHOLD = 96; // 80/512 (up to, not including, this value); the remainder (416/512) is Rare
+
 // The number of eggs without finding a certain tier egg it takes for egg pity to kick in and that tier to be forced
 // These numbers are roughly the 80% mark. That is, 80% of the time you'll get an egg before this gets triggered.
 export const EGG_PITY_LEGENDARY_THRESHOLD = 412;
