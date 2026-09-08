@@ -30,6 +30,7 @@ import {
 import { EggSourceType } from "#enums/egg-source-types";
 import { EggTier } from "#enums/egg-type";
 import { SpeciesId } from "#enums/species-id";
+import { Unlockables } from "#enums/unlockables";
 import { VariantTier } from "#enums/variant-tier";
 import type { PlayerPokemon } from "#field/pokemon";
 import { getIvsFromId, randInt, randomString, randSeedInt } from "#utils/common";
@@ -420,10 +421,15 @@ export class Egg {
       const rand = randSeedInt(MANAPHY_EGG_MANAPHY_RATE) !== 1;
       return rand ? SpeciesId.PHIONE : SpeciesId.MANAPHY;
     }
-    // MissingNo. isn't a real starter (no starterCost) and can only be hatched, at a flat
-    // 1/1024 chance out of any Common-tier egg - kept out of the normal weighted pool below
-    // (see ignoredSpecies) since it has no starterCost to weight it by.
-    if (this.tier === EggTier.COMMON && !randSeedInt(MISSING_NO_EGG_RATE)) {
+    // MissingNo. can only be hatched, at a flat 1/1024 chance out of any Common-tier egg, and
+    // only once Classic mode has been cleared at least once (same unlock flag Endless mode
+    // uses). Kept out of the normal weighted pool below (see ignoredSpecies) since it has no
+    // reliable starterCost to weight it by while hidden from starter-select pre-unlock.
+    if (
+      this.tier === EggTier.COMMON
+      && globalScene.gameData.unlocks[Unlockables.ENDLESS_MODE]
+      && !randSeedInt(MISSING_NO_EGG_RATE)
+    ) {
       return SpeciesId.MISSING_NO;
     }
     if (
