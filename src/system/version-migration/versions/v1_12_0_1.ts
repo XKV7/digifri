@@ -22,11 +22,11 @@ const fixDexData: SystemSaveMigrator = {
 
       const species = SpeciesId[speciesId];
 
-      if (starterEntry == null) {
-        console.warn("Missing starter data for %s (%d)!", species, speciesId);
-      }
-      if (dexEntry == null) {
-        console.warn("Missing dex data for %s (%d)!", species, speciesId);
+      // A species added to the roster after this save was created (e.g. a custom addition)
+      // simply has no entry here - there's nothing to repair for it, and reading its
+      // (nonexistent) fields below would throw.
+      if (starterEntry == null || dexEntry == null) {
+        continue;
       }
 
       const hasStarterData =
