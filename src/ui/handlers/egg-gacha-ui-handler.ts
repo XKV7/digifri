@@ -12,7 +12,7 @@ import { GachaType } from "#enums/gacha-types";
 import type { SpeciesId } from "#enums/species-id";
 import { TextStyle } from "#enums/text-style";
 import { UiMode } from "#enums/ui-mode";
-import { getVoucherTypeIcon, VoucherType } from "#system/voucher";
+import { getVoucherTypeIcon, getVoucherTypeIconTexture, VoucherType } from "#system/voucher";
 import { MessageUiHandler } from "#ui/message-ui-handler";
 import { addTextObject, getEggTierTextTint, getTextStyleOptions } from "#ui/text";
 import { addWindow } from "#ui/ui-theme";
@@ -294,14 +294,11 @@ export class EggGachaUiHandler extends MessageUiHandler {
 
       this.voucherCountLabels.push(countLabel);
 
-      const iconImage = getVoucherTypeIcon(voucher);
-
-      const icon = globalScene.add.sprite(-19, 2, "items", iconImage).setOrigin(0).setScale(0.5);
-      if (voucher === VoucherType.MASTER) {
-        // MASTER currently reuses GOLDEN's icon (see getVoucherTypeIcon) - tint it here too so the
-        // two counters at the top of the screen stay visually distinguishable.
-        icon.setTint(0xc9a0ff);
-      }
+      const iconTexture = getVoucherTypeIconTexture(voucher);
+      const icon = globalScene.add
+        .sprite(-19, 2, iconTexture, iconTexture === "items" ? getVoucherTypeIcon(voucher) : undefined)
+        .setOrigin(0)
+        .setScale(0.5);
       container.add(icon);
 
       this.eggGachaContainer.add(container);
@@ -789,16 +786,14 @@ export class EggGachaUiHandler extends MessageUiHandler {
       .setPositionRelative(this.eggGachaOptionSelectBg, 16, 9);
     this.eggGachaOptionsContainer.add(this.pullOptionsText);
 
+    const iconTexture = getVoucherTypeIconTexture(
+      this.gachaCursor === GachaType.MASTER ? VoucherType.MASTER : VoucherType.REGULAR,
+    );
     pullOptions.forEach((option, i) => {
       const icon = globalScene.add
-        .sprite(0, 0, "items", option.icon)
+        .sprite(0, 0, iconTexture, iconTexture === "items" ? option.icon : undefined)
         .setScale(3 * this.scale)
         .setPositionRelative(this.eggGachaOptionSelectBg, 20, 9 + (48 + i * 96) * this.scale);
-      if (this.gachaCursor === GachaType.MASTER) {
-        // MASTER's pull option currently reuses GOLDEN's icon (see getVoucherTypeIcon) - tint it
-        // so it still reads as visually distinct here.
-        icon.setTint(0xc9a0ff);
-      }
       this.eggGachaOptionsContainer.add(icon);
       this.pullOptionIcons.push(icon);
     });

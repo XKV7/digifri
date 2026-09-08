@@ -75,6 +75,13 @@ export function getVoucherTypeName(voucherType: VoucherType): string {
   }
 }
 
+/**
+ * The frame name to draw for the given voucher type, within whichever texture
+ * getVoucherTypeIconTexture() says to draw it from. Meaningless on its own for a voucher type
+ * whose texture isn't an atlas (MASTER - see getVoucherTypeIconTexture) - kept returning
+ * GOLDEN's frame there anyway as a harmless fallback for any caller that only reads this and
+ * assumes "items", rather than an empty string.
+ */
 export function getVoucherTypeIcon(voucherType: VoucherType): string {
   switch (voucherType) {
     case VoucherType.REGULAR:
@@ -85,14 +92,21 @@ export function getVoucherTypeIcon(voucherType: VoucherType): string {
       return "mystic_ticket";
     case VoucherType.GOLDEN:
     case VoucherType.MASTER:
-      // MASTER shares GOLDEN's icon for now - "items" is a shared texture-packer atlas (see
-      // assets/images/items.png/.json), so adding a real distinct icon means either editing that
-      // atlas directly (in a fork of pagefaultgames/pokerogue-assets, since it's fetched fresh on
-      // every deploy - see .github/workflows/deploy-pages.yml) or giving MASTER its own standalone
-      // (non-atlas) texture instead. Some call sites (egg-gacha-ui-handler.ts's pull-option and
-      // voucher-count icons) tint this sprite for MASTER to still look distinct in the meantime.
       return "golden_mystic_ticket";
   }
+}
+
+/**
+ * The Phaser texture key to draw the given voucher type's icon from. "items" (a shared
+ * texture-packer atlas - see assets/images/items.png/.json) for every type except MASTER, which
+ * has its own standalone (non-atlas) texture instead (custom-assets/images/master_ticket.png,
+ * loaded in loading-scene.ts) - adding a real new icon to the shared atlas would mean editing it
+ * directly in a fork of pagefaultgames/pokerogue-assets (since it's fetched fresh on every
+ * deploy - see .github/workflows/deploy-pages.yml), which risks every other item's icon along
+ * with it if done wrong, so MASTER gets its own file instead.
+ */
+export function getVoucherTypeIconTexture(voucherType: VoucherType): string {
+  return voucherType === VoucherType.MASTER ? "master_ticket" : "items";
 }
 
 export interface Vouchers {

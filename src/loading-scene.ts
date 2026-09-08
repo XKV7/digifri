@@ -180,7 +180,11 @@ export class LoadingScene extends SceneBase {
       .loadImage("evo_sparkle", "effects")
       .loadAtlas("tera_sparkle", "effects")
       .loadAtlas("pb", "")
-      .loadAtlas("items", "");
+      .loadAtlas("items", "")
+      // VoucherType.MASTER's icon - a standalone image (from custom-assets/images/, see
+      // vite-minify-json-plugin.ts) rather than a frame in the shared items.png atlas above, so
+      // adding it doesn't require touching (and risking) every other item's icon.
+      .loadImage("master_ticket", "");
 
     this.load.bitmapFont("item-count", "fonts/item-count.png", "fonts/item-count.xml");
     try {
