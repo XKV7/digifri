@@ -20,6 +20,7 @@ import {
   HATCH_WAVES_MANAPHY_EGG,
   HATCH_WAVES_RARE_EGG,
   MANAPHY_EGG_MANAPHY_RATE,
+  MISSING_NO_EGG_RATE,
   RARE_EGGMOVE_RATES,
   SAME_SPECIES_EGG_HA_RATE,
   SAME_SPECIES_EGG_SHINY_RATE,
@@ -419,6 +420,12 @@ export class Egg {
       const rand = randSeedInt(MANAPHY_EGG_MANAPHY_RATE) !== 1;
       return rand ? SpeciesId.PHIONE : SpeciesId.MANAPHY;
     }
+    // MissingNo. isn't a real starter (no starterCost) and can only be hatched, at a flat
+    // 1/1024 chance out of any Common-tier egg - kept out of the normal weighted pool below
+    // (see ignoredSpecies) since it has no starterCost to weight it by.
+    if (this.tier === EggTier.COMMON && !randSeedInt(MISSING_NO_EGG_RATE)) {
+      return SpeciesId.MISSING_NO;
+    }
     if (
       this.tier === EggTier.LEGENDARY
       && (this._sourceType === EggSourceType.GACHA_LEGENDARY || this._sourceType === EggSourceType.GACHA_MASTER)
@@ -451,7 +458,7 @@ export class Egg {
         break;
     }
 
-    const ignoredSpecies = [SpeciesId.PHIONE, SpeciesId.MANAPHY, SpeciesId.ETERNATUS];
+    const ignoredSpecies = [SpeciesId.PHIONE, SpeciesId.MANAPHY, SpeciesId.ETERNATUS, SpeciesId.MISSING_NO];
 
     let speciesPool = speciesDataRegistry
       .getSpeciesForEggTier(this.tier)
