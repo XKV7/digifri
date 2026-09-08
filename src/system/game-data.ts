@@ -245,21 +245,31 @@ export class GameData {
         continue;
       }
 
-      const starterEntry = data.starterData[speciesId];
-      const dexEntry = data.dexData[speciesId];
-
       const species = SpeciesId[speciesId];
 
-      if (starterEntry == null) {
-        console.error("Missing starter data for %s (%d)!", species, speciesId);
-        dataValidated = false;
-        continue;
-      }
-      if (dexEntry == null) {
-        console.error("Missing dex data for %s (%d)!", species, speciesId);
-        dataValidated = false;
-        continue;
-      }
+      // A species newly added to the roster (e.g. a custom addition to this fork, like
+      // MissingNo.) simply has no entry in a save made before it existed - that's missing
+      // content to backfill with a fresh, unowned default, not data loss to reject outright.
+      const starterEntry = (data.starterData[speciesId] ??= {
+        moveset: null,
+        eggMoves: 0,
+        candyCount: 0,
+        friendship: 0,
+        abilityAttr: 0,
+        passiveAttr: 0,
+        valueReduction: 0,
+        classicWinCount: 0,
+      });
+      const dexEntry = (data.dexData[speciesId] ??= {
+        seenAttr: 0n,
+        caughtAttr: 0n,
+        natureAttr: 0,
+        seenCount: 0,
+        caughtCount: 0,
+        hatchedCount: 0,
+        ivs: [0, 0, 0, 0, 0, 0],
+        ribbons: new RibbonData(0),
+      });
 
       const hasStarterData =
         starterEntry.abilityAttr > 0
@@ -399,7 +409,12 @@ export class GameData {
     this.saveSetting(SettingKeys.Player_Gender, systemData.gender === PlayerGender.FEMALE ? 1 : 0);
 
     if (systemData.starterData) {
-      this.starterData = systemData.starterData;
+      // Merge onto (rather than replace) the defaults initStarterData() already populated in the
+      // constructor for every current starter species - a save made before a species most
+      // recently gained starterCost (e.g. MissingNo.) simply has no entry for it, and a wholesale
+      // replace here left it permanently missing, which validateSystemData() then flags as
+      // corruption on every subsequent save.
+      this.starterData = Object.assign(this.starterData, systemData.starterData);
     } else {
       this.initStarterData();
 
