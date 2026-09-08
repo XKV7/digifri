@@ -27,6 +27,56 @@ function skipExcludes(file: string): boolean {
   return false;
 }
 
+/**
+ * Recursively applies custom-assets/ on top of an already-built output directory.
+ *
+ * Files under a top-level "locales" directory are merged (shallow, one level of JSON keys) into
+ * the corresponding already-copied locale file rather than replacing it outright - a locale
+ * namespace file like egg.json has many pre-existing keys from the upstream translations repo,
+ * and a custom override should only be adding a few new ones, not deleting the rest. Every other
+ * file (art, atlases, etc.) is copied over as a plain overwrite, since those are expected to be
+ * complete, standalone files (see this plugin's own generateBundle for why a *shared* atlas like
+ * items.png isn't a safe target for this - overriding it wholesale would drop every icon this
+ * fork didn't touch).
+ */
+function applyCustomOverrides(srcDir: string, outDir: string, relPath = ""): void {
+  const dirEntries = fs.readdirSync(path.join(srcDir, relPath));
+
+  for (const entry of dirEntries) {
+    if (skipExcludes(entry)) {
+      continue;
+    }
+    const rel = path.join(relPath, entry);
+    const fullPath = path.join(srcDir, rel);
+    const outputFilePath = path.join(outDir, rel);
+    const stat = fs.statSync(fullPath);
+
+    if (stat.isDirectory()) {
+      fs.mkdirSync(outputFilePath, { recursive: true });
+      applyCustomOverrides(srcDir, outDir, rel);
+      continue;
+    }
+
+    const isLocaleFile = rel.split(path.sep)[0] === "locales" && entry.endsWith(".json");
+    if (isLocaleFile) {
+      let base: Record<string, unknown> = {};
+      if (fs.existsSync(outputFilePath)) {
+        try {
+          base = JSON.parse(fs.readFileSync(outputFilePath, "utf-8"));
+        } catch {
+          // The already-copied file isn't valid JSON for some reason - fall back to just the
+          // override content rather than failing the whole build over it.
+        }
+      }
+      const overrides = JSON.parse(fs.readFileSync(fullPath, "utf-8"));
+      fs.writeFileSync(outputFilePath, JSON.stringify({ ...base, ...overrides }), "utf-8");
+      continue;
+    }
+
+    fs.copyFileSync(fullPath, outputFilePath);
+  }
+}
+
 /** Vite plugin to minify JSON files. Non-JSON files are copied as-is. */
 export function minifyPublicJsonFiles(): VitePlugin {
   let logger: Logger;
@@ -98,6 +148,21 @@ export function minifyPublicJsonFiles(): VitePlugin {
       minifyJsonFiles(localesDir, path.join(outputDir, "locales"));
 
       logger.info(cyan("JSON minification complete."));
+
+      // assets/ and locales/ above are fetched fresh from their own upstream repositories on every
+      // deploy (see .github/workflows/deploy-pages.yml) - anything committed directly into those
+      // directories in THIS repo is discarded. custom-assets/, by contrast, IS part of this repo,
+      // so it's the place for any of this fork's own custom art or translation additions. Mirrors
+      // the same directory layout as the final output (custom-assets/images/... maps to
+      // dist/images/..., custom-assets/locales/<lang>/<namespace>.json maps to
+      // dist/locales/<lang>/<namespace>.json) and is applied last, after the copies above, so it
+      // can add new files or override existing ones.
+      const customAssetsDir = path.resolve("./custom-assets");
+      if (fs.existsSync(customAssetsDir)) {
+        logger.info(cyan("\nApplying custom-assets overrides."));
+        applyCustomOverrides(customAssetsDir, outputDir);
+        logger.info(cyan("custom-assets overrides applied."));
+      }
     },
     closeBundle(): void {
       const logSuffix = gray(` [${NAME}]`);

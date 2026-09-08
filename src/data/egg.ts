@@ -334,6 +334,8 @@ export class Egg {
         return this.eggDescriptor ?? i18next.t("egg:gachaTypeShiny");
       case EggSourceType.GACHA_MOVE:
         return this.eggDescriptor ?? i18next.t("egg:gachaTypeMove");
+      case EggSourceType.GACHA_MASTER:
+        return this.eggDescriptor ?? i18next.t("egg:gachaTypeMaster");
       case EggSourceType.EVENT:
         return this.eggDescriptor ?? i18next.t("egg:eventType");
       default:
@@ -355,7 +357,11 @@ export class Egg {
   private rollEggMoveIndex() {
     const tierNum = this.isManaphyEgg() ? 2 : this.tier;
     let baseChance: number;
-    if (this._sourceType === EggSourceType.SAME_SPECIES_EGG || this._sourceType === EggSourceType.GACHA_MOVE) {
+    if (
+      this._sourceType === EggSourceType.SAME_SPECIES_EGG
+      || this._sourceType === EggSourceType.GACHA_MOVE
+      || this._sourceType === EggSourceType.GACHA_MASTER
+    ) {
       baseChance = BOOSTED_RARE_EGGMOVE_RATES[tierNum];
     } else {
       baseChance = RARE_EGGMOVE_RATES[tierNum];
@@ -382,7 +388,9 @@ export class Egg {
 
   private rollEggTier(): EggTier {
     const tierValueOffset =
-      this._sourceType === EggSourceType.GACHA_LEGENDARY ? GACHA_LEGENDARY_UP_THRESHOLD_OFFSET : 0;
+      this._sourceType === EggSourceType.GACHA_LEGENDARY || this._sourceType === EggSourceType.GACHA_MASTER
+        ? GACHA_LEGENDARY_UP_THRESHOLD_OFFSET
+        : 0;
     const tierValue = randInt(256);
     return tierValue >= GACHA_DEFAULT_COMMON_EGG_THRESHOLD + tierValueOffset
       ? EggTier.COMMON
@@ -411,7 +419,11 @@ export class Egg {
       const rand = randSeedInt(MANAPHY_EGG_MANAPHY_RATE) !== 1;
       return rand ? SpeciesId.PHIONE : SpeciesId.MANAPHY;
     }
-    if (this.tier === EggTier.LEGENDARY && this._sourceType === EggSourceType.GACHA_LEGENDARY && !randSeedInt(2)) {
+    if (
+      this.tier === EggTier.LEGENDARY
+      && (this._sourceType === EggSourceType.GACHA_LEGENDARY || this._sourceType === EggSourceType.GACHA_MASTER)
+      && !randSeedInt(2)
+    ) {
       // A player-chosen "pickup" legendary (set from the Legendary Gacha screen) overrides
       // the automatic daily rotation.
       return globalScene.gameData.pinnedLegendarySpecies ?? getLegendaryGachaSpeciesForTimestamp(this.timestamp);
@@ -521,6 +533,7 @@ export class Egg {
     let shinyChance = GACHA_DEFAULT_SHINY_RATE;
     switch (this._sourceType) {
       case EggSourceType.GACHA_SHINY:
+      case EggSourceType.GACHA_MASTER:
         shinyChance = GACHA_SHINY_UP_SHINY_RATE;
         break;
       case EggSourceType.SAME_SPECIES_EGG:
@@ -553,7 +566,9 @@ export class Egg {
 
   private checkForPityTierOverrides(): void {
     const tierValueOffset =
-      this._sourceType === EggSourceType.GACHA_LEGENDARY ? GACHA_LEGENDARY_UP_THRESHOLD_OFFSET : 0;
+      this._sourceType === EggSourceType.GACHA_LEGENDARY || this._sourceType === EggSourceType.GACHA_MASTER
+        ? GACHA_LEGENDARY_UP_THRESHOLD_OFFSET
+        : 0;
     globalScene.gameData.eggPity[EggTier.RARE] += 1;
     globalScene.gameData.eggPity[EggTier.EPIC] += 1;
     globalScene.gameData.eggPity[EggTier.LEGENDARY] += 1 + tierValueOffset;

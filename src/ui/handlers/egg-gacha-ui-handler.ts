@@ -6,6 +6,7 @@ import { handleTutorial, Tutorial } from "#app/tutorial";
 import type { IEggOptions } from "#data/egg";
 import { Egg, getLegendaryGachaSpeciesForTimestamp } from "#data/egg";
 import { Button } from "#enums/buttons";
+import { EggSourceType } from "#enums/egg-source-types";
 import { EggTier } from "#enums/egg-type";
 import { GachaType } from "#enums/gacha-types";
 import type { SpeciesId } from "#enums/species-id";
@@ -19,11 +20,43 @@ import { fixedInt, randSeedShuffle } from "#utils/common";
 import { getEnumValues } from "#utils/enums";
 import i18next from "i18next";
 
+/** Pulls given for 1 VoucherType.MASTER voucher at the dedicated Master gacha machine - see getGuaranteedEggTierFromPullCount, which guarantees at least a Legendary-tier egg among them. */
+const MASTER_GACHA_PULLS = 30;
+
+/**
+ * GachaType (the 4 selectable machines) and EggSourceType (the odds-boost actually applied when
+ * rolling an egg) only happen to share the same numeric values for MOVE/LEGENDARY/SHINY - GachaType
+ * has since grown a 4th, MASTER, entry that doesn't correspond to the next EggSourceType value
+ * (GACHA_MASTER was appended at the very end of that enum instead, to keep old saves' egg
+ * sourceType numbers stable - see egg-source-types.ts). Map explicitly rather than relying on the
+ * coincidence.
+ */
+function gachaTypeToEggSourceType(gachaType: GachaType): EggSourceType {
+  switch (gachaType) {
+    case GachaType.MOVE:
+      return EggSourceType.GACHA_MOVE;
+    case GachaType.LEGENDARY:
+      return EggSourceType.GACHA_LEGENDARY;
+    case GachaType.SHINY:
+      return EggSourceType.GACHA_SHINY;
+    case GachaType.MASTER:
+      return EggSourceType.GACHA_MASTER;
+  }
+}
+
+interface PullOption {
+  multiplier: string;
+  description: string;
+  icon: string;
+}
+
 export class EggGachaUiHandler extends MessageUiHandler {
   private eggGachaContainer: Phaser.GameObjects.Container;
   private eggGachaMessageBox: Phaser.GameObjects.NineSlice;
   private eggGachaOptionsContainer: Phaser.GameObjects.Container;
   private eggGachaOptionSelectBg: Phaser.GameObjects.NineSlice;
+  private pullOptionsText?: Phaser.GameObjects.Text;
+  private pullOptionIcons: Phaser.GameObjects.Sprite[] = [];
 
   private readonly gachaContainers: Phaser.GameObjects.Container[];
   private readonly gachaKnobs: Phaser.GameObjects.Sprite[];
@@ -63,12 +96,21 @@ export class EggGachaUiHandler extends MessageUiHandler {
   }
 
   private setupGachaType(key: keyof typeof GachaType, gachaType: GachaType): void {
-    const gachaTypeKey = key.toLowerCase();
+    // The Master machine reuses the Legendary machine's art, tinted, rather than needing its own
+    // "gacha_master"/"gacha_underlay_master" files (which don't exist - see loadEggGachaImages()
+    // in loading-scene.ts, which skips loading them for the same reason). Swap this for real art
+    // any time by adding those two files and removing this special case.
+    const gachaTypeKey = gachaType === GachaType.MASTER ? "legendary" : key.toLowerCase();
     const gachaContainer = globalScene.add.container(180 * gachaType, 18);
 
     const gacha = globalScene.add.sprite(0, 0, `gacha_${gachaTypeKey}`).setOrigin(0);
-
     const gachaUnderlay = globalScene.add.sprite(115, 80, `gacha_underlay_${gachaTypeKey}`).setOrigin(0);
+    if (gachaType === GachaType.MASTER) {
+      // A distinct tint is the "different color" half of "same appearance, different color" for
+      // now, until real recolored art replaces the reused Legendary sprites above.
+      gacha.setTint(0xc9a0ff);
+      gachaUnderlay.setTint(0xc9a0ff);
+    }
 
     const gachaEggs = globalScene.add.sprite(0, 0, "gacha_eggs").setOrigin(0);
 
@@ -149,6 +191,9 @@ export class EggGachaUiHandler extends MessageUiHandler {
         }
 
         gachaUpLabel.setText(i18next.t("egg:shinyUpGacha")).setX(0).setOrigin(0.5, 0);
+        break;
+      case GachaType.MASTER:
+        gachaUpLabel.setText(i18next.t("egg:masterUpGacha")).setX(0).setOrigin(0.5, 0);
         break;
     }
 
@@ -234,64 +279,7 @@ export class EggGachaUiHandler extends MessageUiHandler {
       .add(this.eggGachaOptionSelectBg);
     this.eggGachaContainer.add(this.eggGachaOptionsContainer);
 
-    const multiplierOne = "x1";
-    const multiplierTen = "x10";
-    const pullOptions = [
-      {
-        multiplier: multiplierOne,
-        description: `1 ${i18next.t("egg:pull")}`,
-        icon: getVoucherTypeIcon(VoucherType.REGULAR),
-      },
-      {
-        multiplier: multiplierTen,
-        description: `10 ${i18next.t("egg:pulls")}`,
-        icon: getVoucherTypeIcon(VoucherType.REGULAR),
-      },
-      {
-        multiplier: multiplierOne,
-        description: `5 ${i18next.t("egg:pulls")}`,
-        icon: getVoucherTypeIcon(VoucherType.PLUS),
-      },
-      {
-        multiplier: multiplierOne,
-        description: `10 ${i18next.t("egg:pulls")}`,
-        icon: getVoucherTypeIcon(VoucherType.PREMIUM),
-      },
-      {
-        multiplier: multiplierOne,
-        description: `25 ${i18next.t("egg:pulls")}`,
-        icon: getVoucherTypeIcon(VoucherType.GOLDEN),
-      },
-    ];
-
-    const resolvedLanguage = i18next.resolvedLanguage ?? "en";
-    const pullOptionsText = pullOptions
-      .map(option => {
-        const desc = option.description.split(" ");
-        if (desc[0].length < 2) {
-          desc[0] += ["zh", "ko"].includes(resolvedLanguage.slice(0, 2)) ? " " : "  ";
-        }
-        if (option.multiplier === multiplierOne) {
-          desc[0] += " ";
-        }
-        return `     ${option.multiplier.padEnd(5)}${desc.join(" ")}`;
-      })
-      .join("\n");
-
-    const optionText = addTextObject(0, 0, `${pullOptionsText}\n${i18next.t("menu:cancel")}`, TextStyle.WINDOW)
-      .setLineSpacing(28)
-      .setFontSize("80px")
-      .setPositionRelative(this.eggGachaOptionSelectBg, 16, 9);
-
-    this.eggGachaOptionsContainer.add(optionText);
-
-    pullOptions.forEach((option, i) => {
-      const icon = globalScene.add
-        .sprite(0, 0, "items", option.icon)
-        .setScale(3 * this.scale)
-        .setPositionRelative(this.eggGachaOptionSelectBg, 20, 9 + (48 + i * 96) * this.scale);
-      this.eggGachaOptionsContainer.add(icon);
-    });
+    this.rebuildPullOptions();
 
     this.eggGachaContainer.add(this.eggGachaOptionsContainer);
 
@@ -309,6 +297,11 @@ export class EggGachaUiHandler extends MessageUiHandler {
       const iconImage = getVoucherTypeIcon(voucher);
 
       const icon = globalScene.add.sprite(-19, 2, "items", iconImage).setOrigin(0).setScale(0.5);
+      if (voucher === VoucherType.MASTER) {
+        // MASTER currently reuses GOLDEN's icon (see getVoucherTypeIcon) - tint it here too so the
+        // two counters at the top of the screen stay visually distinguishable.
+        icon.setTint(0xc9a0ff);
+      }
       container.add(icon);
 
       this.eggGachaContainer.add(container);
@@ -489,7 +482,7 @@ export class EggGachaUiHandler extends MessageUiHandler {
     for (let i = 1; i <= pullCount; i++) {
       const eggOptions: IEggOptions = {
         pulled: true,
-        sourceType: this.gachaCursor,
+        sourceType: gachaTypeToEggSourceType(this.gachaCursor as GachaType),
       };
 
       // Before creating the last egg, check if the guaranteed egg tier was already generated
@@ -562,6 +555,8 @@ export class EggGachaUiHandler extends MessageUiHandler {
         return EggTier.RARE;
       case 25:
         return EggTier.EPIC;
+      case MASTER_GACHA_PULLS:
+        return EggTier.LEGENDARY;
       default:
         return EggTier.COMMON;
     }
@@ -718,11 +713,116 @@ export class EggGachaUiHandler extends MessageUiHandler {
   }
 
   /**
-   * Convert a cursor index to a voucher type and count
-   * @param cursor - The cursor index corresponding to the voucher type
-   * @returns The voucher type, vouchers used, and pulls given, or an empty array if the cursor is not on a voucher
+   * The pull options shown in the right-side menu, dependent on which machine is currently
+   * selected — the Master machine (GachaType.MASTER) is dedicated to VoucherType.MASTER and shows
+   * only that single option, while the other three machines share the original REGULAR/PLUS/
+   * PREMIUM/GOLDEN menu (any of which work at any of those three).
    */
-  private static cursorToVoucher(cursor: number): [VoucherType, number, number] | undefined {
+  private getPullOptionsForCurrentMachine(): PullOption[] {
+    if (this.gachaCursor === GachaType.MASTER) {
+      return [
+        {
+          multiplier: "x1",
+          description: `${MASTER_GACHA_PULLS} ${i18next.t("egg:pulls")}`,
+          icon: getVoucherTypeIcon(VoucherType.MASTER),
+        },
+      ];
+    }
+    return [
+      {
+        multiplier: "x1",
+        description: `1 ${i18next.t("egg:pull")}`,
+        icon: getVoucherTypeIcon(VoucherType.REGULAR),
+      },
+      {
+        multiplier: "x10",
+        description: `10 ${i18next.t("egg:pulls")}`,
+        icon: getVoucherTypeIcon(VoucherType.REGULAR),
+      },
+      {
+        multiplier: "x1",
+        description: `5 ${i18next.t("egg:pulls")}`,
+        icon: getVoucherTypeIcon(VoucherType.PLUS),
+      },
+      {
+        multiplier: "x1",
+        description: `10 ${i18next.t("egg:pulls")}`,
+        icon: getVoucherTypeIcon(VoucherType.PREMIUM),
+      },
+      {
+        multiplier: "x1",
+        description: `25 ${i18next.t("egg:pulls")}`,
+        icon: getVoucherTypeIcon(VoucherType.GOLDEN),
+      },
+    ];
+  }
+
+  /**
+   * (Re)builds the right-side pull-options text and icons for whichever machine is currently
+   * selected (see getPullOptionsForCurrentMachine). Called once from setup() and again every time
+   * setGachaCursor() switches machines, since the Master machine's menu is a different (shorter)
+   * list from the other three.
+   */
+  private rebuildPullOptions(): void {
+    this.pullOptionsText?.destroy();
+    this.pullOptionIcons.forEach(icon => icon.destroy());
+    this.pullOptionIcons = [];
+
+    const pullOptions = this.getPullOptionsForCurrentMachine();
+    const resolvedLanguage = i18next.resolvedLanguage ?? "en";
+    const pullOptionsText = pullOptions
+      .map(option => {
+        const desc = option.description.split(" ");
+        if (desc[0].length < 2) {
+          desc[0] += ["zh", "ko"].includes(resolvedLanguage.slice(0, 2)) ? " " : "  ";
+        }
+        if (option.multiplier === "x1") {
+          desc[0] += " ";
+        }
+        return `     ${option.multiplier.padEnd(5)}${desc.join(" ")}`;
+      })
+      .join("\n");
+
+    this.pullOptionsText = addTextObject(0, 0, `${pullOptionsText}\n${i18next.t("menu:cancel")}`, TextStyle.WINDOW)
+      .setLineSpacing(28)
+      .setFontSize("80px")
+      .setPositionRelative(this.eggGachaOptionSelectBg, 16, 9);
+    this.eggGachaOptionsContainer.add(this.pullOptionsText);
+
+    pullOptions.forEach((option, i) => {
+      const icon = globalScene.add
+        .sprite(0, 0, "items", option.icon)
+        .setScale(3 * this.scale)
+        .setPositionRelative(this.eggGachaOptionSelectBg, 20, 9 + (48 + i * 96) * this.scale);
+      if (this.gachaCursor === GachaType.MASTER) {
+        // MASTER's pull option currently reuses GOLDEN's icon (see getVoucherTypeIcon) - tint it
+        // so it still reads as visually distinct here.
+        icon.setTint(0xc9a0ff);
+      }
+      this.eggGachaOptionsContainer.add(icon);
+      this.pullOptionIcons.push(icon);
+    });
+
+    // The Master machine's menu is shorter (1 option + cancel, vs. 5 + cancel) - keep the cursor
+    // in range rather than leaving it hovering over a row that no longer has anything drawn on it.
+    if (this.cursor > pullOptions.length) {
+      this.setCursor(pullOptions.length);
+    }
+  }
+
+  /**
+   * Convert a cursor index to a voucher type and count, for whichever machine is currently
+   * selected (see getPullOptionsForCurrentMachine's doc comment for why this differs by machine).
+   * @param cursor - The cursor index corresponding to the voucher type
+   * @returns The voucher type, vouchers used, and pulls given, or undefined if the cursor is not on a voucher
+   */
+  private cursorToVoucher(cursor: number): [VoucherType, number, number] | undefined {
+    if (this.gachaCursor === GachaType.MASTER) {
+      if (cursor === 0) {
+        return [VoucherType.MASTER, 1, MASTER_GACHA_PULLS];
+      }
+      return;
+    }
     switch (cursor) {
       case 0:
         return [VoucherType.REGULAR, 1, 1];
@@ -748,12 +848,13 @@ export class EggGachaUiHandler extends MessageUiHandler {
    * @returns True if the success sound should be played, false if the error sound should be played, or undefined if the cursor is out of range.
    */
   private handleVoucherSelectAction(cursor: number): boolean | undefined {
-    // Cursors that are out of range should not be processed
-    if (cursor < 0 || cursor > 5) {
+    // Cursors that are out of range should not be processed - the "cancel" row sits right after
+    // the last real pull option, which varies by machine (see getPullOptionsForCurrentMachine).
+    if (cursor < 0 || cursor > this.getPullOptionsForCurrentMachine().length) {
       return;
     }
     const ui = this.getUi();
-    const voucher = EggGachaUiHandler.cursorToVoucher(cursor);
+    const voucher = this.cursorToVoucher(cursor);
     if (!voucher) {
       ui.revertMode();
       return true;
@@ -820,7 +921,7 @@ export class EggGachaUiHandler extends MessageUiHandler {
         }
         break;
       case Button.DOWN:
-        if (this.cursor < 5) {
+        if (this.cursor < this.getPullOptionsForCurrentMachine().length) {
           success = this.setCursor(this.cursor + 1);
         }
         break;
@@ -909,6 +1010,7 @@ export class EggGachaUiHandler extends MessageUiHandler {
 
     if (changed) {
       this.gachaCursor = cursor;
+      this.rebuildPullOptions();
 
       this.setTransitioning(true);
 

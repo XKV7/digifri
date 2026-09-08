@@ -970,7 +970,13 @@ export class MenuUiHandler extends MessageUiHandler {
           // Gifting transfers ownership, so only voucher types this account currently
           // holds are offered — see gift.ts#sendGift, which deducts one on send.
           const ownedVoucherTypes = (
-            [VoucherType.REGULAR, VoucherType.PLUS, VoucherType.PREMIUM, VoucherType.GOLDEN] as const
+            [
+              VoucherType.REGULAR,
+              VoucherType.PLUS,
+              VoucherType.PREMIUM,
+              VoucherType.GOLDEN,
+              VoucherType.MASTER,
+            ] as const
           ).filter(voucherType => (globalScene.gameData.voucherCounts[voucherType] ?? 0) > 0);
           if (ownedVoucherTypes.length === 0) {
             ui.showText("선물할 수 있는(보유한) 바우처가 없습니다.", null, () => ui.showText(""), fixedInt(2000));

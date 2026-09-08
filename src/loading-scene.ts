@@ -604,6 +604,12 @@ export class LoadingScene extends SceneBase {
 
   private loadEggGachaImages(): this {
     for (const gt of Object.keys(GachaType)) {
+      // The Master machine reuses (a tinted version of) the Legendary machine's sprites instead of
+      // its own - see setupGachaType() in egg-gacha-ui-handler.ts - so there's no
+      // "gacha_master"/"gacha_underlay_master" file to load.
+      if (gt === "MASTER") {
+        continue;
+      }
       const key = gt.toLowerCase();
       this.loadImage(`gacha_${key}`, "egg").loadAtlas(`gacha_underlay_${key}`, "egg");
     }

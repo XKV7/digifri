@@ -10,6 +10,8 @@ export enum VoucherType {
   PLUS,
   PREMIUM,
   GOLDEN,
+  /** New top tier, above GOLDEN - spendable only at the dedicated Master gacha machine (see egg-gacha-ui-handler.ts). */
+  MASTER,
 }
 
 export class Voucher {
@@ -52,6 +54,8 @@ export class Voucher {
         return AchvTier.ULTRA;
       case VoucherType.GOLDEN:
         return AchvTier.ROGUE;
+      case VoucherType.MASTER:
+        return AchvTier.MASTER;
     }
   }
 }
@@ -66,6 +70,8 @@ export function getVoucherTypeName(voucherType: VoucherType): string {
       return i18next.t("voucher:eggVoucherPremium");
     case VoucherType.GOLDEN:
       return i18next.t("voucher:eggVoucherGold");
+    case VoucherType.MASTER:
+      return i18next.t("voucher:eggVoucherMaster");
   }
 }
 
@@ -78,6 +84,13 @@ export function getVoucherTypeIcon(voucherType: VoucherType): string {
     case VoucherType.PREMIUM:
       return "mystic_ticket";
     case VoucherType.GOLDEN:
+    case VoucherType.MASTER:
+      // MASTER shares GOLDEN's icon for now - "items" is a shared texture-packer atlas (see
+      // assets/images/items.png/.json), so adding a real distinct icon means either editing that
+      // atlas directly (in a fork of pagefaultgames/pokerogue-assets, since it's fetched fresh on
+      // every deploy - see .github/workflows/deploy-pages.yml) or giving MASTER its own standalone
+      // (non-atlas) texture instead. Some call sites (egg-gacha-ui-handler.ts's pull-option and
+      // voucher-count icons) tint this sprite for MASTER to still look distinct in the meantime.
       return "golden_mystic_ticket";
   }
 }
