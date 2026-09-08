@@ -844,6 +844,11 @@ export class StarterSelectUiHandler extends MessageUiHandler {
 
     // TODO: Apply the same logic done in the pokedex to only have 81 containers whose sprites are cycled
     for (const speciesId of speciesDataRegistry.getAllStarters()) {
+      // MissingNo. isn't a real starter - it stays completely hidden from this list (not even
+      // shown as an unseen silhouette, unlike normal starters) until hatched from an egg.
+      if (speciesId === SpeciesId.MISSING_NO && !this.getSpeciesData(speciesId).dexEntry.caughtAttr) {
+        continue;
+      }
       starterSpecies.push(speciesId);
       this.speciesLoaded.set(speciesId, false);
       const species = speciesDataRegistry.getSpecies(speciesId);
