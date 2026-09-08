@@ -461,18 +461,15 @@ export class Egg {
     ) {
       return SpeciesId.MISSING_NO;
     }
+    // EX-tier eggs draw from the same pool as Legendary eggs (species-wise; they're always
+    // shiny too, see rollShiny/rollVariant) - no dedicated EX species pool has been designed yet.
     if (
-      this.tier === EggTier.LEGENDARY
+      (this.tier === EggTier.LEGENDARY || this.tier === EggTier.EX)
       && (this._sourceType === EggSourceType.GACHA_LEGENDARY || this._sourceType === EggSourceType.GACHA_MASTER)
       && !randSeedInt(2)
     ) {
       // A player-chosen "pickup" legendary (set from the Legendary Gacha screen) overrides
       // the automatic daily rotation.
-      return globalScene.gameData.pinnedLegendarySpecies ?? getLegendaryGachaSpeciesForTimestamp(this.timestamp);
-    }
-    // What actually drops from an EX-tier egg hasn't been decided yet - as a placeholder, reuse
-    // the Legendary pool/pinned-legendary logic so pulling one doesn't crash in the meantime.
-    if (this.tier === EggTier.EX) {
       return globalScene.gameData.pinnedLegendarySpecies ?? getLegendaryGachaSpeciesForTimestamp(this.timestamp);
     }
 
@@ -489,6 +486,7 @@ export class Egg {
         maxStarterValue = 7;
         break;
       case EggTier.LEGENDARY:
+      case EggTier.EX:
         minStarterValue = 8;
         maxStarterValue = 9;
         break;
@@ -500,8 +498,10 @@ export class Egg {
 
     const ignoredSpecies = [SpeciesId.PHIONE, SpeciesId.MANAPHY, SpeciesId.ETERNATUS, SpeciesId.MISSING_NO];
 
+    // No species is tagged with EggTier.EX (it isn't a real starter-facing tier), so pull from
+    // the Legendary pool instead when rolling for an EX egg.
     let speciesPool = speciesDataRegistry
-      .getSpeciesForEggTier(this.tier)
+      .getSpeciesForEggTier(this.tier === EggTier.EX ? EggTier.LEGENDARY : this.tier)
       .filter(s => ignoredSpecies.indexOf(s.speciesId) === -1);
 
     // If this is the 10th egg without unlocking something new, attempt to force it.
@@ -577,6 +577,10 @@ export class Egg {
    * @returns `true` if the egg is shiny
    */
   private rollShiny(): boolean {
+    // EX-tier eggs are always shiny (see rollVariant for the luck distribution).
+    if (this._tier === EggTier.EX) {
+      return true;
+    }
     let shinyChance = GACHA_DEFAULT_SHINY_RATE;
     switch (this._sourceType) {
       case EggSourceType.GACHA_SHINY:
@@ -599,6 +603,15 @@ export class Egg {
   private rollVariant(): VariantTier {
     if (!this.isShiny) {
       return VariantTier.STANDARD;
+    }
+    // EX-tier eggs use their own luck distribution instead of the usual shiny odds:
+    // 1-luck (STANDARD) 3/6, 2-luck (RARE) 2/6, 3-luck (EPIC) 1/6.
+    if (this._tier === EggTier.EX) {
+      const rand = randSeedInt(6);
+      if (rand < 3) {
+        return VariantTier.STANDARD; // 3/6
+      }
+      return rand < 5 ? VariantTier.RARE : VariantTier.EPIC; // 2/6, 1/6
     }
 
     const rand = randSeedInt(10);
