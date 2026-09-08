@@ -446,6 +446,15 @@ export abstract class PokemonSpeciesForm {
   }
 
   getIconAtlasKey(formIndex?: number, shiny?: boolean, variant?: number): string {
+    // MISSING_NO isn't part of any real Pokédex generation, so it has no place in the shared
+    // per-generation icon atlas (pokemon_icons_1.png etc.) that every other Gen 1 species' icon
+    // is packed into - editing that shared file risks every other icon in it. It gets its own
+    // small dedicated one-frame atlas instead (see custom-assets/README.md), whose one frame is
+    // named to match what getIconId() already returns by default for a non-shiny Pokemon
+    // (String(this.speciesId)), so no getIconId() override is needed.
+    if (this.speciesId === SpeciesId.MISSING_NO) {
+      return "pokemon_icons_missingno";
+    }
     const variantDataIndex = this.getVariantDataIndex(formIndex);
     const isVariant =
       shiny && variantData[variantDataIndex] && variant !== undefined && variantData[variantDataIndex][variant];

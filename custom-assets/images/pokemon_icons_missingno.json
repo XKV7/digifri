@@ -1,0 +1,21 @@
+{
+  "textures": [
+    {
+      "image": "pokemon_icons_missingno.png",
+      "format": "RGBA8888",
+      "size": { "w": 8, "h": 20 },
+      "scale": 1,
+      "frames": [
+        {
+          "filename": "9000",
+          "rotated": false,
+          "trimmed": true,
+          "sourceSize": { "w": 40, "h": 30 },
+          "spriteSourceSize": { "x": 16, "y": 5, "w": 8, "h": 20 },
+          "frame": { "x": 0, "y": 0, "w": 8, "h": 20 }
+        }
+      ]
+    }
+  ],
+  "meta": { "app": "custom", "version": "1.0" }
+}

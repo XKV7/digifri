@@ -16138,5 +16138,51 @@ export function initGenerationOne(): SpeciesDataMapConfig {
       MoveId.UPPER_HAND,
     ],
   };
+
+  // Not a real Pokémon - a fan-made, playable take on the Generation I "MissingNo." glitch,
+  // added at the user's request with their own art and design (stats/type/ability/moveset).
+  generationOneSpeciesData[SpeciesId.MISSING_NO] = {
+    species: new PokemonSpecies({
+      id: SpeciesId.MISSING_NO,
+      generation: 1,
+      category: "???",
+      type1: PokemonType.NORMAL,
+      type2: PokemonType.FIGHTING,
+      height: 1.0,
+      weight: 10.0,
+      ability1: AbilityId.MAGIC_GUARD,
+      ability2: AbilityId.NONE,
+      abilityHidden: AbilityId.NONE,
+      baseTotal: 180,
+      baseHp: 30,
+      baseAtk: 30,
+      baseDef: 30,
+      baseSpatk: 30,
+      baseSpdef: 30,
+      baseSpd: 30,
+      catchRate: 3,
+      baseFriendship: 70,
+      baseExp: 40,
+      growthRate: GrowthRate.MEDIUM_FAST,
+      malePercent: null,
+      genderDiffs: false,
+    }),
+    starter: SpeciesId.MISSING_NO,
+    starterCost: 1,
+    evolutions: [],
+    eggTier: EggTier.COMMON,
+    passives: AbilityId.PICKUP,
+    levelMoves: [
+      [1, MoveId.METRONOME],
+      [1, MoveId.PROTECT],
+      [12, MoveId.RECOVER],
+      [20, MoveId.BODY_SLAM],
+      [30, MoveId.HYPER_BEAM],
+      [38, MoveId.FINAL_GAMBIT],
+      [45, MoveId.SELF_DESTRUCT],
+    ],
+    tms: [],
+  };
+
   return generationOneSpeciesData;
 }

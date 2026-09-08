@@ -2167,4 +2167,11 @@ export enum SpeciesId {
   PALDEA_WOOPER = 8194,
   /**{@link https://bulbapedia.bulbagarden.net/wiki/Ursaluna_(Pokémon) | Source} */
   BLOODMOON_URSALUNA = 8901,
+  /**
+   * A fan-made, playable take on the Generation I glitch entity - not a real Pokémon, and not
+   * assigned National Dex #0 (its in-game Pokédex display is special-cased separately) to avoid
+   * every falsy-species-id check in the codebase treating it as "no species".
+   * {@link https://bulbapedia.bulbagarden.net/wiki/MissingNo. | Source}
+   */
+  MISSING_NO = 9000,
 }

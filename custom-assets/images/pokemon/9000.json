@@ -1,0 +1,21 @@
+{
+  "textures": [
+    {
+      "image": "9000.png",
+      "format": "RGBA8888",
+      "size": { "w": 51, "h": 120 },
+      "scale": 1,
+      "frames": [
+        {
+          "filename": "0001.png",
+          "rotated": false,
+          "trimmed": true,
+          "sourceSize": { "w": 120, "h": 120 },
+          "spriteSourceSize": { "x": 41, "y": 0, "w": 51, "h": 120 },
+          "frame": { "x": 0, "y": 0, "w": 51, "h": 120 }
+        }
+      ]
+    }
+  ],
+  "meta": { "app": "custom", "version": "1.0" }
+}
