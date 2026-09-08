@@ -22,6 +22,7 @@ import { Passive as PassiveAttr } from "#enums/passive";
 import type { SpeciesId } from "#enums/species-id";
 import type { GameData } from "#system/game-data";
 import { RibbonData } from "#system/ribbons/ribbon-data";
+import { VoucherType } from "#system/voucher";
 
 const ALL_DEX_ATTR =
   DexAttr.NON_SHINY
@@ -164,5 +165,23 @@ function toggleEndlessCostLimit(): void {
   );
 }
 
+/** Adds `amount` EX (Master) vouchers to the current save. */
+async function addExVouchers(amount: number): Promise<void> {
+  const gameData = globalScene?.gameData;
+  if (!gameData) {
+    alert("게임이 아직 로딩되지 않았습니다. 타이틀 화면이 뜬 뒤 다시 시도해주세요.");
+    return;
+  }
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return;
+  }
+
+  gameData.voucherCounts[VoucherType.MASTER] += amount;
+  await gameData.saveSystem();
+  alert(`EX 바우처 ${amount}개가 지급되었습니다. 새로고침합니다.`);
+  window.location.reload();
+}
+
 (window as unknown as { cheatUnlockAllPokemon: () => Promise<void> }).cheatUnlockAllPokemon = unlockAllPokemon;
 (window as unknown as { cheatToggleEndlessCostLimit: () => void }).cheatToggleEndlessCostLimit = toggleEndlessCostLimit;
+(window as unknown as { cheatAddExVouchers: (amount: number) => Promise<void> }).cheatAddExVouchers = addExVouchers;
