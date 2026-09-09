@@ -102,17 +102,31 @@ service cloud.firestore {
     // `resource.data` - reading .data off a null resource is a rules evaluation error, which
     // denies the whole write. Without that guard, every account's first-ever leaderboard write
     // would be silently rejected forever.
+    //
+    // classicBestTimeSeconds is month-scoped (see leaderboard.ts's submitClassicMonthlyRecord and
+    // getMonthKey): classicMonthKey records which month a stored classicBestTimeSeconds belongs
+    // to, and the "must improve" check below is skipped (any value accepted) whenever the
+    // incoming write's month differs from what's already stored - that's the actual reset. A
+    // pre-existing doc from before this field existed has no classicMonthKey, which the check
+    // below also treats as "different month" so the first post-feature write isn't stuck
+    // comparing against a monthless legacy value.
     match /leaderboardStats/{uid} {
       allow get, list: if request.auth != null;
 
       allow write: if request.auth != null
                   && request.auth.uid == uid
                   && request.resource.data.displayName is string
-                  && request.resource.data.keys().hasOnly(['displayName', 'classicBestTimeSeconds', 'endlessMaxWave', 'pvpWins'])
+                  && request.resource.data.keys().hasOnly(['displayName', 'classicBestTimeSeconds', 'classicMonthKey', 'endlessMaxWave', 'pvpWins'])
+                  && (
+                    !('classicMonthKey' in request.resource.data)
+                    || request.resource.data.classicMonthKey is string
+                  )
                   && (
                     !('classicBestTimeSeconds' in request.resource.data)
                     || resource == null
                     || !('classicBestTimeSeconds' in resource.data)
+                    || !('classicMonthKey' in resource.data)
+                    || request.resource.data.classicMonthKey != resource.data.classicMonthKey
                     || request.resource.data.classicBestTimeSeconds <= resource.data.classicBestTimeSeconds
                   )
                   && (

@@ -918,6 +918,7 @@ export class GameData {
     return {
       seed: globalScene.seed,
       playTime: globalScene.sessionPlayTime,
+      runStartTimestamp: globalScene.runStartTimestamp ?? undefined,
       gameMode: globalScene.gameMode.modeId,
       dailyConfig: getSerializedDailyRunConfig(),
       party: globalScene.getPlayerParty().map(p => new PokemonData(p)),
@@ -1056,6 +1057,7 @@ export class GameData {
 
     globalScene.sessionPlayTime = fromSession.playTime || 0;
     globalScene.lastSavePlayTime = 0;
+    globalScene.runStartTimestamp = fromSession.runStartTimestamp ?? null;
 
     const loadPokemonAssets: Promise<void>[] = [];
 

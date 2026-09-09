@@ -12,16 +12,28 @@
  * doesn't need to update while the player is looking at it).
  */
 
-import { fetchLeaderboardTop, type LeaderboardCategory, type LeaderboardEntry } from "#app/leaderboard";
+import {
+  fetchClassicMonthlyLeaderboard,
+  fetchLeaderboardTop,
+  getMonthKey,
+  type LeaderboardCategory,
+  type LeaderboardEntry,
+} from "#app/leaderboard";
 import { getPlayTimeString } from "#utils/common";
 
 let panelEl: HTMLDivElement | undefined;
 
 const TABS: { category: LeaderboardCategory; label: string; formatValue: (value: number) => string }[] = [
-  { category: "classicBestTimeSeconds", label: "클래식 최단 기록", formatValue: getPlayTimeString },
+  { category: "classicBestTimeSeconds", label: "클래식 최단 기록 (이번 달)", formatValue: getPlayTimeString },
   { category: "endlessMaxWave", label: "엔드리스 최대 도달 층", formatValue: value => `${value}층` },
   { category: "pvpWins", label: "PvP 대전 최다승", formatValue: value => `${value}승` },
 ];
+
+/** e.g. "2026-09" -> "2026년 9월" */
+function formatMonthKeyKorean(monthKey: string): string {
+  const [year, month] = monthKey.split("-");
+  return `${year}년 ${Number(month)}월`;
+}
 
 /** Closes the panel, if currently open. */
 export function closeLeaderboardPanel(): void {
@@ -70,12 +82,24 @@ async function renderTab(el: HTMLDivElement, tabIndex: number): Promise<void> {
     tabRow.appendChild(btn);
   });
 
+  const children: HTMLElement[] = [header, tabRow];
+  if (tab.category === "classicBestTimeSeconds") {
+    const monthLabel = document.createElement("div");
+    monthLabel.style.cssText = "color:#a0c4ff;font-size:11px;margin-bottom:6px;";
+    monthLabel.textContent = `${formatMonthKeyKorean(getMonthKey())} 기록 (매달 1일 초기화)`;
+    children.push(monthLabel);
+  }
+
   const listEl = document.createElement("div");
   listEl.textContent = "불러오는 중...";
+  children.push(listEl);
 
-  el.replaceChildren(header, tabRow, listEl);
+  el.replaceChildren(...children);
 
-  const entries = await fetchLeaderboardTop(tab.category);
+  const entries =
+    tab.category === "classicBestTimeSeconds"
+      ? await fetchClassicMonthlyLeaderboard()
+      : await fetchLeaderboardTop(tab.category);
   // The panel may have been closed (or switched to a different tab) while this was in flight.
   if (!panelEl || panelEl !== el || !el.contains(listEl)) {
     return;

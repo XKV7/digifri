@@ -46,6 +46,8 @@ export interface SystemSaveData {
 export interface SessionSaveData {
   seed: string;
   playTime: number;
+  /** Wall-clock time (`Date.now()`) this run was started - see BattleScene.runStartTimestamp. */
+  runStartTimestamp?: number;
   gameMode: GameModes;
   dailyConfig?: SerializedDailyRunConfig;
   party: PokemonData[];

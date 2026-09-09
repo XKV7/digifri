@@ -182,6 +182,8 @@ export class BattleScene extends SceneBase {
 
   public sessionPlayTime: number | null = null;
   public lastSavePlayTime: number | null = null;
+  /** Wall-clock time (`Date.now()`) the current run was started, for month-scoping the Classic leaderboard (see leaderboard.ts). Persisted/restored via SessionSaveData so a saved-and-reloaded run keeps it. */
+  public runStartTimestamp: number | null = null;
   // TODO: move these settings into a settings helper object
   public gameSpeed = 1;
   public damageNumbersMode = 0;

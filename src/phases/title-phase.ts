@@ -322,6 +322,7 @@ export class TitlePhase extends Phase {
           globalScene.arena.init();
           globalScene.sessionPlayTime = 0;
           globalScene.lastSavePlayTime = 0;
+          globalScene.runStartTimestamp = Date.now();
           this.end();
         });
       };

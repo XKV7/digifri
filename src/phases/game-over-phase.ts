@@ -3,7 +3,7 @@ import { clientSessionId } from "#app/account";
 import { audioManager } from "#app/global-audio-manager";
 import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
-import { submitLeaderboardStat } from "#app/leaderboard";
+import { submitClassicMonthlyRecord } from "#app/leaderboard";
 import { bypassLogin } from "#constants/app-constants";
 import { modifierTypes } from "#data/data-lists";
 import { getCharVariantFromDialogue } from "#data/dialogue";
@@ -182,8 +182,16 @@ export class GameOverPhase extends BattlePhase {
               && (globalScene.gameData.gameStats.classicBestTimeSeconds === 0
                 || clearTimeSeconds < globalScene.gameData.gameStats.classicBestTimeSeconds)
             ) {
+              // Local all-time best only - NOT submitted to the leaderboard directly (see
+              // submitClassicMonthlyRecord() below), since the shared leaderboardStats doc's
+              // classicBestTimeSeconds field is month-scoped and this value has no month
+              // attached to it.
               globalScene.gameData.gameStats.classicBestTimeSeconds = clearTimeSeconds;
-              submitLeaderboardStat("classicBestTimeSeconds", clearTimeSeconds);
+            }
+            // The leaderboard entry only cares whether the run that produced this clear started
+            // this month, not whether it beats the account's all-time local record above.
+            if (clearTimeSeconds > 0) {
+              submitClassicMonthlyRecord(clearTimeSeconds, globalScene.runStartTimestamp);
             }
             for (const pokemon of globalScene.getPlayerParty()) {
               this.awardFirstClassicCompletion(pokemon);
