@@ -418,6 +418,10 @@ export async function startPvpBattle(
   globalScene.field.add(trainer);
 
   battle.isPvpBattle = true;
+  // Held items still apply their effects normally in PvP - this only hides the icon bars for
+  // both sides, so players can't see what item their opponent (or they themselves) picked.
+  // Re-shown by PvpBattleEndPhase once the battle is over.
+  globalScene.setModifiersVisible(false);
   battle.enemyLevels = (isHost ? guestStarters : hostStarters).map(s => s.level ?? 100);
   // Battle#turnCommands (and #preTurnCommands/#battleSeedState) are declared on the class but only
   // ever actually assigned inside incrementTurn() (see battle.ts) — every real battle gets this for

@@ -53,6 +53,9 @@ export class PvpBattleEndPhase extends BattlePhase {
       clearPvpBattleContext();
       globalScene.phaseManager.clearPhaseQueue();
       globalScene.reset(true);
+      // Undo the item-bar hiding pvp-battle.ts's startPvpBattle() applies for the duration of
+      // the PvP battle, so a subsequent real run isn't left with hidden item icons.
+      globalScene.setModifiersVisible(true);
     });
   }
 }
