@@ -6,6 +6,7 @@ import { PokemonType } from "#enums/pokemon-type";
 import { SpeciesId } from "#enums/species-id";
 import { Stat } from "#enums/stat";
 import { GameManager } from "#test/framework/game-manager";
+import { getDexNumber } from "#utils/pokemon-utils";
 import Phaser from "phaser";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
@@ -48,6 +49,12 @@ describe("Species - MissingNo.", () => {
     expect(speciesDataRegistry.getEggTier(SpeciesId.MISSING_NO)).toBe(EggTier.COMMON);
     expect(speciesDataRegistry.getAllStarters()).toContain(SpeciesId.MISSING_NO);
     expect(speciesDataRegistry.getStarterCost(SpeciesId.MISSING_NO)).toBe(1);
+  });
+
+  it("should display as dex number 0000, not the generic %2000 mapping's 1000", () => {
+    expect(getDexNumber(SpeciesId.MISSING_NO)).toBe(0);
+    // A normal species must be unaffected by the override.
+    expect(getDexNumber(SpeciesId.BULBASAUR)).toBe(1);
   });
 
   it("should only know Metronome and Protect at level 5 (nothing else learnable yet)", async () => {

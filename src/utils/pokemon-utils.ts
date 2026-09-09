@@ -15,6 +15,12 @@ import { randSeedIntRange, randSeedItem } from "#utils/common";
  * @returns The national dex number matching the `SpeciesId`
  */
 export function getDexNumber(speciesId: SpeciesId): SpeciesId {
+  // MissingNo.'s whole gimmick is being dex #000 in the original games - the generic `% 2000`
+  // mapping (for regional/other alternate forms sharing a base species' dex number) would
+  // otherwise show 9000 as "1000".
+  if (speciesId === SpeciesId.MISSING_NO) {
+    return 0 as SpeciesId;
+  }
   return speciesId % 2000;
 }
 
