@@ -717,6 +717,30 @@ export abstract class PokemonSpeciesForm {
     startLoad = false,
     back = false,
   ): Promise<void> {
+    if (startLoad) {
+      // Wait (briefly) for any in-flight load batch to finish before queuing more files into it.
+      // Phaser's loader can silently strand files queued mid-batch - if nothing else pumps its
+      // per-tick update loop before the current batch reaches LOADER_COMPLETE, those files just
+      // sit unfetched forever. This is exactly what rapid UI navigation does (e.g. scrolling
+      // quickly through many Pokemon in the Pokedex/starter-select screens): each new species
+      // calls loadAssets() again before the previous one's load finished, so its sprite request
+      // could get queued into an already-running batch and never actually be fetched - leaving
+      // the big preview sprite stuck on an earlier species indefinitely.
+      // Bounded with a timeout: `load` is a single scene-wide loader shared by everything else
+      // loading assets, so waiting on it unconditionally risks blocking on unrelated loads (or,
+      // in a test/headless environment where nothing ever actually finishes loading, forever).
+      // If the wait times out we just fall through to the original immediate-enqueue behavior.
+      const loaderReadyOrTimeout = new Promise<void>(resolve => {
+        if (!globalScene.load.isLoading()) {
+          resolve();
+          return;
+        }
+        globalScene.load.once(Phaser.Loader.Events.COMPLETE, resolve);
+        setTimeout(resolve, 3000);
+      });
+      await loaderReadyOrTimeout;
+    }
+
     // We need to populate the color cache for this species' variant
     const spriteKey = this.getSpriteKey(female, formIndex, shiny, variant, back);
     globalScene.loadPokemonAtlas(spriteKey, this.getSpriteAtlasPath(female, formIndex, shiny, variant, back));
