@@ -1,6 +1,7 @@
 import { pokerogueApi } from "#api/api";
 import { loggedInUser } from "#app/account";
 import { FAKE_TITLE_LOGO_CHANCE } from "#app/constants";
+import { claimDailyReward } from "#app/daily-reward";
 import { getCloudSaveContext } from "#app/gift";
 import { timedEventManager } from "#app/global-event-manager";
 import { globalScene } from "#app/global-scene";
@@ -231,6 +232,7 @@ export class TitleUiHandler extends OptionSelectUiHandler {
     this.updateTitleStats();
     resubmitLeaderboardStats();
     void promptPendingPvpInvite();
+    void claimDailyReward();
 
     this.titleStatsTimer = setInterval(() => {
       this.updateTitleStats();
