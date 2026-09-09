@@ -7,11 +7,17 @@
 /**
  * The player list panel: a floating DOM overlay (same plain-HTML pattern as
  * pvp-room-panel.ts/leaderboard-panel.ts - see pvp-room-panel.ts's header for why this is kept
- * out of Phaser's UI mode stack entirely) listing every account that's ever signed in, by display
- * name, with a "초대" button to send them a direct PvP invite (see pvp-invite.ts). An account
- * with a run currently in progress shows "런 진행중" instead of an invite button - PvP is
+ * out of Phaser's UI mode stack entirely) listing currently-online accounts, by display name,
+ * with a "초대" button to send them a direct PvP invite (see pvp-invite.ts). An account with a
+ * run currently in progress shows "런 진행중" instead of an invite button - PvP is
  * title-screen-only (see menu-ui-handler.ts hiding PVP_LOBBY mid-run), so inviting them wouldn't
  * be actionable yet.
+ *
+ * Deliberately hides offline accounts rather than showing everyone: presence.ts only refreshes
+ * an account's displayName/inRun fields on its own heartbeat, so a long-offline account (one that
+ * signed in before those fields existed, or simply hasn't opened the game in a while) would show
+ * a bare Firebase uid instead of a real name, and could never actually receive/act on an invite
+ * anyway.
  *
  * Opened from the title screen's main menu ("목록보기" - see title-phase.ts's showOptions()).
  * Read-only aside from the invite action; one-shot fetch per open, not live-subscribed (a roster
@@ -76,11 +82,11 @@ async function render(el: HTMLDivElement): Promise<void> {
   }
 
   const others = roster
-    .filter(entry => entry.uid !== ctx.user.uid)
-    .sort((a, b) => Number(b.online) - Number(a.online) || a.displayName.localeCompare(b.displayName));
+    .filter(entry => entry.uid !== ctx.user.uid && entry.online)
+    .sort((a, b) => a.displayName.localeCompare(b.displayName));
 
   if (others.length === 0) {
-    listEl.textContent = "다른 플레이어가 아직 없습니다.";
+    listEl.textContent = "현재 온라인인 다른 플레이어가 없습니다.";
     return;
   }
 
@@ -95,9 +101,10 @@ async function render(el: HTMLDivElement): Promise<void> {
     nameWrap.style.cssText =
       "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:6px;";
     const dot = document.createElement("span");
-    dot.style.cssText = `display:inline-block;width:7px;height:7px;border-radius:50%;flex-shrink:0;background:${entry.online ? "#4caf50" : "#666"};`;
+    dot.style.cssText = "display:inline-block;width:7px;height:7px;border-radius:50%;flex-shrink:0;background:#4caf50;";
     const nameText = document.createElement("span");
     nameText.textContent = entry.displayName;
+    nameText.style.cssText = "color:#4caf50;";
     nameWrap.append(dot, nameText);
 
     let actionEl: HTMLElement;
