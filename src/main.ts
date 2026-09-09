@@ -3,6 +3,7 @@ import "#init/init-manifest"; // initializes the manifest, must be done *before*
 import "#app/i18n"; // Initializes i18n on import
 
 import "#app/cheats"; // exposes window.cheatUnlockAllPokemon() for manual use
+import { showChangelogBadge } from "#app/changelog-panel";
 import { initCloudSave } from "#app/cloud-save";
 import { InvertPostFX } from "#app/pipelines/invert";
 import { preventDoubleTapZoom } from "#app/touch-controls";
@@ -81,6 +82,12 @@ try {
   await initCloudSave(); // may reload the page once after pulling newer cloud saves
 } catch (err) {
   console.error("Cloud save init failed, continuing with device-local saves:", err);
+}
+
+try {
+  showChangelogBadge();
+} catch (err) {
+  console.error("Failed to show changelog badge:", err);
 }
 
 try {
