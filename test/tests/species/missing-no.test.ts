@@ -34,12 +34,12 @@ describe("Species - MissingNo.", () => {
     expect(species.type1).toBe(PokemonType.NORMAL);
     expect(species.type2).toBe(PokemonType.FIGHTING);
     expect(species.ability1).toBe(AbilityId.MAGIC_GUARD);
-    expect(species.baseStats[Stat.HP]).toBe(30);
-    expect(species.baseStats[Stat.ATK]).toBe(30);
-    expect(species.baseStats[Stat.DEF]).toBe(30);
-    expect(species.baseStats[Stat.SPATK]).toBe(30);
-    expect(species.baseStats[Stat.SPDEF]).toBe(30);
-    expect(species.baseStats[Stat.SPD]).toBe(30);
+    expect(species.baseStats[Stat.HP]).toBe(150);
+    expect(species.baseStats[Stat.ATK]).toBe(150);
+    expect(species.baseStats[Stat.DEF]).toBe(150);
+    expect(species.baseStats[Stat.SPATK]).toBe(150);
+    expect(species.baseStats[Stat.SPDEF]).toBe(150);
+    expect(species.baseStats[Stat.SPD]).toBe(150);
     expect(species.malePercent).toBeNull();
     expect(speciesDataRegistry.getPassive(SpeciesId.MISSING_NO, 0)).toBe(AbilityId.ERROR);
   });
@@ -124,12 +124,16 @@ describe("Species - MissingNo.", () => {
   });
 
   it("should use Recover to heal missing HP", async () => {
-    // High enough level that two Tackles from the level-20 enemy won't faint it first.
+    // High enough level that several Tackles from the level-20 enemy won't faint it first.
     game.override.moveset([MoveId.RECOVER, MoveId.SPLASH]).enemyMoveset(MoveId.TACKLE).startingLevel(30);
     await game.classicMode.startBattle(SpeciesId.MISSING_NO);
 
     const missingno = game.field.getPlayerPokemon();
-    // Take some damage first so there's something to recover.
+    // Take a couple of Tackles first (a single one barely dents its huge bulk) so the missing HP
+    // going into Recover's turn is bigger than the one more Tackle it'll eat that same turn -
+    // otherwise Recover's heal caps at the (tiny) missing HP and the follow-up hit washes it out.
+    game.move.select(MoveId.SPLASH);
+    await game.toEndOfTurn();
     game.move.select(MoveId.SPLASH);
     await game.toEndOfTurn();
     const damagedHp = missingno.hp;
