@@ -242,6 +242,12 @@ export abstract class PokemonSpeciesForm {
   }
 
   getRegion(): Region {
+    // MissingNo.'s speciesId (9000) falls into the numeric range the regional-form species
+    // use to encode their region (e.g. 8000+baseId for Paldea), but it isn't a regional form -
+    // the generic `/2000` mapping would otherwise misclassify it as Paldean.
+    if (this.speciesId === SpeciesId.MISSING_NO) {
+      return Region.NORMAL;
+    }
     return Math.floor(this.speciesId / 2000) as Region;
   }
 
