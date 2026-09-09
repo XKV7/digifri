@@ -7,6 +7,7 @@ import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
 import { resubmitLeaderboardStats } from "#app/leaderboard";
 import { fetchOnlinePlayerCount } from "#app/presence";
+import { promptPendingPvpInvite } from "#app/pvp-invite";
 import { isBeta, isDev } from "#constants/app-constants";
 import { getSplashMessages } from "#data/splash-messages";
 import { PlayerGender } from "#enums/player-gender";
@@ -229,6 +230,7 @@ export class TitleUiHandler extends OptionSelectUiHandler {
 
     this.updateTitleStats();
     resubmitLeaderboardStats();
+    void promptPendingPvpInvite();
 
     this.titleStatsTimer = setInterval(() => {
       this.updateTitleStats();

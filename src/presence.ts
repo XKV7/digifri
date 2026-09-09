@@ -6,12 +6,14 @@
 
 /**
  * Lightweight "who's currently online" presence, backed by one Firestore doc per signed-in
- * account (presence/{uid}) holding just a server-stamped `lastSeen` timestamp. Each client
- * refreshes its own doc on a heartbeat while the game is open; the online count shown on the
- * title screen (title-ui-handler.ts, replacing the real pokerogue.net-only "? players online"
- * stat this fork can't reach) is simply "how many presence docs have lastSeen within the last
+ * account (presence/{uid}) holding a server-stamped `lastSeen` timestamp, the account's display
+ * name, and whether it currently has a run in progress. Each client refreshes its own doc on a
+ * heartbeat while the game is open; the online count shown on the title screen
+ * (title-ui-handler.ts, replacing the real pokerogue.net-only "? players online" stat this fork
+ * can't reach) is simply "how many presence docs have lastSeen within the last
  * PRESENCE_WINDOW_MS", counted server-side via a Firestore count() aggregation so the client never
- * has to download every doc.
+ * has to download every doc. The full per-account roster (displayName/online/inRun) is what
+ * friend-list-panel.ts reads to render the title screen's player list.
  *
  * Like the rest of this project's cloud-save features, this only counts signed-in accounts and
  * has no anti-spoofing beyond "you can only write your own doc" - consistent with the project's
@@ -19,10 +21,13 @@
  */
 
 import { getCloudSaveContext } from "#app/gift";
+import { globalScene } from "#app/global-scene";
+import { myDisplayName } from "#app/leaderboard";
 import {
   collection,
   doc,
   getCountFromServer,
+  getDocs,
   getFirestore,
   query,
   serverTimestamp,
@@ -39,12 +44,49 @@ let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
 function writeHeartbeat(): void {
   const ctx = getCloudSaveContext();
-  if (!ctx) {
+  const displayName = myDisplayName();
+  if (!ctx || !displayName) {
     return;
   }
-  setDoc(doc(getFirestore(ctx.app), "presence", ctx.user.uid), { lastSeen: serverTimestamp() }).catch(err =>
-    console.error("Failed to write presence heartbeat:", err),
-  );
+  setDoc(doc(getFirestore(ctx.app), "presence", ctx.user.uid), {
+    lastSeen: serverTimestamp(),
+    displayName,
+    inRun: !!globalScene?.currentBattle,
+  }).catch(err => console.error("Failed to write presence heartbeat:", err));
+}
+
+export interface PresenceEntry {
+  uid: string;
+  displayName: string;
+  online: boolean;
+  inRun: boolean;
+}
+
+/** One-shot fetch of every account's presence doc (small-community scale, same one-shot pattern as leaderboard-panel.ts). Returns an empty array on failure or if signed out. */
+export async function fetchAllPresence(): Promise<PresenceEntry[]> {
+  const ctx = getCloudSaveContext();
+  if (!ctx) {
+    return [];
+  }
+  try {
+    const db = getFirestore(ctx.app);
+    const cutoffMillis = Date.now() - PRESENCE_WINDOW_MS;
+    const snapshot = await getDocs(collection(db, "presence"));
+    return snapshot.docs.map(d => {
+      const data = d.data() as { lastSeen?: Timestamp; displayName?: string; inRun?: boolean };
+      return {
+        uid: d.id,
+        // Falls back to the raw uid for a presence doc written before this field existed - it'll
+        // self-heal on that account's next heartbeat.
+        displayName: data.displayName ?? d.id,
+        online: (data.lastSeen?.toMillis() ?? 0) > cutoffMillis,
+        inRun: !!data.inRun,
+      };
+    });
+  } catch (err) {
+    console.error("Failed to fetch presence roster:", err);
+    return [];
+  }
 }
 
 /**

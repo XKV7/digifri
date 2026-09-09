@@ -1,5 +1,6 @@
 import { pokerogueApi } from "#api/api";
 import { loggedInUser } from "#app/account";
+import { openFriendListPanel } from "#app/friend-list-panel";
 import { GameMode, getGameMode } from "#app/game-mode";
 import { audioManager } from "#app/global-audio-manager";
 import { timedEventManager } from "#app/global-event-manager";
@@ -171,6 +172,14 @@ export class TitlePhase extends Phase {
           });
           return true;
         },
+      },
+      {
+        label: "목록보기",
+        handler: () => {
+          openFriendListPanel();
+          return true;
+        },
+        keepOpen: true,
       },
       {
         label: i18next.t("menu:runHistory"),

@@ -73,6 +73,8 @@ export interface PvpRoom {
   hostName: string;
   status: PvpRoomStatus;
   createdAt: Timestamp;
+  /** Set when this room was created via a direct invite (see pvp-invite.ts) - only this uid may join as guest, unlike a normal open lobby room. */
+  invitedUid?: string;
   guestUid?: string;
   guestName?: string;
   /** Indices (0-5) into the host's/guest's registered PvP team, chosen during team preview. */
@@ -111,8 +113,12 @@ function db(): Firestore {
   return getFirestore(ctx.app);
 }
 
-/** Creates a new open room named after the host, and returns its id (or null on failure). */
-export async function createPvpRoom(hostName: string): Promise<string | null> {
+/**
+ * Creates a new room named after the host, and returns its id (or null on failure). Open (listed
+ * in the lobby, joinable by anyone) by default; pass `invitedUid` to instead create a
+ * invite-only room that only that uid may join as guest (see pvp-invite.ts).
+ */
+export async function createPvpRoom(hostName: string, invitedUid?: string): Promise<string | null> {
   const ctx = getCloudSaveContext();
   if (!ctx) {
     return null;
@@ -126,6 +132,7 @@ export async function createPvpRoom(hostName: string): Promise<string | null> {
       hostName,
       status: "waiting",
       createdAt: serverTimestamp(),
+      ...(invitedUid ? { invitedUid } : {}),
     });
     setMyActivePvpRoomId(roomRef.id);
     return roomRef.id;
@@ -140,7 +147,12 @@ function byCreatedAtDesc(a: PvpRoom, b: PvpRoom): number {
   return (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0);
 }
 
-/** One-shot fetch of the currently open ("waiting") rooms, newest first. */
+/** True for a room anyone can join from the open lobby - false for an invite-only room (see pvp-invite.ts), which shouldn't be listed for everyone. */
+function isOpenLobbyRoom(room: PvpRoom): boolean {
+  return !room.invitedUid;
+}
+
+/** One-shot fetch of the currently open ("waiting", non-invite-only) rooms, newest first. */
 export async function listOpenPvpRoomsOnce(): Promise<PvpRoomWithId[]> {
   try {
     // Sorted client-side rather than via a second `orderBy("createdAt")` clause — combining
@@ -149,7 +161,10 @@ export async function listOpenPvpRoomsOnce(): Promise<PvpRoomWithId[]> {
     // avoids that trap entirely.
     const q = query(collection(db(), "pvpRooms"), where("status", "==", "waiting"));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as PvpRoom) })).sort(byCreatedAtDesc);
+    return snapshot.docs
+      .map(d => ({ id: d.id, ...(d.data() as PvpRoom) }))
+      .filter(isOpenLobbyRoom)
+      .sort(byCreatedAtDesc);
   } catch (err) {
     console.error("Failed to list PvP rooms:", err);
     return [];
@@ -191,7 +206,12 @@ export function subscribeOpenPvpRooms(onUpdate: (rooms: PvpRoomWithId[]) => void
   return onSnapshot(
     q,
     snapshot => {
-      onUpdate(snapshot.docs.map(d => ({ id: d.id, ...(d.data() as PvpRoom) })).sort(byCreatedAtDesc));
+      onUpdate(
+        snapshot.docs
+          .map(d => ({ id: d.id, ...(d.data() as PvpRoom) }))
+          .filter(isOpenLobbyRoom)
+          .sort(byCreatedAtDesc),
+      );
     },
     err => console.error("PvP room list subscription failed:", err),
   );
@@ -231,6 +251,9 @@ export async function joinPvpRoom(roomId: string, guestName: string): Promise<bo
       }
       if (room.hostUid === ctx.user.uid) {
         throw new Error("Can't join your own room.");
+      }
+      if (room.invitedUid && room.invitedUid !== ctx.user.uid) {
+        throw new Error("This room is invite-only for someone else.");
       }
       transaction.update(roomRef, {
         guestUid: ctx.user.uid,

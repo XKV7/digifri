@@ -63,7 +63,7 @@ function db(): Firestore {
 }
 
 /** A stable per-account display name — same resolution used elsewhere for PvP room names (see menu-ui-handler.ts's openPvpLobby). */
-function myDisplayName(): string | null {
+export function myDisplayName(): string | null {
   const ctx = getCloudSaveContext();
   if (!ctx) {
     return null;
