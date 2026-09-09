@@ -15,8 +15,10 @@
 
 import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
+import { Egg } from "#data/egg";
 import { AbilityAttr } from "#enums/ability-attr";
 import { DexAttr } from "#enums/dex-attr";
+import { EggSourceType } from "#enums/egg-source-types";
 import { Nature } from "#enums/nature";
 import { Passive as PassiveAttr } from "#enums/passive";
 import { SpeciesId } from "#enums/species-id";
@@ -198,7 +200,31 @@ async function giveMissingNo(): Promise<void> {
   window.location.reload();
 }
 
+/**
+ * Adds a real egg guaranteed to hatch into MissingNo. to the current save (so it can be hatched
+ * and shows up in the egg box like any other egg), and also immediately marks it caught/candy-
+ * maxed as a starter - same "fully unlocked" state {@linkcode giveMissingNo} grants directly.
+ */
+async function giveMissingNoEgg(): Promise<void> {
+  const gameData = globalScene?.gameData;
+  if (!gameData) {
+    alert("게임이 아직 로딩되지 않았습니다. 타이틀 화면이 뜬 뒤 다시 시도해주세요.");
+    return;
+  }
+
+  const egg = new Egg({ species: SpeciesId.MISSING_NO, sourceType: EggSourceType.EVENT });
+  egg.addEggToGameData();
+
+  unlockDexEntry(gameData, SpeciesId.MISSING_NO, allNatureAttr());
+  unlockStarterEntry(gameData, SpeciesId.MISSING_NO);
+
+  await gameData.saveSystem();
+  alert("MissingNo. 알을 지급했고, 도감/스타터도 전부 해금 상태로 등록했습니다. 새로고침합니다.");
+  window.location.reload();
+}
+
 (window as unknown as { cheatUnlockAllPokemon: () => Promise<void> }).cheatUnlockAllPokemon = unlockAllPokemon;
 (window as unknown as { cheatToggleEndlessCostLimit: () => void }).cheatToggleEndlessCostLimit = toggleEndlessCostLimit;
 (window as unknown as { cheatAddExVouchers: (amount: number) => Promise<void> }).cheatAddExVouchers = addExVouchers;
 (window as unknown as { cheatGiveMissingNo: () => Promise<void> }).cheatGiveMissingNo = giveMissingNo;
+(window as unknown as { cheatGiveMissingNoEgg: () => Promise<void> }).cheatGiveMissingNoEgg = giveMissingNoEgg;
