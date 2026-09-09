@@ -19,6 +19,7 @@ import { MoveId } from "#enums/move-id";
 import { isIgnorePP, isVirtual, MoveUseMode } from "#enums/move-use-mode";
 import { MysteryEncounterMode } from "#enums/mystery-encounter-mode";
 import { PokeballType } from "#enums/pokeball";
+import { SpeciesId } from "#enums/species-id";
 import { UiMode } from "#enums/ui-mode";
 import type { PlayerPokemon } from "#field/pokemon";
 import { getMoveTargets } from "#moves/move-utils";
@@ -368,8 +369,18 @@ export class CommandPhase extends FieldPhase {
     const missingMultipleStarters =
       gameData.getStarterCount(d => !!d.caughtAttr) < speciesDataRegistry.getAllStarters().length - 1;
     const isCatchableDailyBoss = isDailyFinalBoss() && (getDailyEventSeedBoss()?.catchable ?? false);
+    // The Beach biome's rare, level 100-200 MissingNo. encounter (see encounter-phase.ts) is
+    // uncatchable, same as the End biome's paradox/final-boss mons. Level is what distinguishes
+    // this specific wild spawn from any normally-leveled MissingNo. the player owns/uses.
+    const isUncatchableMissingNoEncounter =
+      battleType === BattleType.WILD
+      && globalScene
+        .getEnemyField()
+        .some(p => p.isActive() && p.species.speciesId === SpeciesId.MISSING_NO && p.level >= 100);
 
-    if (biomeId === BiomeId.END && battleType === BattleType.WILD) {
+    if (isUncatchableMissingNoEncounter) {
+      this.queueShowText("battle:noPokeballForceFinalBoss");
+    } else if (biomeId === BiomeId.END && battleType === BattleType.WILD) {
       if (
         (isClassic && !isClassicFinalBoss && someUncaughtSpeciesOnField)
         || (isFullFreshStart && !isClassicFinalBoss)

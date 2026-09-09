@@ -2314,7 +2314,10 @@ export class PokedexPageUiHandler extends MessageUiHandler {
       currentFriendship = 0;
     }
 
-    const friendshipCap = getStarterValueFriendshipCap(speciesDataRegistry.getStarterCost(this.starterId));
+    const friendshipCap = getStarterValueFriendshipCap(
+      speciesDataRegistry.getStarterCost(this.starterId),
+      this.starterId,
+    );
 
     return { currentFriendship, friendshipCap };
   }

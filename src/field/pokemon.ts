@@ -5970,7 +5970,7 @@ export class PlayerPokemon extends Pokemon {
     // Add to candy progress for this mon's starter species and its fused species (if it has one)
     starterData.forEach(([sd, id]: [StarterDataEntry, SpeciesId]) => {
       sd.friendship = (sd.friendship || 0) + candyFriendshipAmount;
-      const friendshipCap = getStarterValueFriendshipCap(speciesDataRegistry.getStarterCost(id));
+      const friendshipCap = getStarterValueFriendshipCap(speciesDataRegistry.getStarterCost(id), id);
       if (sd.friendship >= friendshipCap) {
         const wasCandyIncremeted = gameData.addStarterCandy(id, Math.floor(sd.friendship / friendshipCap));
         if (wasCandyIncremeted) {

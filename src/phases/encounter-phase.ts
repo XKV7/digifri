@@ -2,12 +2,14 @@ import { applyAbAttrs } from "#abilities/apply-ab-attrs";
 import { PLAYER_PARTY_MAX_SIZE, WEIGHT_INCREMENT_ON_SPAWN_MISS } from "#app/constants";
 import { audioManager } from "#app/global-audio-manager";
 import { globalScene } from "#app/global-scene";
+import { speciesDataRegistry } from "#app/global-species-data-registry";
 import { getPokemonNameWithAffix } from "#app/messages";
 import { activeOverrides } from "#app/overrides";
 import { handleTutorial, Tutorial } from "#app/tutorial";
 import { initEncounterAnims, loadEncounterAnimAssets } from "#data/battle-anims";
 import { getCharVariantFromDialogue } from "#data/dialogue";
 import { getNatureName } from "#data/nature";
+import type { PokemonSpecies } from "#data/pokemon-species";
 import { BattleType } from "#enums/battle-type";
 import { BattlerIndex } from "#enums/battler-index";
 import { BiomeId } from "#enums/biome-id";
@@ -108,15 +110,30 @@ export class EncounterPhase extends BattlePhase {
         if (battle.battleType === BattleType.TRAINER) {
           battle.enemyParty[e] = battle.trainer?.genPartyMember(e)!; // TODO:: is the bang correct here?
         } else {
-          let enemySpecies = globalScene.randomSpecies(battle.waveIndex, level, true);
-          // If player has golden bug net, rolls 10% chance to replace non-boss wave wild species from the golden bug net bug pool
-          if (
-            globalScene.findModifier(m => m instanceof BoostBugSpawnModifier)
-            && !globalScene.gameMode.isBoss(battle.waveIndex)
-            && globalScene.arena.biomeId !== BiomeId.END
-            && randSeedInt(10) === 0
-          ) {
-            enemySpecies = getGoldenBugNetSpecies(level);
+          let enemySpecies: PokemonSpecies;
+          // MissingNo. has a flat 1/512 chance of appearing in the Beach biome, fixed to a
+          // random level between 100 and 200 - bypasses the normal biome pool entirely rather
+          // than being weighted into it. It's blocked from being caught in checkCanUseBall()
+          // (command-phase.ts) based on this same species+level signature.
+          const isMissingNoBeachEncounter =
+            globalScene.arena.biomeId === BiomeId.BEACH
+            && !globalScene.gameMode.getOverrideSpecies(battle.waveIndex)
+            && !randSeedInt(512);
+          if (isMissingNoBeachEncounter) {
+            enemySpecies = speciesDataRegistry.getSpecies(SpeciesId.MISSING_NO);
+            level = randSeedInt(101, 100);
+            battle.enemyLevels![e] = level;
+          } else {
+            enemySpecies = globalScene.randomSpecies(battle.waveIndex, level, true);
+            // If player has golden bug net, rolls 10% chance to replace non-boss wave wild species from the golden bug net bug pool
+            if (
+              globalScene.findModifier(m => m instanceof BoostBugSpawnModifier)
+              && !globalScene.gameMode.isBoss(battle.waveIndex)
+              && globalScene.arena.biomeId !== BiomeId.END
+              && randSeedInt(10) === 0
+            ) {
+              enemySpecies = getGoldenBugNetSpecies(level);
+            }
           }
           battle.enemyParty[e] = globalScene.addEnemyPokemon(
             enemySpecies,

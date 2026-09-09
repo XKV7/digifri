@@ -27,10 +27,16 @@ export type StarterCost = IntClosedRange<1, 10>;
 /**
  * Function to get the cumulative friendship threshold at which a candy is earned
  * @param starterCost - The cost of the starter
+ * @param speciesId - (Optional) The species this cap is being looked up for; used only for the
+ * MissingNo. override below, so its in-run candy gain (leveling/friendship) matches a top-tier
+ * Legendary (cost 8/9) despite its own starterCost being 1.
  * @returns aforementioned threshold
  */
 // TODO: maybe move to the species registry class
-export function getStarterValueFriendshipCap(starterCost: StarterCost): number {
+export function getStarterValueFriendshipCap(starterCost: StarterCost, speciesId?: SpeciesId): number {
+  if (speciesId === SpeciesId.MISSING_NO) {
+    return 450;
+  }
   switch (starterCost) {
     case 1:
       return 25;
