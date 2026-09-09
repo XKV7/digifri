@@ -29,7 +29,7 @@ import {
   signOut,
   type User,
 } from "firebase/auth";
-import { collection, doc, getDocs, getFirestore, setDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, getFirestore, setDoc } from "firebase/firestore";
 import { compressToBase64, decompressFromBase64 } from "lz-string";
 
 const firebaseConfig = {
@@ -116,6 +116,171 @@ function showLoginOverlay(): Promise<"google" | "local"> {
   });
 }
 
+const PIN_PATTERN = /^\d{4,6}$/;
+const PIN_MAX_ATTEMPTS = 5;
+
+/**
+ * Prompts for a 4-6 digit in-game PIN, separate from the Google account's own password. In
+ * "setup" mode it also asks for confirmation and only resolves once both entries match the
+ * required format and each other. In "verify" mode it resolves the first (format-valid) entry
+ * as-is, leaving the actual comparison against the stored PIN to the caller (so it can loop with
+ * an error message on a wrong guess without rebuilding the overlay from scratch each time).
+ * Resolves `null` if the user cancels instead.
+ */
+function showPinOverlay(mode: "setup" | "verify", errorMessage?: string): Promise<string | null> {
+  return new Promise(resolve => {
+    const overlay = document.createElement("div");
+    overlay.style.cssText =
+      "position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.85);display:flex;flex-direction:column;"
+      + "align-items:center;justify-content:center;gap:14px;font-family:sans-serif;color:#fff;text-align:center;padding:16px;";
+    const title = document.createElement("div");
+    title.style.cssText = "font-size:20px;font-weight:bold;";
+    title.textContent = mode === "setup" ? "게임 PIN 설정" : "게임 PIN 입력";
+    const desc = document.createElement("div");
+    desc.style.cssText = "font-size:14px;opacity:0.85;max-width:420px;line-height:1.5;";
+    desc.textContent =
+      mode === "setup"
+        ? "Google 계정과는 별도로, 이 게임에서만 쓰는 4~6자리 숫자 PIN을 설정해 주세요. 같은 Google 비밀번호를 아는 다른 사람이 내 세이브를 열어보지 못하도록 막아줘요."
+        : "이 계정의 클라우드 세이브를 열려면 설정해 둔 PIN을 입력하세요.";
+
+    const inputStyle =
+      "font-size:24px;padding:10px 16px;border-radius:8px;border:none;width:200px;text-align:center;letter-spacing:8px;";
+    const pinInput = document.createElement("input");
+    pinInput.type = "password";
+    pinInput.inputMode = "numeric";
+    pinInput.autocomplete = "off";
+    pinInput.maxLength = 6;
+    pinInput.style.cssText = inputStyle;
+    pinInput.placeholder = mode === "setup" ? "새 PIN" : "PIN";
+
+    const confirmInput = document.createElement("input");
+    confirmInput.type = "password";
+    confirmInput.inputMode = "numeric";
+    confirmInput.autocomplete = "off";
+    confirmInput.maxLength = 6;
+    confirmInput.style.cssText = inputStyle;
+    confirmInput.placeholder = "PIN 확인";
+
+    const error = document.createElement("div");
+    error.style.cssText = "font-size:13px;color:#ff8080;min-height:16px;max-width:420px;";
+    error.textContent = errorMessage ?? "";
+
+    const btnStyle =
+      "font-size:16px;padding:12px 24px;border-radius:8px;border:none;cursor:pointer;width:200px;font-weight:bold;";
+    const submitBtn = document.createElement("button");
+    submitBtn.style.cssText = btnStyle + "background:#4285F4;color:#fff;";
+    submitBtn.textContent = mode === "setup" ? "PIN 설정" : "확인";
+    const cancelBtn = document.createElement("button");
+    cancelBtn.style.cssText = btnStyle + "background:#555;color:#fff;margin-top:4px;";
+    cancelBtn.textContent = "취소 (로그아웃)";
+
+    const submit = () => {
+      const pin = pinInput.value.trim();
+      if (!PIN_PATTERN.test(pin)) {
+        error.textContent = "숫자 4~6자리로 입력해 주세요.";
+        return;
+      }
+      if (mode === "setup" && pin !== confirmInput.value.trim()) {
+        error.textContent = "두 PIN이 서로 달라요. 다시 확인해 주세요.";
+        return;
+      }
+      overlay.remove();
+      resolve(pin);
+    };
+    const onEnter = (e: KeyboardEvent) => {
+      if (e.key === "Enter") {
+        submit();
+      }
+    };
+    submitBtn.onclick = submit;
+    pinInput.onkeydown = onEnter;
+    confirmInput.onkeydown = onEnter;
+    cancelBtn.onclick = () => {
+      overlay.remove();
+      resolve(null);
+    };
+
+    const elems: HTMLElement[] = [title, desc, pinInput];
+    if (mode === "setup") {
+      elems.push(confirmInput);
+    }
+    elems.push(error, submitBtn, cancelBtn);
+    if (mode === "verify") {
+      const hint = document.createElement("div");
+      hint.style.cssText = "font-size:12px;opacity:0.6;max-width:420px;";
+      hint.textContent = "PIN을 잊으셨나요? 관리자에게 문의해 주세요.";
+      elems.push(hint);
+    }
+    overlay.append(...elems);
+    document.body.appendChild(overlay);
+    pinInput.focus();
+  });
+}
+
+/**
+ * Gates access to `user`'s cloud save behind a game-specific PIN, separate from their Google
+ * account's own password. First sign-in for an account prompts to set one; every sign-in after
+ * that (including a persisted-session auto-login on page load, not just an interactive Google
+ * login) prompts to re-enter it, so a shared device or a shared/guessed Google password alone
+ * isn't enough to open someone else's save through the game's own UI.
+ *
+ * @remarks
+ * The PIN is stored in plaintext on `users/{uid}.pin` (not hashed) - a deliberate choice, not an
+ * oversight: this is a client-only, serverless setup with no Cloud Function to verify a hash
+ * against, so the stored value must be readable by the signed-in owner's own client to compare
+ * locally, and by the project's Firebase Console admin to help a student recover a forgotten PIN.
+ * It is not a cryptographic barrier against someone who already has full Firebase Auth access to
+ * the account (they could read or reset it too) - it stops the specific, realistic threat this
+ * was built for: someone else casually signing in through the game's visible UI with a known or
+ * guessed Google password.
+ *
+ * @returns Whether the PIN was set up or verified successfully - `false` means the caller should
+ * treat this sign-in as failed (e.g. sign back out) rather than proceeding to sync the save.
+ */
+async function verifyOrSetupPin(app: ReturnType<typeof initializeApp>, user: User): Promise<boolean> {
+  const db = getFirestore(app);
+  const userDocRef = doc(db, "users", user.uid);
+
+  let storedPin: string | undefined;
+  try {
+    const snap = await getDoc(userDocRef);
+    storedPin = snap.exists() ? (snap.data().pin as string | undefined) : undefined;
+  } catch (err) {
+    console.error("PIN lookup failed:", err);
+    alert("PIN 확인에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+    return false;
+  }
+
+  if (!storedPin) {
+    const pin = await showPinOverlay("setup");
+    if (!pin) {
+      return false;
+    }
+    try {
+      await setDoc(userDocRef, { pin, email: user.email ?? null }, { merge: true });
+    } catch (err) {
+      console.error("PIN save failed:", err);
+      alert("PIN 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+      return false;
+    }
+    return true;
+  }
+
+  let errorMessage: string | undefined;
+  for (let attempt = 0; attempt < PIN_MAX_ATTEMPTS; attempt++) {
+    const pin = await showPinOverlay("verify", errorMessage);
+    if (!pin) {
+      return false;
+    }
+    if (pin === storedPin) {
+      return true;
+    }
+    errorMessage = "PIN이 틀렸습니다. 다시 시도해 주세요.";
+  }
+  alert("PIN을 5회 잘못 입력했습니다. 관리자에게 문의해 주세요.");
+  return false;
+}
+
 /** Wait for Firebase to restore the persisted auth session (first emission). */
 function waitForAuthState(auth: ReturnType<typeof getAuth>): Promise<User | null> {
   return new Promise(resolve => {
@@ -170,6 +335,16 @@ export async function initCloudSave(): Promise<void> {
     return;
   }
 
+  // Gates every sign-in this session sees, not just a fresh interactive login - including a
+  // persisted-session auto-login on page load, so a shared device left signed in doesn't skip
+  // the PIN either. See verifyOrSetupPin()'s doc comment for what this does and doesn't protect.
+  if (!(await verifyOrSetupPin(app, user))) {
+    await signOut(auth).catch(() => {});
+    setBadge("off", "클라우드 저장 꺼짐 — 클릭하여 Google 계정으로 로그인");
+    badge!.onclick = () => void triggerCloudLogin();
+    return;
+  }
+
   await startSync(app, user);
 
   // allow signing out via the badge
@@ -182,15 +357,20 @@ export async function triggerCloudLogin(): Promise<void> {
     return;
   }
   const u = await login(cloudAuth);
-  if (u) {
-    localStorage.removeItem(OPTOUT_KEY);
-    await startSync(cloudApp, u);
-    // startSync() only reloads itself when it actually pulled in changed data; an interactive
-    // login should always end in a reload regardless, so every screen (title username label,
-    // in-game menu options, badge) picks up the newly signed-in state consistently. If startSync
-    // already reloaded, execution never reaches here (it halts on an unresolved promise).
-    window.location.reload();
+  if (!u) {
+    return;
   }
+  if (!(await verifyOrSetupPin(cloudApp, u))) {
+    await signOut(cloudAuth).catch(() => {});
+    return;
+  }
+  localStorage.removeItem(OPTOUT_KEY);
+  await startSync(cloudApp, u);
+  // startSync() only reloads itself when it actually pulled in changed data; an interactive
+  // login should always end in a reload regardless, so every screen (title username label,
+  // in-game menu options, badge) picks up the newly signed-in state consistently. If startSync
+  // already reloaded, execution never reaches here (it halts on an unresolved promise).
+  window.location.reload();
 }
 
 /**
