@@ -14,15 +14,6 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Per-account profile doc: currently just an in-game PIN (see src/cloud-save.ts) that gates
-    // access to this account's cloud save, independent of the Google account's own password -
-    // meant to stop someone who knows/guesses the Google password (e.g. a shared school
-    // password) from casually opening someone else's save through the game's own UI. Only the
-    // account owner's signed-in client may read or write it.
-    match /users/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
-    }
-
     match /users/{uid}/saves/{saveKey} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
