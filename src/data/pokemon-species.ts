@@ -565,6 +565,10 @@ export abstract class PokemonSpeciesForm {
           break;
         case SpeciesId.BLOODMOON_URSALUNA:
           break;
+        case SpeciesId.MISSING_NO:
+          // Not a regional form - the generic `%2000` mapping would otherwise collide with
+          // whichever real species has cry number 1000.
+          break;
         default:
           speciesId %= 2000;
           break;
