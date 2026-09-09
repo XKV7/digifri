@@ -5,6 +5,7 @@ import {
   AllyMoveCategoryPowerBoostAbAttr,
   AllyStatMultiplierAbAttr,
   AlwaysHitAbAttr,
+  AlwaysHitOhkoAbAttr,
   ArenaTrapAbAttr,
   AttackTypeImmunityAbAttr,
   BattlerTagImmunityAbAttr,
@@ -2203,6 +2204,10 @@ export function initAbilities() {
     new AbBuilder(AbilityId.SPICY_SPRAY, 9) //
       .attr(PostDefendApplyStatusEffectAbAttr, 100, false, StatusEffect.BURN)
       .bypassFaint()
+      .build(),
+    // Not a real ability - MissingNo.'s custom passive.
+    new AbBuilder(AbilityId.ERROR, 9) //
+      .attr(AlwaysHitOhkoAbAttr)
       .build(),
   );
 }

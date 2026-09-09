@@ -1504,7 +1504,7 @@ export class StarterSelectUiHandler extends MessageUiHandler {
 
     return (
       starterCost != null
-      && starterData.candyCount >= getPassiveCandyCount(starterCost)
+      && starterData.candyCount >= getPassiveCandyCount(starterCost, speciesId)
       && !(starterData.passiveAttr & PassiveAttr.UNLOCKED)
     );
   }
@@ -2345,7 +2345,10 @@ export class StarterSelectUiHandler extends MessageUiHandler {
 
             // Unlock passive option
             if (!(passiveAttr & PassiveAttr.UNLOCKED) && !globalScene.gameMode.hasChallenge(Challenges.FRESH_START)) {
-              const passiveCost = getPassiveCandyCount(speciesDataRegistry.getStarterCost(this.lastSpecies.speciesId));
+              const passiveCost = getPassiveCandyCount(
+                speciesDataRegistry.getStarterCost(this.lastSpecies.speciesId),
+                this.lastSpecies.speciesId,
+              );
               options.push({
                 label: `×${passiveCost} ${i18next.t("starterSelectUiHandler:unlockPassive")}`,
                 handler: () => {

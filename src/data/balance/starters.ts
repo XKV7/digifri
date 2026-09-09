@@ -1,4 +1,5 @@
 import { IS_TEST } from "#constants/app-constants";
+import { SpeciesId } from "#enums/species-id";
 import type { IntClosedRange } from "type-fest";
 
 export const POKERUS_STARTER_COUNT = 5;
@@ -81,9 +82,15 @@ const allStarterCandyCosts: readonly StarterCandyCosts[] = [
 /**
  * Getter for {@linkcode allStarterCandyCosts} for passive unlock candy cost based on initial point cost
  * @param starterCost - The default point cost of the starter
+ * @param speciesId - (Optional) The species this cost is being looked up for; used only for the
+ * MissingNo. override below, since its passive unlock cost isn't meant to follow the shared
+ * cost-1 table every other cost-1 starter uses.
  * @returns the candy cost for passive unlock
  */
-export function getPassiveCandyCount(starterCost: number): number {
+export function getPassiveCandyCount(starterCost: number, speciesId?: SpeciesId): number {
+  if (speciesId === SpeciesId.MISSING_NO) {
+    return 1000;
+  }
   return allStarterCandyCosts[starterCost - 1].passive;
 }
 

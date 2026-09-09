@@ -40,7 +40,7 @@ describe("Species - MissingNo.", () => {
     expect(species.baseStats[Stat.SPDEF]).toBe(30);
     expect(species.baseStats[Stat.SPD]).toBe(30);
     expect(species.malePercent).toBeNull();
-    expect(speciesDataRegistry.getPassive(SpeciesId.MISSING_NO, 0)).toBe(AbilityId.PICKUP);
+    expect(speciesDataRegistry.getPassive(SpeciesId.MISSING_NO, 0)).toBe(AbilityId.ERROR);
   });
 
   it("should be a starter, belong to the Common egg tier, and appear in getAllStarters", () => {

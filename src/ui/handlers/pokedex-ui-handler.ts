@@ -900,11 +900,12 @@ export class PokedexUiHandler extends MessageUiHandler {
    */
   isPassiveAvailable(speciesId: number): boolean {
     // Get this species ID's starter data
-    const starterData = this.gameData.starterData[this.getStarterSpeciesId(speciesId)];
+    const starterSpeciesId = this.getStarterSpeciesId(speciesId);
+    const starterData = this.gameData.starterData[starterSpeciesId];
 
     return (
       starterData.candyCount
-        >= getPassiveCandyCount(speciesDataRegistry.getStarterCost(this.getStarterSpeciesId(speciesId)))
+        >= getPassiveCandyCount(speciesDataRegistry.getStarterCost(starterSpeciesId), starterSpeciesId)
       && !(starterData.passiveAttr & PassiveAttr.UNLOCKED)
     );
   }

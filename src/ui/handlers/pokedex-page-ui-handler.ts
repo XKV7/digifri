@@ -1937,7 +1937,10 @@ export class PokedexPageUiHandler extends MessageUiHandler {
             const candyCount = starterData.candyCount;
 
             if (!(passiveAttr & PassiveAttr.UNLOCKED)) {
-              const passiveCost = getPassiveCandyCount(speciesDataRegistry.getStarterCost(this.starterId));
+              const passiveCost = getPassiveCandyCount(
+                speciesDataRegistry.getStarterCost(this.starterId),
+                this.starterId,
+              );
               options.push({
                 label: `×${passiveCost} ${i18next.t("pokedexUiHandler:unlockPassive")}`,
                 handler: () => {
@@ -2324,7 +2327,7 @@ export class PokedexPageUiHandler extends MessageUiHandler {
     const starterData = globalScene.gameData.starterData[this.starterId];
 
     return (
-      starterData.candyCount >= getPassiveCandyCount(speciesDataRegistry.getStarterCost(this.starterId))
+      starterData.candyCount >= getPassiveCandyCount(speciesDataRegistry.getStarterCost(this.starterId), this.starterId)
       && !(starterData.passiveAttr & PassiveAttr.UNLOCKED)
     );
   }

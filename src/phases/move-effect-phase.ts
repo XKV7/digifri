@@ -457,6 +457,9 @@ export class MoveEffectPhase extends PokemonPhase {
     if (user.hasAbilityWithAttr("AlwaysHitAbAttr") || target.hasAbilityWithAttr("AlwaysHitAbAttr")) {
       return true;
     }
+    if (this.move.hasAttr("OneHitKOAccuracyAttr") && user.hasAbilityWithAttr("AlwaysHitOhkoAbAttr")) {
+      return true;
+    }
     if (this.move.hasAttr("ToxicAccuracyAttr") && user.isOfType(PokemonType.POISON)) {
       return true;
     }

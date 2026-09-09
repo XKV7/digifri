@@ -5903,6 +5903,19 @@ export class AlwaysHitAbAttr extends AiMovegenMoveStatsAbAttr {
 }
 
 /**
+ * Marker attribute checked directly in `MoveEffectPhase#checkBypassAccAndInvuln` - unlike
+ * {@linkcode AlwaysHitAbAttr} (No Guard), this only guarantees a hit when its own holder is the
+ * one using a one-hit-KO move (Guillotine/Horn Drill/Fissure/Sheer Cold), not for every move on
+ * either side of the field.
+ */
+export class AlwaysHitOhkoAbAttr extends AbAttr {
+  private declare readonly _: never;
+  constructor() {
+    super(false);
+  }
+}
+
+/**
  * Ability attribute for the terrain-summoning abilities that modifies the base power of matching types
  */
 export class SummonTerrainAiMovegenMoveStatsAbAttr extends AiMovegenMoveStatsAbAttr {
@@ -6071,6 +6084,7 @@ export const AbilityAttrs = Object.freeze({
   AllyMoveCategoryPowerBoostAbAttr,
   AllyStatMultiplierAbAttr,
   AlwaysHitAbAttr,
+  AlwaysHitOhkoAbAttr,
   ArenaTrapAbAttr,
   AttackTypeImmunityAbAttr,
   BattlerTagImmunityAbAttr,

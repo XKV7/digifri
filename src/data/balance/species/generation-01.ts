@@ -16171,7 +16171,7 @@ export function initGenerationOne(): SpeciesDataMapConfig {
     starterCost: 1,
     evolutions: [],
     eggTier: EggTier.COMMON,
-    passives: AbilityId.PICKUP,
+    passives: AbilityId.ERROR,
     levelMoves: [
       [1, MoveId.METRONOME],
       [1, MoveId.PROTECT],
@@ -16180,6 +16180,10 @@ export function initGenerationOne(): SpeciesDataMapConfig {
       [30, MoveId.HYPER_BEAM],
       [38, MoveId.FINAL_GAMBIT],
       [45, MoveId.SELF_DESTRUCT],
+      [100, MoveId.GUILLOTINE],
+      [100, MoveId.HORN_DRILL],
+      [100, MoveId.FISSURE],
+      [100, MoveId.SHEER_COLD],
     ],
     tms: [],
   };
