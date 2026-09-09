@@ -101,6 +101,19 @@ export class EncounterPhase extends BattlePhase {
 
     let totalBst = 0;
 
+    // MissingNo. has a flat 1/512 chance of appearing in the Beach biome, fixed to a random
+    // level between 100 and 200 - bypasses the normal biome pool entirely rather than being
+    // weighted into it. It's blocked from being caught in checkCanUseBall() (command-phase.ts)
+    // based on this same species+level signature.
+    //
+    // Rolled ONCE per wave here, not per enemy slot inside the loop below: a double battle has
+    // two enemy slots, so rolling separately for each one would silently double the effective
+    // encounter-level chance (~1/256) on any Beach wave that happens to be a double battle.
+    const isMissingNoBeachEncounter =
+      globalScene.arena.biomeId === BiomeId.BEACH
+      && !globalScene.gameMode.getOverrideSpecies(battle.waveIndex)
+      && !randSeedInt(512);
+
     battle.enemyLevels?.every((level, e) => {
       if (battle.isBattleMysteryEncounter()) {
         // Skip enemy loading for MEs, those are loaded elsewhere
@@ -111,14 +124,6 @@ export class EncounterPhase extends BattlePhase {
           battle.enemyParty[e] = battle.trainer?.genPartyMember(e)!; // TODO:: is the bang correct here?
         } else {
           let enemySpecies: PokemonSpecies;
-          // MissingNo. has a flat 1/512 chance of appearing in the Beach biome, fixed to a
-          // random level between 100 and 200 - bypasses the normal biome pool entirely rather
-          // than being weighted into it. It's blocked from being caught in checkCanUseBall()
-          // (command-phase.ts) based on this same species+level signature.
-          const isMissingNoBeachEncounter =
-            globalScene.arena.biomeId === BiomeId.BEACH
-            && !globalScene.gameMode.getOverrideSpecies(battle.waveIndex)
-            && !randSeedInt(512);
           if (isMissingNoBeachEncounter) {
             enemySpecies = speciesDataRegistry.getSpecies(SpeciesId.MISSING_NO);
             level = randSeedInt(101, 100);

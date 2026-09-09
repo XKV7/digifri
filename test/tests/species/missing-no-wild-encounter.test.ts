@@ -77,6 +77,32 @@ describe("Species - MissingNo. wild Beach encounter", () => {
     expect(canUseBall).toBe(true);
   });
 
+  it("should roll the 1/512 Beach chance once per wave, not once per enemy slot in a double battle", async () => {
+    // The species-roll is shared by every enemy slot generated this wave, so a double battle
+    // must not get two independent chances at it. Simulate that precisely: the very first roll
+    // of the winning shape (integerInRange(0, 511)) returns the winning value, and any further
+    // roll of that same shape returns a losing one - if the code still rolled per-slot (the bug
+    // this test guards against), the second enemy would be a normal species instead of also
+    // being MissingNo.
+    let winningShapeRolls = 0;
+    vi.spyOn(Phaser.Math.RND, "integerInRange").mockImplementation((min: number, max: number) => {
+      if (min === 0 && max === 511) {
+        winningShapeRolls++;
+        return winningShapeRolls === 1 ? 0 : 1;
+      }
+      return min;
+    });
+    game.override.startingBiome(BiomeId.BEACH).battleStyle("double");
+
+    await game.classicMode.startBattle(SpeciesId.MAGIKARP, SpeciesId.BULBASAUR);
+
+    const enemyParty = game.scene.getEnemyParty();
+    expect(enemyParty).toHaveLength(2);
+    expect(enemyParty[0].species.speciesId).toBe(SpeciesId.MISSING_NO);
+    expect(enemyParty[1].species.speciesId).toBe(SpeciesId.MISSING_NO);
+    expect(winningShapeRolls).toBe(1);
+  });
+
   it("should give MissingNo. the same in-run candy gain (friendship cap) as a top-tier Legendary", () => {
     expect(getStarterValueFriendshipCap(1, SpeciesId.MISSING_NO)).toBe(getStarterValueFriendshipCap(9));
     expect(getStarterValueFriendshipCap(1, SpeciesId.MISSING_NO)).toBe(450);
