@@ -16171,7 +16171,7 @@ export function initGenerationOne(): SpeciesDataMapConfig {
     starterCost: 1,
     evolutions: [],
     eggTier: EggTier.COMMON,
-    passives: AbilityId.ERROR,
+    passives: AbilityId.NO_GUARD,
     levelMoves: [
       [1, MoveId.METRONOME],
       [1, MoveId.PROTECT],

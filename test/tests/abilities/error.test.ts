@@ -7,7 +7,10 @@ import { GameManager } from "#test/framework/game-manager";
 import Phaser from "phaser";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-describe("AbilityId - Error (MissingNo. passive)", () => {
+describe("AbilityId - Error", () => {
+  // Not MissingNo.'s default passive anymore (that's now No Guard - see missing-no.test.ts), but
+  // the Error ability itself is still implemented and forced via override below to test its own
+  // mechanics in isolation.
   let phaserGame: Phaser.Game;
   let game: GameManager;
 
@@ -20,10 +23,6 @@ describe("AbilityId - Error (MissingNo. passive)", () => {
   beforeEach(() => {
     game = new GameManager(phaserGame);
     game.override.battleStyle("single").enemyAbility(AbilityId.BALL_FETCH);
-  });
-
-  it("should be MissingNo.'s configured passive", () => {
-    expect(speciesDataRegistry.getPassive(SpeciesId.MISSING_NO, 0)).toBe(AbilityId.ERROR);
   });
 
   it("should require 1000 candies to unlock, unlike other cost-1 starters", () => {

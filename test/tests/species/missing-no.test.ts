@@ -41,7 +41,18 @@ describe("Species - MissingNo.", () => {
     expect(species.baseStats[Stat.SPDEF]).toBe(150);
     expect(species.baseStats[Stat.SPD]).toBe(150);
     expect(species.malePercent).toBeNull();
-    expect(speciesDataRegistry.getPassive(SpeciesId.MISSING_NO, 0)).toBe(AbilityId.ERROR);
+    expect(speciesDataRegistry.getPassive(SpeciesId.MISSING_NO, 0)).toBe(AbilityId.NO_GUARD);
+  });
+
+  it("should have No Guard's accuracy-bypass effect when its passive is active", async () => {
+    // .passiveAbility() forces the passive active regardless of whether it's actually been
+    // unlocked with candy on this save - same technique every other passive-behavior test in
+    // this file uses.
+    game.override.starterSpecies(SpeciesId.MISSING_NO).passiveAbility(AbilityId.NO_GUARD);
+    await game.classicMode.startBattle(SpeciesId.MISSING_NO);
+
+    const missingno = game.field.getPlayerPokemon();
+    expect(missingno.hasAbilityWithAttr("AlwaysHitAbAttr")).toBe(true);
   });
 
   it("should be a starter, belong to the Common egg tier, and appear in getAllStarters", () => {
