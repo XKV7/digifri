@@ -19,7 +19,7 @@ import { AbilityAttr } from "#enums/ability-attr";
 import { DexAttr } from "#enums/dex-attr";
 import { Nature } from "#enums/nature";
 import { Passive as PassiveAttr } from "#enums/passive";
-import type { SpeciesId } from "#enums/species-id";
+import { SpeciesId } from "#enums/species-id";
 import type { GameData } from "#system/game-data";
 import { RibbonData } from "#system/ribbons/ribbon-data";
 import { VoucherType } from "#system/voucher";
@@ -182,6 +182,23 @@ async function addExVouchers(amount: number): Promise<void> {
   window.location.reload();
 }
 
+/** Marks MissingNo. as caught (all variants, 31 IVs, all natures) and candy-maxed as a starter. */
+async function giveMissingNo(): Promise<void> {
+  const gameData = globalScene?.gameData;
+  if (!gameData) {
+    alert("게임이 아직 로딩되지 않았습니다. 타이틀 화면이 뜬 뒤 다시 시도해주세요.");
+    return;
+  }
+
+  unlockDexEntry(gameData, SpeciesId.MISSING_NO, allNatureAttr());
+  unlockStarterEntry(gameData, SpeciesId.MISSING_NO);
+
+  await gameData.saveSystem();
+  alert("MissingNo.가 도감에 등록되고 스타터로 선택 가능해졌습니다. 새로고침합니다.");
+  window.location.reload();
+}
+
 (window as unknown as { cheatUnlockAllPokemon: () => Promise<void> }).cheatUnlockAllPokemon = unlockAllPokemon;
 (window as unknown as { cheatToggleEndlessCostLimit: () => void }).cheatToggleEndlessCostLimit = toggleEndlessCostLimit;
 (window as unknown as { cheatAddExVouchers: (amount: number) => Promise<void> }).cheatAddExVouchers = addExVouchers;
+(window as unknown as { cheatGiveMissingNo: () => Promise<void> }).cheatGiveMissingNo = giveMissingNo;
