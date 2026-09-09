@@ -407,6 +407,13 @@ export abstract class PokemonSpeciesForm {
 
   /** Compute the sprite ID of the pokemon form. */
   getSpriteId(female: boolean, formIndex?: number, shiny?: boolean, variant = 0, back = false): string {
+    // MissingNo. has no shiny/variant artwork - only the base custom sprite exists. Falling
+    // through to the normal shiny-prefix logic below would compute a sprite key (e.g.
+    // "shiny__9000") with no matching atlas file, and the resulting failed load silently leaves
+    // whatever sprite was previously displayed on screen instead of MissingNo.'s own.
+    if (this.speciesId === SpeciesId.MISSING_NO) {
+      shiny = false;
+    }
     const baseSpriteKey = this.getBaseSpriteKey(female, formIndex);
 
     let config = variantData;

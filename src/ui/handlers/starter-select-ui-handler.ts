@@ -844,11 +844,11 @@ export class StarterSelectUiHandler extends MessageUiHandler {
 
     // TODO: Apply the same logic done in the pokedex to only have 81 containers whose sprites are cycled
     for (const speciesId of speciesDataRegistry.getAllStarters()) {
-      // MissingNo. isn't a real starter - it stays completely hidden from this list (not even
-      // shown as an unseen silhouette, unlike normal starters) until hatched from an egg.
-      if (speciesId === SpeciesId.MISSING_NO && !this.getSpeciesData(speciesId).dexEntry.caughtAttr) {
-        continue;
-      }
+      // Note: MissingNo. hiding-until-caught is enforced later, in the dynamic filter pass (see
+      // updateStarters()) - not here. setup() runs exactly once, early in the scene boot
+      // sequence, well before the player's save data has actually loaded, so a one-time check
+      // here against dexEntry.caughtAttr would always see empty/default data and permanently
+      // exclude MissingNo. from this list regardless of whether it was ever actually caught.
       starterSpecies.push(speciesId);
       this.speciesLoaded.set(speciesId, false);
       const species = speciesDataRegistry.getSpecies(speciesId);
@@ -3765,8 +3765,15 @@ export class StarterSelectUiHandler extends MessageUiHandler {
         return false;
       });
 
+      // MissingNo. isn't a real starter - it stays completely hidden from this list (not even
+      // shown as an unseen silhouette, unlike normal starters) until hatched from an egg.
+      // Checked here (evaluated fresh on every filter pass) rather than once in setup(), since
+      // setup() runs before the player's save data has even loaded.
+      const isMissingNoUncaught = container.species.speciesId === SpeciesId.MISSING_NO && !caughtAttr;
+
       if (
-        fitsGen
+        !isMissingNoUncaught
+        && fitsGen
         && fitsType
         && fitsCaught
         && fitsPassive
