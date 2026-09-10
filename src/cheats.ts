@@ -22,6 +22,7 @@ import { EggSourceType } from "#enums/egg-source-types";
 import { Nature } from "#enums/nature";
 import { Passive as PassiveAttr } from "#enums/passive";
 import { SpeciesId } from "#enums/species-id";
+import { VariantTier } from "#enums/variant-tier";
 import type { GameData } from "#system/game-data";
 import { RibbonData } from "#system/ribbons/ribbon-data";
 import { VoucherType } from "#system/voucher";
@@ -223,8 +224,44 @@ async function giveMissingNoEgg(): Promise<void> {
   window.location.reload();
 }
 
+/**
+ * Adds a real egg guaranteed to hatch into a variant-2 ("3-luck"/rainbow) shiny Zacian to the
+ * current save - same `species` egg-option override {@linkcode giveMissingNoEgg} uses to bypass
+ * the normal egg-tier species pool, plus `isShiny`/`variantTier` to force the specific shiny tier
+ * instead of leaving it to the normal shiny/variant roll.
+ */
+async function giveShinyZacianEgg(): Promise<void> {
+  const gameData = globalScene?.gameData;
+  if (!gameData) {
+    alert("게임이 아직 로딩되지 않았습니다. 타이틀 화면이 뜬 뒤 다시 시도해주세요.");
+    return;
+  }
+
+  const egg = new Egg({
+    species: SpeciesId.ZACIAN,
+    sourceType: EggSourceType.EVENT,
+    isShiny: true,
+    variantTier: VariantTier.EPIC,
+  });
+  // Egg's own constructor silently forces variantTier back to STANDARD whenever
+  // speciesDataRegistry.getSpecies(...).hasVariants() reads false at that exact moment - which it
+  // can spuriously do very early after boot, before BattleScene#initVariantData()'s masterlist
+  // fetch has resolved (a known race condition, acknowledged in that method's own TODO comment;
+  // confirmed flaky in local testing - sometimes over a minute after boot). Rather than race that
+  // timing, force the intended values back in directly after construction: isShiny/variantTier
+  // are only ever read afterward (serialization, hatch dialogue), never re-derived, so this is
+  // safe and fully deterministic regardless of load timing.
+  Object.assign(egg, { _isShiny: true, _variantTier: VariantTier.EPIC });
+  egg.addEggToGameData();
+
+  await gameData.saveSystem();
+  alert("이로치(3연성) 자시안 알을 지급했습니다. 알 목록에서 부화시키면 얻을 수 있어요. 새로고침합니다.");
+  window.location.reload();
+}
+
 (window as unknown as { cheatUnlockAllPokemon: () => Promise<void> }).cheatUnlockAllPokemon = unlockAllPokemon;
 (window as unknown as { cheatToggleEndlessCostLimit: () => void }).cheatToggleEndlessCostLimit = toggleEndlessCostLimit;
 (window as unknown as { cheatAddExVouchers: (amount: number) => Promise<void> }).cheatAddExVouchers = addExVouchers;
 (window as unknown as { cheatGiveMissingNo: () => Promise<void> }).cheatGiveMissingNo = giveMissingNo;
 (window as unknown as { cheatGiveMissingNoEgg: () => Promise<void> }).cheatGiveMissingNoEgg = giveMissingNoEgg;
+(window as unknown as { cheatGiveShinyZacianEgg: () => Promise<void> }).cheatGiveShinyZacianEgg = giveShinyZacianEgg;
