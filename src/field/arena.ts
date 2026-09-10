@@ -185,27 +185,26 @@ export class Arena {
    *
    * | Tier    | Tier Values | Chance |
    * |:-------:|:-----------:|:------:|
-   * | Boss    | 38-63       | 26/64  |
-   * | Boss R  | 30-37       | 8/64   |
-   * | Boss SR | 5-29        | 25/64  |
-   * | Boss UR | 0-4         | 5/64   |
+   * | Boss    | 20-63       | 44/64  |
+   * | Boss R  | 6-19        | 14/64  |
+   * | Boss SR | 1-5         | 5/64   |
+   * | Boss UR | 0           | 1/64   |
    *
-   * Boss Super Rare and Boss Ultra Rare are boosted 5x over upstream odds
-   * (5/64 and 1/64 respectively, now 25/64 and 5/64); Boss and Boss Rare
-   * absorb the difference, shrunk proportionally to each other so their
-   * relative ratio (44:14) is unchanged.
+   * Restored to the original upstream odds - this fork previously boosted Boss Super Rare and
+   * Boss Ultra Rare 5x (25/64 and 5/64), shrinking Boss/Boss Rare to make room; reverted back at
+   * the user's request. (The non-boss tier roll below still has its own, separate 5x boost.)
    *
    * @param tierValue - Number from `0-63`
    * @returns the generated BiomePoolTier
    */
   private generateBossBiomeTier(tierValue: number): BiomePoolTier {
-    if (tierValue >= 38) {
+    if (tierValue >= 20) {
       return BiomePoolTier.BOSS;
     }
-    if (tierValue >= 30) {
+    if (tierValue >= 6) {
       return BiomePoolTier.BOSS_RARE;
     }
-    if (tierValue >= 5) {
+    if (tierValue >= 1) {
       return BiomePoolTier.BOSS_SUPER_RARE;
     }
     return BiomePoolTier.BOSS_ULTRA_RARE;
