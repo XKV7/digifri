@@ -16,6 +16,12 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    date: "2026-09-10",
+    changes: [
+      "죽어있던 레전드 플레이트를 아르세우스가 획득 가능하도록 부활 - 소지하고 심판의 뭉치를 사용할 때마다 상대에게 가장 효과적인 타입(동률이면 낮은 타입 번호 우선)으로 아르세우스의 폼과 심판의 뭉치 타입이 자동으로 바뀜",
+    ],
+  },
+  {
     date: "2026-09-09",
     changes: [
       "타이틀 화면에 '목록보기' 메뉴 추가 - 다른 플레이어 목록을 보고 PvP 대전을 초대할 수 있음",

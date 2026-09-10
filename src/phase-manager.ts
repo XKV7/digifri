@@ -43,6 +43,7 @@ import { HideAbilityPhase } from "#phases/hide-ability-phase";
 import { HidePartyExpBarPhase } from "#phases/hide-party-exp-bar-phase";
 import { InitEncounterPhase } from "#phases/init-encounter-phase";
 import { LearnMovePhase } from "#phases/learn-move-phase";
+import { LegendPlateFormChangePhase } from "#phases/legend-plate-form-change-phase";
 import { LevelCapPhase } from "#phases/level-cap-phase";
 import { LevelUpPhase } from "#phases/level-up-phase";
 import { LoadMoveAnimPhase } from "#phases/load-move-anim-phase";
@@ -155,6 +156,7 @@ const PHASES = Object.freeze({
   HidePartyExpBarPhase,
   InitEncounterPhase,
   LearnMovePhase,
+  LegendPlateFormChangePhase,
   LevelCapPhase,
   LevelUpPhase,
   LoadMoveAnimPhase,

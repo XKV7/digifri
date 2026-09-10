@@ -11460,6 +11460,19 @@ export function initGenerationFour(): SpeciesDataMapConfig {
         quiet: false,
         conditions: [new SpeciesFormChangeCondition(p => p.hasAbility(AbilityId.MULTITYPE))],
       }),
+      // Legend Plate doesn't have a fixed target form like the other Plates - holding it instead
+      // retypes Arceus (and Judgment) to whatever type is most effective against the current move
+      // target every time Judgment is used (see legend-plate.ts + move-phase.ts). This entry's
+      // no-op self-loop only exists so the reward-pool generator (FormChangeItemModifierTypeGenerator
+      // in modifier-type.ts) considers Legend Plate obtainable at all.
+      new SpeciesFormChange({
+        speciesId: SpeciesId.ARCEUS,
+        preFormKey: "normal",
+        evoFormKey: "normal",
+        trigger: new SpeciesFormChangeItemTrigger(FormChangeItem.LEGEND_PLATE),
+        quiet: false,
+        conditions: [new SpeciesFormChangeCondition(p => p.hasAbility(AbilityId.MULTITYPE))],
+      }),
     ],
     eggTier: EggTier.LEGENDARY,
     passives: {

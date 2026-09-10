@@ -6,6 +6,7 @@ import { activeOverrides } from "#app/overrides";
 import { PokemonPhase } from "#app/phases/pokemon-phase";
 import { CenterOfAttentionTag, type EncoreTag } from "#data/battler-tags";
 import { SpeciesFormChangePreMoveTrigger } from "#data/form-change-triggers";
+import { getLegendPlateFormKey } from "#data/legend-plate";
 import { getStatusEffectActivationText } from "#data/status-effect";
 import { getTerrainBlockMessage } from "#data/terrain";
 import { getWeatherBlockMessage } from "#data/weather";
@@ -216,6 +217,8 @@ export class MovePhase extends PokemonPhase {
 
       globalScene.triggerPokemonFormChange(user, SpeciesFormChangePreMoveTrigger);
       // TODO: apply gorilla tactics here instead of in the move effect phase
+
+      this.tryLegendPlateFormChange(user, move);
     }
 
     this.showMoveText();
@@ -236,6 +239,23 @@ export class MovePhase extends PokemonPhase {
     }
 
     this.end();
+  }
+
+  /**
+   * Handles Legend Plate's per-use Judgment retyping: if `move` is Judgment and `user` is holding
+   * an active Legend Plate, unshifts a {@linkcode LegendPlateFormChangePhase} to switch `user` into
+   * whichever Arceus form is most effective against its (first) resolved target.
+   */
+  private tryLegendPlateFormChange(user: Pokemon, move: Move): void {
+    if (move.id !== MoveId.JUDGMENT) {
+      return;
+    }
+
+    const target = globalScene.getField(true).find(p => this.targets.indexOf(p.getBattlerIndex()) > -1);
+    const newFormKey = target && getLegendPlateFormKey(user, target);
+    if (newFormKey) {
+      globalScene.phaseManager.unshiftNew("LegendPlateFormChangePhase", user, newFormKey);
+    }
   }
 
   // #endregion Phase Start

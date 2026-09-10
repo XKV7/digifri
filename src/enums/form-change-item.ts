@@ -154,7 +154,7 @@ export enum FormChangeItem {
   DREAD_PLATE,
   PIXIE_PLATE,
   BLANK_PLATE, // TODO: Find a potential use for this
-  LEGEND_PLATE, // TODO: Find a potential use for this
+  LEGEND_PLATE,
   FIGHTING_MEMORY,
   FLYING_MEMORY,
   POISON_MEMORY,
