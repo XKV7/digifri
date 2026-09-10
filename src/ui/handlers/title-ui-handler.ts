@@ -1,4 +1,3 @@
-import { pokerogueApi } from "#api/api";
 import { loggedInUser } from "#app/account";
 import { FAKE_TITLE_LOGO_CHANCE } from "#app/constants";
 import { claimDailyReward } from "#app/daily-reward";
@@ -10,7 +9,6 @@ import { resubmitLeaderboardStats } from "#app/leaderboard";
 import { fetchOnlinePlayerCount } from "#app/presence";
 import { promptPendingPvpInvite } from "#app/pvp-invite";
 import { isBeta, isDev } from "#constants/app-constants";
-import { getSplashMessages } from "#data/splash-messages";
 import { PlayerGender } from "#enums/player-gender";
 import type { SpeciesId } from "#enums/species-id";
 import { TextStyle } from "#enums/text-style";
@@ -19,13 +17,10 @@ import { version } from "#package.json";
 import { TimedEventDisplay } from "#ui/event-display";
 import { OptionSelectUiHandler } from "#ui/option-select-ui-handler";
 import { addTextObject } from "#ui/text";
-import { fixedInt, randInt, randItem } from "#utils/common";
+import { fixedInt, randInt } from "#utils/common";
 import i18next from "i18next";
 
 export class TitleUiHandler extends OptionSelectUiHandler {
-  /** If the stats can not be retrieved, use this fallback value */
-  private static readonly BATTLES_WON_FALLBACK: number = -1;
-
   private titleContainer: Phaser.GameObjects.Container;
   private usernameLabel: Phaser.GameObjects.Text;
   private playerCountLabel: Phaser.GameObjects.Text;
@@ -134,23 +129,6 @@ export class TitleUiHandler extends OptionSelectUiHandler {
         this.playerCountLabel.setText(`${count} ${i18next.t("menu:playersOnline")}`);
       }
     });
-
-    pokerogueApi
-      .getGameTitleStats()
-      .then(stats => {
-        if (stats == null) {
-          return;
-        }
-        const splashMessage = this.splashMessage;
-        if (splashMessage === "splashMessages:battlesWon") {
-          this.splashMessageText.setText(i18next.t(splashMessage, { count: stats.battleCount }));
-        }
-      })
-      .catch(err => {
-        if (!isDev) {
-          console.error("Failed to fetch title stats:\n", err);
-        }
-      });
   }
 
   /** Used solely to display a random Pokémon name in a splash message. */
@@ -203,13 +181,11 @@ export class TitleUiHandler extends OptionSelectUiHandler {
       this.playerCountLabel.setY(UPPER_LABEL);
     }
 
-    this.splashMessage = randItem(getSplashMessages());
-    this.splashMessageText.setText(
-      i18next.t(this.splashMessage, {
-        count: TitleUiHandler.BATTLES_WON_FALLBACK,
-        cycleCountNoOrdinal: 5643853 + globalScene.gameData.gameStats.classicSessionsPlayed, // for `splashMessages:itsBeenTotalRuns`
-      }),
-    );
+    // Pinned to a fixed announcement instead of the usual random splash message pool (see
+    // splash-messages.ts) - this.splashMessage is left as "" so none of the special-case handlers
+    // below (updateTitleStats/randomPokemon/genderSplash) ever match and overwrite it.
+    this.splashMessage = "";
+    this.splashMessageText.setText("학교이메일은 비번고치세요");
 
     const betaText = isBeta || isDev ? " (Beta)" : "";
     this.appVersionText.setText("v" + version + betaText);
