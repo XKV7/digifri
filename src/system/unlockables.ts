@@ -14,6 +14,10 @@ export function getUnlockableName(unlockable: Unlockables) {
     case Unlockables.EVIOLITE:
       return i18next.t("modifierType:ModifierType.EVIOLITE.name");
     case Unlockables.HEAVENLY_FLUTE:
-      return i18next.t("modifierType:FormChangeItem.HEAVENLY_FLUTE");
+      // Hardcoded rather than i18next.t("modifierType:FormChangeItem.HEAVENLY_FLUTE") - that key
+      // intermittently failed to resolve in practice (observed showing the raw numeric enum value
+      // instead of the translated name), so this bypasses the lookup entirely for guaranteed-correct
+      // text until that's root-caused.
+      return "천계의 피리";
   }
 }

@@ -2,6 +2,7 @@ import { audioManager } from "#app/global-audio-manager";
 import { globalScene } from "#app/global-scene";
 import type { BattlerIndex } from "#enums/battler-index";
 import { HitResult } from "#enums/hit-result";
+import { initArceusTrialPhaseTwo } from "#mystery-encounters/arceus-trial-encounter";
 import { PokemonPhase } from "#phases/pokemon-phase";
 import type { DamageResult } from "#types/damage-result";
 import { fixedInt } from "#utils/common";
@@ -97,7 +98,9 @@ export class DamageAnimPhase extends PokemonPhase {
     if (globalScene.currentBattle.isClassicFinalBoss) {
       globalScene.initFinalBossPhaseTwo(this.getPokemon());
     } else {
-      super.end();
+      // No-ops (falling through to a plain shiftPhase(), same as super.end()) unless this is
+      // specifically the Arceus Trial mystery encounter - see arceus-trial-encounter.ts.
+      initArceusTrialPhaseTwo(this.getPokemon());
     }
   }
 }

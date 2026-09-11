@@ -4,6 +4,7 @@ import { GrowthRate } from "#data/exp";
 import {
   SpeciesFormChangeActiveTrigger,
   SpeciesFormChangeItemTrigger,
+  SpeciesFormChangeManualTrigger,
   SpeciesFormChangeRevertWeatherFormTrigger,
   SpeciesFormChangeWeatherTrigger,
 } from "#data/form-change-triggers";
@@ -11506,6 +11507,18 @@ export function initGenerationFour(): SpeciesDataMapConfig {
         preFormKey: "normal",
         evoFormKey: "true-form",
         trigger: new SpeciesFormChangeItemTrigger(FormChangeItem.HEAVENLY_FLUTE),
+        quiet: false,
+        conditions: [new SpeciesFormChangeCondition(p => p.hasAbility(AbilityId.MULTITYPE))],
+      }),
+      // Manually-triggered counterpart of the entry above, used by the Arceus Trial mystery
+      // encounter's mid-battle phase-two transform (see arceus-trial-encounter.ts) to switch the
+      // encounter's own Arceus into True Form via globalScene.triggerPokemonFormChange(pokemon,
+      // SpeciesFormChangeManualTrigger) without requiring it to hold a Heavenly Flute up front.
+      new SpeciesFormChange({
+        speciesId: SpeciesId.ARCEUS,
+        preFormKey: "normal",
+        evoFormKey: "true-form",
+        trigger: new SpeciesFormChangeManualTrigger(),
         quiet: false,
         conditions: [new SpeciesFormChangeCondition(p => p.hasAbility(AbilityId.MULTITYPE))],
       }),

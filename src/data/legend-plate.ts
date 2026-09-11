@@ -19,6 +19,7 @@ export function hasActiveLegendPlate(pokemon: Pokemon): boolean {
       && m.pokemonId === pokemon.id
       && m.formChangeItem === FormChangeItem.LEGEND_PLATE
       && m.active,
+    pokemon.isPlayer(),
   );
 }
 
@@ -30,6 +31,7 @@ export function hasActiveHeavenlyFlute(pokemon: Pokemon): boolean {
       && m.pokemonId === pokemon.id
       && m.formChangeItem === FormChangeItem.HEAVENLY_FLUTE
       && m.active,
+    pokemon.isPlayer(),
   );
 }
 

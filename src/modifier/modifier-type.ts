@@ -1248,6 +1248,12 @@ export class FormChangeItemModifierType extends PokemonModifierType implements G
   }
 
   get name(): string {
+    // Hardcoded rather than going through i18next for this one item - that lookup intermittently
+    // failed to resolve in practice (observed showing the raw numeric enum value instead of the
+    // translated name), so this bypasses it for guaranteed-correct text until that's root-caused.
+    if (this.formChangeItem === FormChangeItem.HEAVENLY_FLUTE) {
+      return "천계의 피리";
+    }
     return i18next.t(`modifierType:FormChangeItem.${FormChangeItem[this.formChangeItem]}`);
   }
 

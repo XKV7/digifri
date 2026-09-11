@@ -7,12 +7,17 @@
 import { CLASSIC_MODE_MYSTERY_ENCOUNTER_WAVES } from "#app/constants";
 import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
+import { modifierTypes } from "#data/data-lists";
+import { SpeciesFormChangeManualTrigger } from "#data/form-change-triggers";
 import { MoveId } from "#enums/move-id";
 import { MysteryEncounterTier } from "#enums/mystery-encounter-tier";
 import { MysteryEncounterType } from "#enums/mystery-encounter-type";
 import { Nature } from "#enums/nature";
 import { SpeciesId } from "#enums/species-id";
 import { Unlockables } from "#enums/unlockables";
+import type { Pokemon } from "#field/pokemon";
+import type { PokemonFormChangeItemModifier } from "#modifiers/modifier";
+import type { FormChangeItemModifierType } from "#modifiers/modifier-type";
 import type { EnemyPartyConfig } from "#mystery-encounters/encounter-phase-utils";
 import {
   initBattleWithEnemyConfig,
@@ -22,6 +27,33 @@ import {
 } from "#mystery-encounters/encounter-phase-utils";
 import type { MysteryEncounter } from "#mystery-encounters/mystery-encounter";
 import { MysteryEncounterBuilder } from "#mystery-encounters/mystery-encounter";
+
+/**
+ * Called from DamageAnimPhase#end() (mirroring how the classic-mode Eternatus final boss
+ * transforms via BattleScene#initFinalBossPhaseTwo) whenever damage lands on any enemy Pokemon.
+ * No-ops unless the current battle IS this specific encounter, the target is the (still Normal
+ * form) enemy Arceus, and it's crossed the phase-two HP threshold - at which point it's granted a
+ * Heavenly Flute (so it both retypes on Judgment and gets the same stat boost a real holder would,
+ * via Pokemon#calculateBaseStats) and manually switched into True Form.
+ */
+export function initArceusTrialPhaseTwo(pokemon: Pokemon): void {
+  if (
+    globalScene.currentBattle.mysteryEncounter?.encounterType !== MysteryEncounterType.ARCEUS_TRIAL
+    || !pokemon.isEnemy()
+    || pokemon.formIndex !== 0
+    || pokemon.getHpRatio() > 0.5
+  ) {
+    globalScene.phaseManager.shiftPhase();
+    return;
+  }
+
+  const heavenlyFluteType = modifierTypes.HEAVENLY_FLUTE() as FormChangeItemModifierType;
+  const heavenlyFlute = heavenlyFluteType.newModifier(pokemon) as PokemonFormChangeItemModifier;
+  globalScene.addEnemyModifier(heavenlyFlute, false, true);
+  globalScene.triggerPokemonFormChange(pokemon, SpeciesFormChangeManualTrigger, false);
+
+  globalScene.phaseManager.shiftPhase();
+}
 
 /** the i18n namespace for the encounter */
 const namespace = "mysteryEncounters/arceusTrial";
