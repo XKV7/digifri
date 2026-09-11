@@ -1625,7 +1625,7 @@ export abstract class Pokemon extends Phaser.GameObjects.Container {
     // uses Judgment; see legend-plate.ts.
     if (hasActiveHeavenlyFlute(this)) {
       for (const s of PERMANENT_STATS) {
-        baseStats[s] += 40;
+        baseStats[s] *= 3;
       }
     }
     // Shuckle Juice

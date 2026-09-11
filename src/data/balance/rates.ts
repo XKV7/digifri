@@ -53,7 +53,7 @@ export const SAME_SPECIES_EGG_SHINY_RATE = 12;
 export const SAME_SPECIES_EGG_HA_RATE = 8;
 export const MANAPHY_EGG_MANAPHY_RATE = 8;
 export const GACHA_EGG_HA_RATE = 192;
-export const MISSING_NO_EGG_RATE = 1024;
+export const MISSING_NO_EGG_RATE = 4096;
 
 // Odds are 1/x
 // [COMMON, RARE, EPIC/MANAPHY, LEGEND]

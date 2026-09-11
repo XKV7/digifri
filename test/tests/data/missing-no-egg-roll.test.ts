@@ -25,7 +25,7 @@ describe("Data - Egg (MissingNo. acquisition)", () => {
     vi.restoreAllMocks();
   });
 
-  it("should hatch MissingNo. on the winning 1/1024 roll once Classic mode has been cleared", () => {
+  it("should hatch MissingNo. on the winning 1/4096 roll once Classic mode has been cleared", () => {
     game.scene.gameData.unlocks[Unlockables.ENDLESS_MODE] = true;
     // id: 1 avoids the (tier===COMMON && id%204===0) Manaphy-egg special case short-circuiting
     // rollSpecies() before it ever reaches the MissingNo. check.

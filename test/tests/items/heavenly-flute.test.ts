@@ -32,7 +32,7 @@ describe("Items - Heavenly Flute", () => {
       .enemyMoveset(MoveId.SPLASH);
   });
 
-  it("changes Arceus into its True Form and boosts every base stat by 40", async () => {
+  it("changes Arceus into its True Form and triples every base stat", async () => {
     await game.classicMode.startBattle(SpeciesId.ARCEUS);
 
     const arceus = game.field.getPlayerPokemon();
@@ -48,7 +48,7 @@ describe("Items - Heavenly Flute", () => {
 
     const baseStatsAfter = arceus.calculateBaseStats();
     for (const stat of [Stat.HP, Stat.ATK, Stat.DEF, Stat.SPATK, Stat.SPDEF, Stat.SPD]) {
-      expect(baseStatsAfter[stat]).toBe(baseStatsBefore[stat] + 40);
+      expect(baseStatsAfter[stat]).toBe(baseStatsBefore[stat] * 3);
     }
   });
 
