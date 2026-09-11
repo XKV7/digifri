@@ -66,7 +66,9 @@ const KOREAN_MENU_LABELS: Partial<Record<MenuOptions, string>> = {
 
 let wikiUrl = "https://wiki.pokerogue.net/start";
 const discordUrl = "https://discord.gg/pokerogue";
-const githubUrl = "https://github.com/pagefaultgames/pokerogue";
+// AGPL-3.0 §13 requires this running (modified) version to prominently offer its own
+// corresponding source, not the unmodified upstream project.
+const githubUrl = "https://github.com/XKV7/digifri";
 const redditUrl = "https://www.reddit.com/r/pokerogue";
 const donateUrl = "https://github.com/sponsors/pagefaultgames";
 
