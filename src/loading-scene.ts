@@ -184,7 +184,10 @@ export class LoadingScene extends SceneBase {
       // VoucherType.MASTER's icon - a standalone image (from custom-assets/images/, see
       // vite-minify-json-plugin.ts) rather than a frame in the shared items.png atlas above, so
       // adding it doesn't require touching (and risking) every other item's icon.
-      .loadImage("master_ticket", "");
+      .loadImage("master_ticket", "")
+      // FormChangeItem.HEAVENLY_FLUTE's icon - same reasoning as master_ticket above (see
+      // getModifierTypeIconTexture() in modifier-type.ts for where this texture key is used).
+      .loadImage("heavenly_flute", "");
 
     this.load.bitmapFont("item-count", "fonts/item-count.png", "fonts/item-count.xml");
     try {

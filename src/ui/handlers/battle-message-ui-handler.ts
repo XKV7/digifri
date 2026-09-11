@@ -283,12 +283,12 @@ export class BattleMessageUiHandler extends MessageUiHandler {
     return coloredText(i18next.t("battleMessageUiHandler:ivNoGood"), value > starterIvs[typeIv], value);
   }
 
-  showNameText(name: string, iconFrame?: string): void {
+  showNameText(name: string, iconFrame?: string, iconTexture = "items"): void {
     this.nameBoxContainer.setVisible(true);
     this.nameText.setText(name);
 
-    if (iconFrame) {
-      this.nameIcon.setTexture("items", iconFrame);
+    if (iconFrame || iconTexture !== "items") {
+      this.nameIcon.setTexture(iconTexture, iconTexture === "items" ? iconFrame : undefined);
       this.nameIcon.setVisible(true);
       this.nameIcon.setScale(0.5);
       this.nameText.x = this.nameIcon.x + this.nameIcon.displayWidth + 4;

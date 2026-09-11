@@ -45,7 +45,7 @@ import type { ModifierInstanceMap, ModifierString } from "#types/modifier-types"
 import { addTextObject } from "#ui/text";
 import { hslToHex } from "#utils/color-utils";
 import { BooleanHolder, NumberHolder, randSeedFloat, toDmgValue } from "#utils/common";
-import { getModifierType } from "#utils/modifier-utils";
+import { getModifierType, getModifierTypeIconTexture } from "#utils/modifier-utils";
 import i18next from "i18next";
 
 export type ModifierPredicate = (modifier: Modifier) => boolean;
@@ -249,8 +249,8 @@ export abstract class PersistentModifier extends Modifier {
   getIcon(_forSummary?: boolean): Phaser.GameObjects.Container {
     const container = globalScene.add.container(0, 0);
 
-    const item = globalScene.add.sprite(0, 12, "items");
-    item.setFrame(this.type.iconImage);
+    const iconTexture = getModifierTypeIconTexture(this.type);
+    const item = globalScene.add.sprite(0, 12, iconTexture, iconTexture === "items" ? this.type.iconImage : undefined);
     item.setOrigin(0, 0.5);
     container.add(item);
 
@@ -709,10 +709,15 @@ export abstract class PokemonHeldItemModifier extends PersistentModifier {
         container.setName(pokemon.id.toString());
       }
 
-      const item = globalScene.add.sprite(16, this.virtualStackCount ? 8 : 16, "items");
+      const iconTexture = getModifierTypeIconTexture(this.type);
+      const item = globalScene.add.sprite(
+        16,
+        this.virtualStackCount ? 8 : 16,
+        iconTexture,
+        iconTexture === "items" ? this.type.iconImage : undefined,
+      );
       item.setScale(0.5);
       item.setOrigin(0, 0.5);
-      item.setTexture("items", this.type.iconImage);
       container.add(item);
 
       const stackText = this.getIconStackText();

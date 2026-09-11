@@ -91,7 +91,7 @@ export class CommandUiHandler extends UiHandler {
           (globalScene.phaseManager.getCurrentPhase() as CommandPhase).getPokemon(),
         );
         if (itemIcon) {
-          this.teraButton.setTexture("items", itemIcon);
+          this.teraButton.setTexture(itemIcon.texture, itemIcon.frame);
         }
       } else {
         this.teraButton.setTexture("button_tera");

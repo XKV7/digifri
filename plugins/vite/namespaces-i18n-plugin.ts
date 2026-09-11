@@ -55,8 +55,18 @@ function processJsonFile(file: string, namespace: string[]) {
 export function LocaleNamespace(): VitePlugin {
   const nsRelativePath = "./locales";
   const nsEn = nsRelativePath + "/en"; // Default namespace
-  let namespaces = getNameSpaces(nsEn);
+  // custom-assets/locales/en/ is merged on top of locales/en/ at build time (see
+  // vite-minify-json-plugin.ts's applyCustomOverrides), including brand-new namespace files that
+  // don't exist upstream at all (e.g. a new mystery encounter's dialogue json). Scanning only
+  // locales/en/ here would never register those namespaces with i18next, so every i18next.t() call
+  // for them falls back to the raw key at runtime regardless of caching - this must scan both.
+  const customNsEn = "./custom-assets/locales/en";
+  const collectNamespaces = () => [
+    ...new Set([...getNameSpaces(nsEn), ...(fs.existsSync(customNsEn) ? getNameSpaces(customNsEn) : [])]),
+  ];
+  let namespaces = collectNamespaces();
   const nsAbsolutePath = path.resolve(process.cwd(), nsRelativePath);
+  const customNsAbsolutePath = path.resolve(process.cwd(), customNsEn);
 
   return {
     name: "namespaces-i18next",
@@ -71,14 +81,17 @@ export function LocaleNamespace(): VitePlugin {
          * If any JSON file in nsLocation is created/modified..
          * refresh the page to update the namespaces of i18next
          */
-        if (isFileInsideDir(file, nsAbsolutePath) && file.endsWith(".json")) {
+        if (
+          (isFileInsideDir(file, nsAbsolutePath) || isFileInsideDir(file, customNsAbsolutePath))
+          && file.endsWith(".json")
+        ) {
           const timestamp = new Date().toLocaleTimeString();
           const filePath = nsRelativePath.replace(/^\.\/(?=.*)/, "") + normalizePath(file.replace(nsAbsolutePath, ""));
           console.info(
             `${timestamp} \x1b[36m\x1b[1m[ns-plugin]\x1b[0m reloading page, \x1b[32m${filePath}\x1b[0m ${action}...`,
           );
 
-          namespaces = getNameSpaces(nsEn);
+          namespaces = collectNamespaces();
           server.moduleGraph.invalidateAll();
           server.ws.send({
             type: "full-reload",

@@ -17,6 +17,7 @@ import { AwaitableUiHandler } from "#ui/awaitable-ui-handler";
 import { MoveInfoOverlay } from "#ui/move-info-overlay";
 import { addTextObject, getModifierTierTextTint, getTextColor, getTextStyleOptions } from "#ui/text";
 import { formatMoney, NumberHolder } from "#utils/common";
+import { getModifierTypeIconTexture } from "#utils/modifier-utils";
 import i18next from "i18next";
 import Phaser from "phaser";
 
@@ -590,7 +591,7 @@ export class ModifierSelectUiHandler extends AwaitableUiHandler {
       if (type) {
         const messageHandler = ui.getMessageHandler();
         ui.showText(type.getDescription());
-        messageHandler.showNameText(type.name, type.iconImage);
+        messageHandler.showNameText(type.name, type.iconImage, getModifierTypeIconTexture(type));
         if (type instanceof TmModifierType) {
           // prepare the move overlay to be shown with the toggle
           this.moveInfoOverlay.show(allMoves[type.moveId]);
@@ -817,7 +818,9 @@ class ModifierOption extends Phaser.GameObjects.Container {
     this.add(this.itemContainer);
 
     const getItem = () => {
-      const item = globalScene.add.sprite(0, 0, "items", this.modifierTypeOption.type?.iconImage);
+      const type = this.modifierTypeOption.type;
+      const iconTexture = type ? getModifierTypeIconTexture(type) : "items";
+      const item = globalScene.add.sprite(0, 0, iconTexture, iconTexture === "items" ? type?.iconImage : undefined);
       return item;
     };
 

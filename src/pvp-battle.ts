@@ -54,6 +54,7 @@ import type { PokemonFormChangeItemModifier, PokemonHeldItemModifier } from "#mo
 import { getModifierTypeFuncById, type ModifierType, ModifierTypeGenerator } from "#modifiers/modifier-type";
 import { PokemonData } from "#system/pokemon-data";
 import type { Starter } from "#types/save-data";
+import { getModifierTypeIconTexture } from "#utils/modifier-utils";
 
 /** Fixed biome used for every PvP battle's arena — arbitrary but must be the same on both clients (it is, since it's a constant, not read from any run state). */
 const PVP_BIOME = BiomeId.TOWN;
@@ -120,10 +121,21 @@ export function hasPvpFormChangeItem(pokemon: Pokemon): boolean {
   return !pvpFormChangeUsed && getPvpFormChangeItemModifiers(pokemon).length > 0;
 }
 
-/** The "items" spritesheet frame name for the given Pokemon's registered form-change item (the same icon shown in the shop/party screen — see Modifier.getIcon() in modifier.ts), or null if it has none. Used to show the actual item on the command menu's repurposed Tera slot instead of a type icon. */
-export function getPvpFormChangeItemIcon(pokemon: Pokemon): string | null {
+/**
+ * The texture key and (for the shared "items" atlas only) frame name for the given Pokemon's
+ * registered form-change item's icon (the same icon shown in the shop/party screen — see
+ * Modifier.getIcon() in modifier.ts and getModifierTypeIconTexture() in modifier-type.ts), or
+ * null if it has none. Used to show the actual item on the command menu's repurposed Tera slot
+ * instead of a type icon.
+ */
+export function getPvpFormChangeItemIcon(pokemon: Pokemon): { texture: string; frame?: string | undefined } | null {
   const modifiers = getPvpFormChangeItemModifiers(pokemon);
-  return modifiers.length > 0 ? modifiers[0].type.iconImage : null;
+  if (modifiers.length === 0) {
+    return null;
+  }
+  const type = modifiers[0].type;
+  const texture = getModifierTypeIconTexture(type);
+  return { texture, frame: texture === "items" ? type.iconImage : undefined };
 }
 
 /**
