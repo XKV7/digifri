@@ -1,19 +1,19 @@
 {
-  "intro": "{{arceusName}} appeared!",
+  "intro": "An overwhelming, otherworldly presence fills the air…$Then, {{arceusName}} appears before you!",
   "title": "The Arceus Trial",
-  "description": "(placeholder text)",
+  "description": "The Legendary Pokémon Arceus wishes to test your strength.\nDefeat it, and you will permanently obtain Arceus's true power - the Heavenly Flute.",
   "query": "What will you do?",
   "option": {
     "1": {
       "label": "Accept the trial",
       "tooltip": "(-) Extremely Tough Battle\n(+) Unlocks the Heavenly Flute",
-      "selected": "The battle begins!"
+      "selected": "Arceus fixes you with a piercing gaze.$The trial begins!"
     },
     "2": {
       "label": "Turn away",
       "tooltip": "(-) No reward",
-      "selected": "You turned away."
+      "selected": "Arceus watches you in silence.$You quietly turn away."
     }
   },
-  "outro": "(placeholder text)"
+  "outro": "Arceus lets out a low, resonant cry as its power recedes.$\"You who carry the seed of all things... you have passed my trial.\"$The Heavenly Flute appears in your hands!"
 }
