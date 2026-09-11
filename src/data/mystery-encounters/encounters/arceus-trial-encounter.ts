@@ -27,6 +27,7 @@ import {
 } from "#mystery-encounters/encounter-phase-utils";
 import type { MysteryEncounter } from "#mystery-encounters/mystery-encounter";
 import { MysteryEncounterBuilder } from "#mystery-encounters/mystery-encounter";
+import { RandomChanceRequirement } from "#mystery-encounters/mystery-encounter-requirements";
 
 /**
  * Called from DamageAnimPhase#end() (mirroring how the classic-mode Eternatus final boss
@@ -68,6 +69,9 @@ export const ArceusTrialEncounter: MysteryEncounter = MysteryEncounterBuilder.wi
 )
   .withEncounterTier(MysteryEncounterTier.ROGUE)
   .withSceneWaveRangeRequirement(...CLASSIC_MODE_MYSTERY_ENCOUNTER_WAVES)
+  // Additional 1/2048 rarity gate on top of the normal ROGUE tier weighting - see
+  // RandomChanceRequirement's own doc comment.
+  .withSceneRequirement(new RandomChanceRequirement(2048))
   .withMaxAllowedEncounters(1)
   .withFleeAllowed(true)
   .withIntroSpriteConfigs([

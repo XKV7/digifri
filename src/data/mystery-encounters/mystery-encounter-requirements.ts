@@ -16,6 +16,7 @@ import type { PlayerPokemon } from "#field/pokemon";
 import { AttackTypeBoosterModifier } from "#modifiers/modifier";
 import type { AttackTypeBoosterModifierType } from "#modifiers/modifier-type";
 import { coerceArray } from "#utils/array";
+import { randSeedInt } from "#utils/common";
 
 export interface EncounterRequirement {
   meetsRequirement(): boolean; // Boolean to see if a requirement is met
@@ -202,6 +203,35 @@ export class PreviousEncounterRequirement extends EncounterSceneRequirement {
         .find(e => e.type === this.previousEncounterRequirement)?.[0]
         .toString() ?? "",
     ];
+  }
+}
+
+/**
+ * Gates an encounter behind an additional random roll, independent of its tier's own weighting -
+ * useful for making one specific encounter rarer than its tier's other encounters without
+ * affecting how often the tier itself gets picked (see BattleScene#getMysteryEncounter).
+ * @remarks
+ * Only rolled once per real spawn attempt, not on every save reload - once a wave has been
+ * decided to be this encounter, BattleScene#getMysteryEncounter reuses that decision from session
+ * save data on subsequent loads rather than re-rolling the encounter pool.
+ */
+export class RandomChanceRequirement extends EncounterSceneRequirement {
+  chanceDenominator: number;
+
+  /**
+   * @param chanceDenominator - the requirement is met with probability `1 / chanceDenominator`
+   */
+  constructor(chanceDenominator: number) {
+    super();
+    this.chanceDenominator = chanceDenominator;
+  }
+
+  override meetsRequirement(): boolean {
+    return randSeedInt(this.chanceDenominator) === 0;
+  }
+
+  override getDialogueToken(_pokemon?: PlayerPokemon): [string, string] {
+    return ["chanceDenominator", this.chanceDenominator.toString()];
   }
 }
 
