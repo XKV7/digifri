@@ -14,7 +14,6 @@ import { MysteryEncounterTier } from "#enums/mystery-encounter-tier";
 import { MysteryEncounterType } from "#enums/mystery-encounter-type";
 import { Nature } from "#enums/nature";
 import { SpeciesId } from "#enums/species-id";
-import { Unlockables } from "#enums/unlockables";
 import type { Pokemon } from "#field/pokemon";
 import type { PokemonFormChangeItemModifier } from "#modifiers/modifier";
 import type { FormChangeItemModifierType } from "#modifiers/modifier-type";
@@ -60,9 +59,11 @@ export function initArceusTrialPhaseTwo(pokemon: Pokemon): void {
 const namespace = "mysteryEncounters/arceusTrial";
 
 /**
- * The Arceus Trial encounter - a rare battle against a wild Arceus. Winning permanently unlocks
- * the Heavenly Flute (see legend-plate.ts) into the normal Master-tier reward pool, mirroring how
- * Mini Black Hole is unlocked (see init-modifier-pools.ts).
+ * The Arceus Trial encounter - a rare, battle-only encounter against a wild Arceus (catching it is
+ * disabled - see withCatchAllowed(false) below). The win reward is intentionally undecided for now
+ * (see the TODO in option 1's handler) - it no longer auto-unlocks the Heavenly Flute, which is
+ * otherwise unobtainable by any means while Unlockables.HEAVENLY_FLUTE stays permanently false
+ * (nothing else in the codebase sets it - see init-modifier-pools.ts's own isUnlocked() gate).
  */
 export const ArceusTrialEncounter: MysteryEncounter = MysteryEncounterBuilder.withEncounterType(
   MysteryEncounterType.ARCEUS_TRIAL,
@@ -74,6 +75,7 @@ export const ArceusTrialEncounter: MysteryEncounter = MysteryEncounterBuilder.wi
   .withSceneRequirement(new RandomChanceRequirement(2048))
   .withMaxAllowedEncounters(1)
   .withFleeAllowed(true)
+  .withCatchAllowed(false)
   .withIntroSpriteConfigs([
     {
       species: SpeciesId.ARCEUS,
@@ -126,11 +128,9 @@ export const ArceusTrialEncounter: MysteryEncounter = MysteryEncounterBuilder.wi
     async () => {
       const encounter = globalScene.currentBattle.mysteryEncounter!;
       setEncounterRewards({ fillRemaining: true });
-      encounter.onRewards = async () => {
-        if (!globalScene.gameData.isUnlocked(Unlockables.HEAVENLY_FLUTE)) {
-          globalScene.phaseManager.unshiftNew("UnlockPhase", Unlockables.HEAVENLY_FLUTE);
-        }
-      };
+      // TODO: decide the Arceus Trial's own special win reward (previously auto-unlocked the
+      // Heavenly Flute here - removed on request, since obtaining it should be gated behind
+      // something else that hasn't been decided yet).
       encounter.dialogue.outro = [{ text: `${namespace}:outro` }];
       await transitionMysteryEncounterIntroVisuals(true, true, 500);
       await initBattleWithEnemyConfig(encounter.enemyPartyConfigs[0]);

@@ -102,7 +102,13 @@ describe("Arceus Trial - Mystery Encounter", () => {
     }
   });
 
-  it("should unlock the Heavenly Flute after winning", async () => {
+  it("does not allow catching the enemy Arceus", async () => {
+    await game.runToMysteryEncounter(MysteryEncounterType.ARCEUS_TRIAL, defaultParty);
+
+    expect(ArceusTrialEncounter.catchAllowed).toBe(false);
+  });
+
+  it("does not unlock the Heavenly Flute after winning (reward is still undecided)", async () => {
     await game.runToMysteryEncounter(MysteryEncounterType.ARCEUS_TRIAL, defaultParty);
     await runMysteryEncounterToEnd(game, 1, undefined, true);
 
@@ -110,11 +116,9 @@ describe("Arceus Trial - Mystery Encounter", () => {
 
     // Playing out a full real battle turn inside a Mystery Encounter reliably hangs the test
     // harness, so skip straight to victory the same way other ME encounter tests do, then let the
-    // interceptor drive MysteryEncounterRewardsPhase (which actually calls encounter.onRewards())
-    // and the UnlockPhase it queues to completion.
+    // interceptor drive MysteryEncounterRewardsPhase (which actually calls encounter.onRewards()).
     await skipBattleRunMysteryEncounterRewardsPhase(game);
-    await game.phaseInterceptor.to("UnlockPhase");
 
-    expect(scene.gameData.isUnlocked(Unlockables.HEAVENLY_FLUTE)).toBe(true);
+    expect(scene.gameData.isUnlocked(Unlockables.HEAVENLY_FLUTE)).toBe(false);
   });
 });
