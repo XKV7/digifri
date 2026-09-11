@@ -259,9 +259,32 @@ async function giveShinyZacianEgg(): Promise<void> {
   window.location.reload();
 }
 
+/**
+ * Adds two real eggs to the current save - one guaranteed to hatch into Pikachu, one guaranteed to
+ * hatch into Manaphy - using the same `species` egg-option override {@linkcode giveMissingNoEgg}
+ * uses to bypass the normal egg-tier species pool (and, for Manaphy specifically, its own
+ * Manaphy-vs-Phione roll in Egg#rollSpecies).
+ */
+async function givePikachuAndManaphyEggs(): Promise<void> {
+  const gameData = globalScene?.gameData;
+  if (!gameData) {
+    alert("게임이 아직 로딩되지 않았습니다. 타이틀 화면이 뜬 뒤 다시 시도해주세요.");
+    return;
+  }
+
+  new Egg({ species: SpeciesId.PIKACHU, sourceType: EggSourceType.EVENT }).addEggToGameData();
+  new Egg({ species: SpeciesId.MANAPHY, sourceType: EggSourceType.EVENT }).addEggToGameData();
+
+  await gameData.saveSystem();
+  alert("피카츄 알과 마나피 알을 지급했습니다. 알 목록에서 부화시키면 얻을 수 있어요. 새로고침합니다.");
+  window.location.reload();
+}
+
 (window as unknown as { cheatUnlockAllPokemon: () => Promise<void> }).cheatUnlockAllPokemon = unlockAllPokemon;
 (window as unknown as { cheatToggleEndlessCostLimit: () => void }).cheatToggleEndlessCostLimit = toggleEndlessCostLimit;
 (window as unknown as { cheatAddExVouchers: (amount: number) => Promise<void> }).cheatAddExVouchers = addExVouchers;
 (window as unknown as { cheatGiveMissingNo: () => Promise<void> }).cheatGiveMissingNo = giveMissingNo;
 (window as unknown as { cheatGiveMissingNoEgg: () => Promise<void> }).cheatGiveMissingNoEgg = giveMissingNoEgg;
 (window as unknown as { cheatGiveShinyZacianEgg: () => Promise<void> }).cheatGiveShinyZacianEgg = giveShinyZacianEgg;
+(window as unknown as { cheatGivePikachuAndManaphyEggs: () => Promise<void> }).cheatGivePikachuAndManaphyEggs =
+  givePikachuAndManaphyEggs;
