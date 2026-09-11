@@ -51,7 +51,12 @@ import type { IntClosedRange, TupleOf } from "type-fest";
  * }
  * ```
  */
-const overrides = {} satisfies Partial<InstanceType<OverridesType>>;
+const overrides: Partial<InstanceType<OverridesType>> = {
+  // TEMPORARY - for testing the Arceus Trial mystery encounter. Revert once done: forces every
+  // eligible wave (for every player on the live site) into this exact encounter.
+  MYSTERY_ENCOUNTER_RATE_OVERRIDE: 256,
+  MYSTERY_ENCOUNTER_OVERRIDE: MysteryEncounterType.ARCEUS_TRIAL,
+};
 
 /**
  * If you need to add Overrides values for local testing do that inside {@linkcode overrides}
