@@ -67,10 +67,10 @@ const namespace = "mysteryEncounters/arceusTrial";
 export const ArceusTrialEncounter: MysteryEncounter = MysteryEncounterBuilder.withEncounterType(
   MysteryEncounterType.ARCEUS_TRIAL,
 )
-  .withEncounterTier(MysteryEncounterTier.ROGUE)
+  .withEncounterTier(MysteryEncounterTier.MASTER)
   .withSceneWaveRangeRequirement(...CLASSIC_MODE_MYSTERY_ENCOUNTER_WAVES)
-  // Additional 1/2048 rarity gate on top of the normal ROGUE tier weighting - see
-  // RandomChanceRequirement's own doc comment.
+  // Additional 1/2048 rarity gate on top of the MASTER tier's own (already very low) weighting -
+  // see RandomChanceRequirement's own doc comment.
   .withSceneRequirement(new RandomChanceRequirement(2048))
   .withMaxAllowedEncounters(1)
   .withFleeAllowed(true)

@@ -3566,6 +3566,7 @@ export class BattleScene extends SceneBase {
       MysteryEncounterTier.GREAT,
       MysteryEncounterTier.ULTRA,
       MysteryEncounterTier.ROGUE,
+      MysteryEncounterTier.MASTER,
     ];
 
     // Adjust tier weights by previously encountered events to lower odds of only Common/Great in run
@@ -3583,6 +3584,7 @@ export class BattleScene extends SceneBase {
     const commonThreshold = totalWeight - tierWeights[0];
     const greatThreshold = totalWeight - tierWeights[0] - tierWeights[1];
     const ultraThreshold = totalWeight - tierWeights[0] - tierWeights[1] - tierWeights[2];
+    const rogueThreshold = totalWeight - tierWeights[0] - tierWeights[1] - tierWeights[2] - tierWeights[3];
     let tier: MysteryEncounterTier | null =
       tierValue > commonThreshold
         ? MysteryEncounterTier.COMMON
@@ -3590,7 +3592,9 @@ export class BattleScene extends SceneBase {
           ? MysteryEncounterTier.GREAT
           : tierValue > ultraThreshold
             ? MysteryEncounterTier.ULTRA
-            : MysteryEncounterTier.ROGUE;
+            : tierValue > rogueThreshold
+              ? MysteryEncounterTier.ROGUE
+              : MysteryEncounterTier.MASTER;
 
     if (activeOverrides.MYSTERY_ENCOUNTER_TIER_OVERRIDE != null) {
       tier = activeOverrides.MYSTERY_ENCOUNTER_TIER_OVERRIDE;
@@ -3641,7 +3645,9 @@ export class BattleScene extends SceneBase {
         })
         .map(m => allMysteryEncounters[m]);
       // Decrement tier
-      if (tier === MysteryEncounterTier.ROGUE) {
+      if (tier === MysteryEncounterTier.MASTER) {
+        tier = MysteryEncounterTier.ROGUE;
+      } else if (tier === MysteryEncounterTier.ROGUE) {
         tier = MysteryEncounterTier.ULTRA;
       } else if (tier === MysteryEncounterTier.ULTRA) {
         tier = MysteryEncounterTier.GREAT;
