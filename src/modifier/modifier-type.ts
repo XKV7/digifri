@@ -2199,6 +2199,8 @@ const modifierTypeInitObj = Object.freeze({
   MINI_BLACK_HOLE: () =>
     new TurnHeldItemTransferModifierType("modifierType:ModifierType.MINI_BLACK_HOLE", "mini_black_hole"),
 
+  HEAVENLY_FLUTE: () => new FormChangeItemModifierType(FormChangeItem.HEAVENLY_FLUTE),
+
   VOUCHER: () => new AddVoucherModifierType(VoucherType.REGULAR, 1),
   VOUCHER_PLUS: () => new AddVoucherModifierType(VoucherType.PLUS, 1),
   VOUCHER_PREMIUM: () => new AddVoucherModifierType(VoucherType.PREMIUM, 1),

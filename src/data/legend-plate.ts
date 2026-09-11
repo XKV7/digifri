@@ -22,6 +22,17 @@ export function hasActiveLegendPlate(pokemon: Pokemon): boolean {
   );
 }
 
+/** Whether `pokemon` is currently holding an active Heavenly Flute (`FormChangeItem.HEAVENLY_FLUTE`). */
+export function hasActiveHeavenlyFlute(pokemon: Pokemon): boolean {
+  return !!globalScene.findModifier(
+    m =>
+      m instanceof PokemonFormChangeItemModifier
+      && m.pokemonId === pokemon.id
+      && m.formChangeItem === FormChangeItem.HEAVENLY_FLUTE
+      && m.active,
+  );
+}
+
 /**
  * Picks the regular {@linkcode PokemonType} that is most effective (highest pure type-chart
  * multiplier) against `target`, ignoring ability-based immunities. Ties are broken by lowest
@@ -52,7 +63,10 @@ export function getMostEffectiveTypeAgainst(target: Pokemon): PokemonType {
  * `pokemon.species.forms` by index.
  */
 export function getLegendPlateFormKey(pokemon: Pokemon, target: Pokemon): string | null {
-  if (pokemon.species.speciesId !== SpeciesId.ARCEUS || !hasActiveLegendPlate(pokemon)) {
+  if (
+    pokemon.species.speciesId !== SpeciesId.ARCEUS
+    || !(hasActiveLegendPlate(pokemon) || hasActiveHeavenlyFlute(pokemon))
+  ) {
     return null;
   }
 

@@ -638,6 +638,16 @@ function initMasterModifierPool() {
         globalScene.gameMode.isDaily
         || (!globalScene.gameMode.isFreshStartChallenge()
           && globalScene.gameData.isUnlocked(Unlockables.MINI_BLACK_HOLE))
+          ? 2
+          : 0,
+      2,
+    ),
+    new WeightedModifierType(
+      modifierTypes.HEAVENLY_FLUTE,
+      () =>
+        globalScene.gameMode.isDaily
+        || (!globalScene.gameMode.isFreshStartChallenge()
+          && globalScene.gameData.isUnlocked(Unlockables.HEAVENLY_FLUTE))
           ? 1
           : 0,
       1,

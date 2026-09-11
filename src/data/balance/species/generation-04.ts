@@ -11318,6 +11318,34 @@ export function initGenerationFour(): SpeciesDataMapConfig {
           baseFriendship: 0,
           baseExp: 360,
         }),
+        // "True Form" - obtained via the Heavenly Flute (see legend-plate.ts). Deliberately reuses
+        // Normal form's own sprite/icon/cry (formSpriteKey) rather than needing new art - its stat
+        // boost is applied dynamically in Pokemon#calculateBaseStats (gated on holding an active
+        // Heavenly Flute) rather than being baked into this form's own base stats, so the boost
+        // isn't lost whenever Legend Plate's dynamic retyping switches the display form away from
+        // this one to one of the 18 type-forms above.
+        new PokemonForm({
+          formName: "True Form",
+          formKey: "true-form",
+          formSpriteKey: "normal",
+          type1: PokemonType.NORMAL,
+          type2: null,
+          height: 3.2,
+          weight: 320,
+          ability1: AbilityId.MULTITYPE,
+          ability2: AbilityId.NONE,
+          abilityHidden: AbilityId.NONE,
+          baseTotal: 720,
+          baseHp: 120,
+          baseAtk: 120,
+          baseDef: 120,
+          baseSpatk: 120,
+          baseSpdef: 120,
+          baseSpd: 120,
+          catchRate: 3,
+          baseFriendship: 0,
+          baseExp: 360,
+        }),
       ],
     }),
     starter: SpeciesId.ARCEUS,
@@ -11473,6 +11501,14 @@ export function initGenerationFour(): SpeciesDataMapConfig {
         quiet: false,
         conditions: [new SpeciesFormChangeCondition(p => p.hasAbility(AbilityId.MULTITYPE))],
       }),
+      new SpeciesFormChange({
+        speciesId: SpeciesId.ARCEUS,
+        preFormKey: "normal",
+        evoFormKey: "true-form",
+        trigger: new SpeciesFormChangeItemTrigger(FormChangeItem.HEAVENLY_FLUTE),
+        quiet: false,
+        conditions: [new SpeciesFormChangeCondition(p => p.hasAbility(AbilityId.MULTITYPE))],
+      }),
     ],
     eggTier: EggTier.LEGENDARY,
     passives: {
@@ -11494,6 +11530,7 @@ export function initGenerationFour(): SpeciesDataMapConfig {
       15: AbilityId.ADAPTABILITY,
       16: AbilityId.ADAPTABILITY,
       17: AbilityId.ADAPTABILITY,
+      18: AbilityId.ADAPTABILITY,
     },
     levelMoves: [
       [1, MoveId.SEISMIC_TOSS],

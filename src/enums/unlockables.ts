@@ -3,4 +3,5 @@ export enum Unlockables {
   MINI_BLACK_HOLE,
   SPLICED_ENDLESS_MODE,
   EVIOLITE,
+  HEAVENLY_FLUTE,
 }

@@ -175,4 +175,6 @@ export enum FormChangeItem {
   NORMAL_MEMORY,
 
   // #endregion Form Change Items
+
+  HEAVENLY_FLUTE,
 }

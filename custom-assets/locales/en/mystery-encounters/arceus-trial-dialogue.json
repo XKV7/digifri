@@ -1,0 +1,19 @@
+{
+  "intro": "A blinding light splits the sky, and {{arceusName}} descends to test your resolve.",
+  "title": "The Arceus Trial",
+  "description": "{{arceusName}} regards you in silence, its thousand-plate form shimmering with every type at once. This feels like far more than an ordinary encounter.",
+  "query": "What will you do?",
+  "option": {
+    "1": {
+      "label": "Accept the trial",
+      "tooltip": "(-) Extremely Tough Battle\n(+) Unlocks the Heavenly Flute",
+      "selected": "{{arceusName}} raises its plates. The trial begins!"
+    },
+    "2": {
+      "label": "Turn away",
+      "tooltip": "(-) No reward",
+      "selected": "You decide this is not a trial you're ready for, and leave."
+    }
+  },
+  "outro": "{{arceusName}} nods once, satisfied, and fades into light. You feel that something has changed."
+}

@@ -49,6 +49,7 @@ import {
   SpeciesFormChangePostMoveTrigger,
 } from "#data/form-change-triggers";
 import { Gender } from "#data/gender";
+import { hasActiveHeavenlyFlute } from "#data/legend-plate";
 import { getNatureStatMultiplier } from "#data/nature";
 import {
   CustomPokemonData,
@@ -1618,6 +1619,15 @@ export abstract class Pokemon extends Phaser.GameObjects.Container {
   calculateBaseStats(): number[] {
     const baseStats = this.getSpeciesForm(true).baseStats.slice(0);
     applyChallenges(ChallengeType.FLIP_STAT, this, baseStats);
+    // Heavenly Flute - applied here (rather than baked into the "True Form" PokemonForm's own base
+    // stats) so the boost persists across Legend Plate's dynamic retyping, which changes this
+    // Pokemon's displayed form away from "true-form" to one of Arceus's 18 type-forms as soon as it
+    // uses Judgment; see legend-plate.ts.
+    if (hasActiveHeavenlyFlute(this)) {
+      for (const s of PERMANENT_STATS) {
+        baseStats[s] += 40;
+      }
+    }
     // Shuckle Juice
     globalScene.applyModifiers(PokemonBaseStatTotalModifier, this.isPlayer(), this, baseStats);
     // Old Gateau
