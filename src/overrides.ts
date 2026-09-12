@@ -275,9 +275,9 @@ class DefaultOverrides {
    *
    * Note: Make sure `STARTING_WAVE_OVERRIDE > 10`, otherwise MEs won't trigger
    */
-  readonly MYSTERY_ENCOUNTER_RATE_OVERRIDE: number | null = 256;
+  readonly MYSTERY_ENCOUNTER_RATE_OVERRIDE: number | null = null;
   readonly MYSTERY_ENCOUNTER_TIER_OVERRIDE: MysteryEncounterTier | null = null;
-  readonly MYSTERY_ENCOUNTER_OVERRIDE: MysteryEncounterType | null = MysteryEncounterType.ADEUS_ENCOUNTER;
+  readonly MYSTERY_ENCOUNTER_OVERRIDE: MysteryEncounterType | null = null;
 
   // -------------------------
   // MODIFIER / ITEM OVERRIDES

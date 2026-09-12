@@ -16,6 +16,12 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    date: "2026-09-12i",
+    changes: [
+      "테스트용 아데우스 인카운터 강제 발생 설정을 원상태로 되돌림 - 이제 다시 평소처럼 1/2048 확률 + MASTER 등급 가중치를 통과해야만 등장함 (테스트 완료)",
+    ],
+  },
+  {
     date: "2026-09-12h",
     changes: [
       "MissingNo.의 특성 구성 재조정 - 방어 특성은 매직가드로 원복(상태이상 대미지는 다시 완전 차단), '에러'는 패시브로 이동해서 일격기 필중 + 기술로 받는 모든 대미지 1 고정 효과를 그대로 유지",
