@@ -8,7 +8,6 @@ import { SpeciesId } from "#enums/species-id";
 import { Stat } from "#enums/stat";
 import { StatusEffect } from "#enums/status-effect";
 import { GameManager } from "#test/framework/game-manager";
-import { toDmgValue } from "#utils/common";
 import { getDexNumber } from "#utils/pokemon-utils";
 import Phaser from "phaser";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -36,7 +35,7 @@ describe("Species - MissingNo.", () => {
     const species = speciesDataRegistry.getSpecies(SpeciesId.MISSING_NO);
     expect(species.type1).toBe(PokemonType.NORMAL);
     expect(species.type2).toBe(PokemonType.FIGHTING);
-    expect(species.ability1).toBe(AbilityId.ERROR);
+    expect(species.ability1).toBe(AbilityId.MAGIC_GUARD);
     expect(species.baseStats[Stat.HP]).toBe(150);
     expect(species.baseStats[Stat.ATK]).toBe(150);
     expect(species.baseStats[Stat.DEF]).toBe(150);
@@ -44,22 +43,23 @@ describe("Species - MissingNo.", () => {
     expect(species.baseStats[Stat.SPDEF]).toBe(150);
     expect(species.baseStats[Stat.SPD]).toBe(150);
     expect(species.malePercent).toBeNull();
-    expect(speciesDataRegistry.getPassive(SpeciesId.MISSING_NO, 0)).toBe(AbilityId.NO_GUARD);
+    expect(speciesDataRegistry.getPassive(SpeciesId.MISSING_NO, 0)).toBe(AbilityId.ERROR);
   });
 
-  it("should have No Guard's accuracy-bypass effect when its passive is active", async () => {
+  it("should always hit with its own OHKO moves when its passive (Error) is active", async () => {
     // .passiveAbility() forces the passive active regardless of whether it's actually been
     // unlocked with candy on this save - same technique every other passive-behavior test in
     // this file uses.
-    game.override.starterSpecies(SpeciesId.MISSING_NO).passiveAbility(AbilityId.NO_GUARD);
+    game.override.starterSpecies(SpeciesId.MISSING_NO).passiveAbility(AbilityId.ERROR);
     await game.classicMode.startBattle(SpeciesId.MISSING_NO);
 
     const missingno = game.field.getPlayerPokemon();
-    expect(missingno.hasAbilityWithAttr("AlwaysHitAbAttr")).toBe(true);
+    expect(missingno.hasAbilityWithAttr("AlwaysHitOhkoAbAttr")).toBe(true);
   });
 
   it("takes exactly 1 damage from a move regardless of its calculated power, including fixed-damage and OHKO moves", async () => {
-    game.override.enemySpecies(SpeciesId.MISSING_NO).enemyAbility(AbilityId.ERROR).enemyLevel(50);
+    // .enemyPassiveAbility() forces the passive active, same technique as above.
+    game.override.enemySpecies(SpeciesId.MISSING_NO).enemyPassiveAbility(AbilityId.ERROR).enemyLevel(50);
     await game.classicMode.startBattle(SpeciesId.MAGIKARP);
 
     const player = game.field.getPlayerPokemon();
@@ -71,7 +71,7 @@ describe("Species - MissingNo.", () => {
   });
 
   it("takes 0 damage (not 1) from a move it's immune to", async () => {
-    game.override.enemySpecies(SpeciesId.MISSING_NO).enemyAbility(AbilityId.ERROR).enemyLevel(50);
+    game.override.enemySpecies(SpeciesId.MISSING_NO).enemyPassiveAbility(AbilityId.ERROR).enemyLevel(50);
     await game.classicMode.startBattle(SpeciesId.MAGIKARP);
 
     const player = game.field.getPlayerPokemon();
@@ -81,10 +81,10 @@ describe("Species - MissingNo.", () => {
     expect(missingno.getAttackDamage({ source: player, move: allMoves[MoveId.SHADOW_BALL] }).damage).toBe(0);
   });
 
-  it("takes normal, max-HP-proportional damage from poison instead of the fixed-1-damage clamp", async () => {
+  it("takes no damage at all from poison, since Magic Guard (its actual ability1) blocks status damage outright", async () => {
     game.override
       .enemySpecies(SpeciesId.MISSING_NO)
-      .enemyAbility(AbilityId.ERROR)
+      .enemyAbility(AbilityId.MAGIC_GUARD)
       .enemyLevel(50)
       .enemyMoveset(MoveId.SPLASH)
       .moveset(MoveId.SPLASH);
@@ -97,9 +97,7 @@ describe("Species - MissingNo.", () => {
     game.move.select(MoveId.SPLASH);
     await game.toEndOfTurn();
 
-    // Confirms this isn't blocked outright either - MAGIC_GUARD (which ERROR replaced as
-    // MissingNo.'s ability1) would have prevented status damage entirely.
-    expect(startingHp - missingno.hp).toBe(toDmgValue(missingno.getMaxHp() / 8));
+    expect(missingno.hp).toBe(startingHp);
   });
 
   it("should be a starter, belong to the Common egg tier, and appear in getAllStarters", () => {

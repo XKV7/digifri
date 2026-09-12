@@ -16,6 +16,12 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    date: "2026-09-12h",
+    changes: [
+      "MissingNo.의 특성 구성 재조정 - 방어 특성은 매직가드로 원복(상태이상 대미지는 다시 완전 차단), '에러'는 패시브로 이동해서 일격기 필중 + 기술로 받는 모든 대미지 1 고정 효과를 그대로 유지",
+    ],
+  },
+  {
     date: "2026-09-12g",
     changes: [
       "MissingNo.의 방어 특성을 매직가드에서 전용 특성 '에러'로 교체 - 기술로 받는 모든 대미지(위력 계산은 물론 고정 대미지·일격기 포함)가 항상 1로 고정되고, 대신 매직가드가 막아주던 상태이상(독/화상 등) 대미지는 이제 정상적으로 최대 체력 비례로 들어감",

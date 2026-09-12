@@ -3617,12 +3617,13 @@ export abstract class Pokemon extends Phaser.GameObjects.Container {
       };
     }
 
-    // MissingNo.'s own "glitch" ability (see AbilityId.ERROR) clamps every hit of move damage down
-    // to exactly 1 - placed here, before the fixed-damage/OHKO branches below, so it overrides
-    // those too (its moveset includes both Final Gambit and, at level 100, Guillotine). Status
-    // effect damage (poison/burn/toxic/etc.) is untouched by this, since it's applied via
+    // MissingNo.'s own passive "glitch" ability (see AbilityId.ERROR) clamps every hit of move
+    // damage down to exactly 1 - placed here, before the fixed-damage/OHKO branches below, so it
+    // overrides those too (its moveset includes both Final Gambit and, at level 100, Guillotine).
+    // Doesn't touch status effect damage (poison/burn/toxic/etc.) at all - that's applied via
     // Pokemon#damage() directly rather than through this method (see
-    // post-turn-status-effect-phase.ts) - it keeps scaling normally off max HP.
+    // post-turn-status-effect-phase.ts), and is instead blocked outright by MissingNo.'s actual
+    // ability1, MAGIC_GUARD, same as for any other Magic Guard holder.
     if (!ignoreAbility && this.hasAbility(AbilityId.ERROR)) {
       return {
         cancelled: false,
