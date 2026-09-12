@@ -106,7 +106,12 @@ export const AdeusEncounter: MysteryEncounter = MysteryEncounterBuilder.withEnco
           globalScene.phaseManager.unshiftNew("UnlockPhase", Unlockables.ADEUS);
         }
       };
-      encounter.dialogue.outro = [{ text: `${namespace}:outro` }];
+      // Replaces (rather than mutates) `dialogue` - `MysteryEncounter`'s constructor only shallow-
+      // copies the encounter template (see its `Object.assign` call), so every instance built from
+      // the same template shares one `dialogue` object; mutating `.outro` in place would leak into
+      // that shared object and show this outro on every future encounter of this type for the rest
+      // of the session, including ones ended via option 2's leaveEncounterWithoutBattle() below.
+      encounter.dialogue = { ...encounter.dialogue, outro: [{ text: `${namespace}:outro` }] };
       await transitionMysteryEncounterIntroVisuals(true, true, 500);
       await initBattleWithEnemyConfig(encounter.enemyPartyConfigs[0]);
     },

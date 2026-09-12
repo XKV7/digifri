@@ -89,4 +89,16 @@ describe("Adeus - Mystery Encounter", () => {
     expect(scene.gameData.isUnlocked(Unlockables.ADEUS)).toBe(true);
     expect(scene.gameData.dexData[SpeciesId.ADEUS].caughtAttr).not.toBe(0n);
   });
+
+  it("does not leak the post-victory outro dialogue into the shared encounter template", async () => {
+    await game.runToMysteryEncounter(MysteryEncounterType.ADEUS_ENCOUNTER, defaultParty);
+    await runMysteryEncounterToEnd(game, 1, undefined, true);
+
+    // The battle's own encounter instance gets the win-only outro text set on it...
+    expect(scene.currentBattle.mysteryEncounter?.dialogue.outro).toStrictEqual([{ text: `${namespace}:outro` }]);
+    // ...but the exported template - which every future encounter instance (including ones ended
+    // by retreating via option 2) is built from - must stay untouched, or that outro leaks into
+    // encounters that never fought Adeus at all.
+    expect(AdeusEncounter.dialogue.outro).toBeUndefined();
+  });
 });

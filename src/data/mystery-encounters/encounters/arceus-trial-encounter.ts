@@ -131,7 +131,12 @@ export const ArceusTrialEncounter: MysteryEncounter = MysteryEncounterBuilder.wi
       // TODO: decide the Arceus Trial's own special win reward (previously auto-unlocked the
       // Heavenly Flute here - removed on request, since obtaining it should be gated behind
       // something else that hasn't been decided yet).
-      encounter.dialogue.outro = [{ text: `${namespace}:outro` }];
+      // Replaces (rather than mutates) `dialogue` - `MysteryEncounter`'s constructor only shallow-
+      // copies the encounter template (see its `Object.assign` call), so every instance built from
+      // the same template shares one `dialogue` object; mutating `.outro` in place would leak into
+      // that shared object and show this outro on every future encounter of this type for the rest
+      // of the session, including ones ended via option 2's leaveEncounterWithoutBattle() below.
+      encounter.dialogue = { ...encounter.dialogue, outro: [{ text: `${namespace}:outro` }] };
       await transitionMysteryEncounterIntroVisuals(true, true, 500);
       await initBattleWithEnemyConfig(encounter.enemyPartyConfigs[0]);
     },
