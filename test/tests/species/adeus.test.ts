@@ -6,10 +6,13 @@
 
 import { AbilityId } from "#enums/ability-id";
 import { ArenaTagType } from "#enums/arena-tag-type";
+import { Command } from "#enums/command";
 import { MoveId } from "#enums/move-id";
 import { SpeciesId } from "#enums/species-id";
 import { BATTLE_STATS, Stat } from "#enums/stat";
+import type { CommandPhase } from "#phases/command-phase";
 import { GameManager } from "#test/framework/game-manager";
+import i18next from "i18next";
 import Phaser from "phaser";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
@@ -96,6 +99,23 @@ describe("Species - Adeus", () => {
     await game.phaseInterceptor.to("StatStageChangePhase");
 
     expect(magikarp.getStatStage(Stat.SPD)).toBe(-2);
+  });
+
+  it("shows a message (rather than doing nothing) when attempting to flee while Event Horizon traps the player", async () => {
+    await game.classicMode.startBattle(SpeciesId.MAGIKARP);
+
+    game.textInterceptor.clearLogs();
+    const commandPhase = game.scene.phaseManager.getCurrentPhase() as CommandPhase;
+    const handled = commandPhase.handleCommand(Command.RUN, 0);
+
+    // The command must be rejected (not silently ignored) and the player told why - the underlying
+    // bug this guards against left both isSwitch cases in CommandPhase#handleTrap with no matching
+    // branch for EventHorizonTag (only TrappedTag/FAIRY_LOCK were handled), so nothing was ever
+    // shown and the game appeared to hang after selecting Run.
+    expect(handled).toBe(false);
+    expect(game.textInterceptor.logs).toContain(
+      i18next.t("battle:noEscapeEventHorizon", { escapeVerb: i18next.t("battle:escapeVerbFlee") }),
+    );
   });
 
   it("clears the Event Horizon field once Adeus leaves the field", async () => {

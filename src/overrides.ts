@@ -103,7 +103,7 @@ class DefaultOverrides {
    * Should never be set to a negative value.
    * @defaultValue `null`
    */
-  readonly STARTING_WAVE_OVERRIDE: number | null = 15;
+  readonly STARTING_WAVE_OVERRIDE: number | null = 20;
   readonly STARTING_BIOME_OVERRIDE: BiomeId | null = null;
   /**
    * Overrides the Time of Day for the given biome.

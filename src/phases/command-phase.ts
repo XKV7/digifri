@@ -508,6 +508,7 @@ export class CommandPhase extends FieldPhase {
     } else {
       const trapTag = playerPokemon.getTag(TrappedTag);
       const fairyLockTag = globalScene.arena.getTagOnSide(ArenaTagType.FAIRY_LOCK, ArenaTagSide.PLAYER);
+      const eventHorizonTag = globalScene.arena.getTagOnSide(ArenaTagType.EVENT_HORIZON, ArenaTagSide.PLAYER);
 
       if (!isSwitch) {
         globalScene.ui.setMode(UiMode.COMMAND, this.fieldIndex);
@@ -517,6 +518,12 @@ export class CommandPhase extends FieldPhase {
         this.showNoEscapeText(trapTag, false);
       } else if (fairyLockTag) {
         this.showNoEscapeText(fairyLockTag, false);
+      } else if (eventHorizonTag) {
+        // EventHorizonTag has no sourceMove, so showNoEscapeText's move-name-shaped message
+        // wouldn't read right here - show a dedicated one instead. Without this branch, neither
+        // isSwitch case shows any feedback at all (the UI mode reset above only runs for the
+        // !isSwitch/flee case), which looks like the game has frozen after selecting the command.
+        this.showNoEventHorizonEscapeText(isSwitch);
       }
     }
 
@@ -596,6 +603,27 @@ export class CommandPhase extends FieldPhase {
             ? getPokemonNameWithAffix(globalScene.getPokemonById(tag.sourceId)!)
             : "",
         moveName: tag.getMoveName(),
+        escapeVerb: i18next.t(isSwitch ? "battle:escapeVerbSwitch" : "battle:escapeVerbFlee"),
+      }),
+      null,
+      () => {
+        globalScene.ui.showText("", 0);
+        if (!isSwitch) {
+          globalScene.ui.setMode(UiMode.COMMAND, this.fieldIndex);
+        }
+      },
+      null,
+      true,
+    );
+  }
+
+  /**
+   * Show a message indicating that the pokemon cannot escape due to the Event Horizon field
+   * (see EventHorizonTag in arena-tag.ts), and then return to the command phase.
+   */
+  private showNoEventHorizonEscapeText(isSwitch: boolean): void {
+    globalScene.ui.showText(
+      i18next.t("battle:noEscapeEventHorizon", {
         escapeVerb: i18next.t(isSwitch ? "battle:escapeVerbSwitch" : "battle:escapeVerbFlee"),
       }),
       null,
