@@ -16150,7 +16150,7 @@ export function initGenerationOne(): SpeciesDataMapConfig {
       type2: PokemonType.FIGHTING,
       height: 1.0,
       weight: 10.0,
-      ability1: AbilityId.MAGIC_GUARD,
+      ability1: AbilityId.ERROR,
       ability2: AbilityId.NONE,
       abilityHidden: AbilityId.NONE,
       baseTotal: 900,

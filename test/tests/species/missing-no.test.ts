@@ -1,11 +1,14 @@
 import { speciesDataRegistry } from "#app/global-species-data-registry";
+import { allMoves } from "#data/data-lists";
 import { AbilityId } from "#enums/ability-id";
 import { EggTier } from "#enums/egg-type";
 import { MoveId } from "#enums/move-id";
 import { PokemonType } from "#enums/pokemon-type";
 import { SpeciesId } from "#enums/species-id";
 import { Stat } from "#enums/stat";
+import { StatusEffect } from "#enums/status-effect";
 import { GameManager } from "#test/framework/game-manager";
+import { toDmgValue } from "#utils/common";
 import { getDexNumber } from "#utils/pokemon-utils";
 import Phaser from "phaser";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -33,7 +36,7 @@ describe("Species - MissingNo.", () => {
     const species = speciesDataRegistry.getSpecies(SpeciesId.MISSING_NO);
     expect(species.type1).toBe(PokemonType.NORMAL);
     expect(species.type2).toBe(PokemonType.FIGHTING);
-    expect(species.ability1).toBe(AbilityId.MAGIC_GUARD);
+    expect(species.ability1).toBe(AbilityId.ERROR);
     expect(species.baseStats[Stat.HP]).toBe(150);
     expect(species.baseStats[Stat.ATK]).toBe(150);
     expect(species.baseStats[Stat.DEF]).toBe(150);
@@ -53,6 +56,50 @@ describe("Species - MissingNo.", () => {
 
     const missingno = game.field.getPlayerPokemon();
     expect(missingno.hasAbilityWithAttr("AlwaysHitAbAttr")).toBe(true);
+  });
+
+  it("takes exactly 1 damage from a move regardless of its calculated power, including fixed-damage and OHKO moves", async () => {
+    game.override.enemySpecies(SpeciesId.MISSING_NO).enemyAbility(AbilityId.ERROR).enemyLevel(50);
+    await game.classicMode.startBattle(SpeciesId.MAGIKARP);
+
+    const player = game.field.getPlayerPokemon();
+    const missingno = game.field.getEnemyPokemon();
+
+    expect(missingno.getAttackDamage({ source: player, move: allMoves[MoveId.TACKLE] }).damage).toBe(1);
+    expect(missingno.getAttackDamage({ source: player, move: allMoves[MoveId.DRAGON_RAGE] }).damage).toBe(1);
+    expect(missingno.getAttackDamage({ source: player, move: allMoves[MoveId.FISSURE] }).damage).toBe(1);
+  });
+
+  it("takes 0 damage (not 1) from a move it's immune to", async () => {
+    game.override.enemySpecies(SpeciesId.MISSING_NO).enemyAbility(AbilityId.ERROR).enemyLevel(50);
+    await game.classicMode.startBattle(SpeciesId.MAGIKARP);
+
+    const player = game.field.getPlayerPokemon();
+    // MissingNo. is Normal/Fighting - Normal-type Pokemon are immune to Ghost-type moves.
+    const missingno = game.field.getEnemyPokemon();
+
+    expect(missingno.getAttackDamage({ source: player, move: allMoves[MoveId.SHADOW_BALL] }).damage).toBe(0);
+  });
+
+  it("takes normal, max-HP-proportional damage from poison instead of the fixed-1-damage clamp", async () => {
+    game.override
+      .enemySpecies(SpeciesId.MISSING_NO)
+      .enemyAbility(AbilityId.ERROR)
+      .enemyLevel(50)
+      .enemyMoveset(MoveId.SPLASH)
+      .moveset(MoveId.SPLASH);
+    await game.classicMode.startBattle(SpeciesId.MAGIKARP);
+
+    const missingno = game.field.getEnemyPokemon();
+    missingno.trySetStatus(StatusEffect.POISON);
+    const startingHp = missingno.hp;
+
+    game.move.select(MoveId.SPLASH);
+    await game.toEndOfTurn();
+
+    // Confirms this isn't blocked outright either - MAGIC_GUARD (which ERROR replaced as
+    // MissingNo.'s ability1) would have prevented status damage entirely.
+    expect(startingHp - missingno.hp).toBe(toDmgValue(missingno.getMaxHp() / 8));
   });
 
   it("should be a starter, belong to the Common egg tier, and appear in getAllStarters", () => {

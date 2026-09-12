@@ -2206,7 +2206,12 @@ export function initAbilities() {
       .attr(PostDefendApplyStatusEffectAbAttr, 100, false, StatusEffect.BURN)
       .bypassFaint()
       .build(),
-    // Not a real ability - MissingNo.'s custom passive.
+    // Not a real ability - MissingNo.'s own ability (replaces MAGIC_GUARD as its ability1). Makes
+    // its own OHKO moves (it learns Guillotine at level 100) always hit. Damage it takes from
+    // moves is separately clamped to exactly 1 - see the AbilityId.ERROR check in
+    // Pokemon#getAttackDamage() in field/pokemon.ts, since that clamp needs to run earlier than
+    // any AbAttr hook in that method (before its fixed-damage/OHKO branches) to also cover those.
+    // Status effect damage is unaffected by that clamp and keeps scaling normally off max HP.
     new AbBuilder(AbilityId.ERROR, 9) //
       .attr(AlwaysHitOhkoAbAttr)
       .build(),

@@ -1,7 +1,7 @@
 {
   "error": {
     "name": "Error",
-    "description": "One-hit KO moves always land."
+    "description": "One-hit KO moves always land. All damage taken from moves is fixed at 1 (status effect damage is unaffected and keeps scaling normally off max HP)."
   },
   "singularity": {
     "name": "Singularity",

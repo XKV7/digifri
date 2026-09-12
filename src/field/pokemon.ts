@@ -3617,6 +3617,20 @@ export abstract class Pokemon extends Phaser.GameObjects.Container {
       };
     }
 
+    // MissingNo.'s own "glitch" ability (see AbilityId.ERROR) clamps every hit of move damage down
+    // to exactly 1 - placed here, before the fixed-damage/OHKO branches below, so it overrides
+    // those too (its moveset includes both Final Gambit and, at level 100, Guillotine). Status
+    // effect damage (poison/burn/toxic/etc.) is untouched by this, since it's applied via
+    // Pokemon#damage() directly rather than through this method (see
+    // post-turn-status-effect-phase.ts) - it keeps scaling normally off max HP.
+    if (!ignoreAbility && this.hasAbility(AbilityId.ERROR)) {
+      return {
+        cancelled: false,
+        result: this.getEffectivenessHitResult(typeMultiplier),
+        damage: 1,
+      };
+    }
+
     // If the attack deals fixed damage, return a result with that much damage
     const fixedDamage = new NumberHolder(0);
     applyMoveAttrs("FixedDamageAttr", source, this, move, fixedDamage);
@@ -3810,24 +3824,33 @@ export abstract class Pokemon extends Phaser.GameObjects.Container {
       console.log(`Move: ${move.name} | Attack damage: ${damage.value}`);
     }
 
-    let hitResult: HitResult;
-    if (typeMultiplier >= 4) {
-      hitResult = HitResult.EXTREMELY_EFFECTIVE;
-    } else if (typeMultiplier >= 2) {
-      hitResult = HitResult.SUPER_EFFECTIVE;
-    } else if (typeMultiplier <= 0.25) {
-      hitResult = HitResult.MOSTLY_INEFFECTIVE;
-    } else if (typeMultiplier <= 0.5) {
-      hitResult = HitResult.NOT_VERY_EFFECTIVE;
-    } else {
-      hitResult = HitResult.EFFECTIVE;
-    }
-
     return {
       cancelled: cancelled.value,
-      result: hitResult,
+      result: this.getEffectivenessHitResult(typeMultiplier),
       damage: damage.value,
     };
+  }
+
+  /**
+   * Classify a move's type-effectiveness multiplier against this Pokemon into the matching
+   * {@linkcode HitResult}, for display purposes (e.g. "It's super effective!").
+   * @param typeMultiplier - The move's total type-effectiveness multiplier
+   * @returns The {@linkcode HitResult} matching `typeMultiplier`
+   */
+  private getEffectivenessHitResult(typeMultiplier: number): HitResult {
+    if (typeMultiplier >= 4) {
+      return HitResult.EXTREMELY_EFFECTIVE;
+    }
+    if (typeMultiplier >= 2) {
+      return HitResult.SUPER_EFFECTIVE;
+    }
+    if (typeMultiplier <= 0.25) {
+      return HitResult.MOSTLY_INEFFECTIVE;
+    }
+    if (typeMultiplier <= 0.5) {
+      return HitResult.NOT_VERY_EFFECTIVE;
+    }
+    return HitResult.EFFECTIVE;
   }
 
   /**
