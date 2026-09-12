@@ -103,7 +103,7 @@ class DefaultOverrides {
    * Should never be set to a negative value.
    * @defaultValue `null`
    */
-  readonly STARTING_WAVE_OVERRIDE: number | null = null;
+  readonly STARTING_WAVE_OVERRIDE: number | null = 15;
   readonly STARTING_BIOME_OVERRIDE: BiomeId | null = null;
   /**
    * Overrides the Time of Day for the given biome.
@@ -275,9 +275,9 @@ class DefaultOverrides {
    *
    * Note: Make sure `STARTING_WAVE_OVERRIDE > 10`, otherwise MEs won't trigger
    */
-  readonly MYSTERY_ENCOUNTER_RATE_OVERRIDE: number | null = null;
+  readonly MYSTERY_ENCOUNTER_RATE_OVERRIDE: number | null = 256;
   readonly MYSTERY_ENCOUNTER_TIER_OVERRIDE: MysteryEncounterTier | null = null;
-  readonly MYSTERY_ENCOUNTER_OVERRIDE: MysteryEncounterType | null = null;
+  readonly MYSTERY_ENCOUNTER_OVERRIDE: MysteryEncounterType | null = MysteryEncounterType.ADEUS_ENCOUNTER;
 
   // -------------------------
   // MODIFIER / ITEM OVERRIDES
