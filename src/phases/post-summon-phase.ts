@@ -1,6 +1,6 @@
 import { applyAbAttrs } from "#abilities/apply-ab-attrs";
 import { globalScene } from "#app/global-scene";
-import { EntryHazardTag } from "#data/arena-tag";
+import { EntryHazardTag, EventHorizonTag } from "#data/arena-tag";
 import { MysteryEncounterPostSummonTag } from "#data/battler-tags";
 import { ArenaTagType } from "#enums/arena-tag-type";
 import { BattlerTagType } from "#enums/battler-tag-type";
@@ -22,6 +22,7 @@ export class PostSummonPhase extends PokemonPhase {
     globalScene.arena.applyTags(ArenaTagType.PENDING_HEAL, false, pokemon);
 
     globalScene.arena.applyTags(EntryHazardTag, false, pokemon);
+    globalScene.arena.applyTags(EventHorizonTag, false, pokemon);
 
     // If this is mystery encounter and has post summon phase tag, apply post summon effects
     if (

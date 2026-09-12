@@ -2429,7 +2429,10 @@ export abstract class Pokemon extends Phaser.GameObjects.Container {
 
     const side = this.isPlayer() ? ArenaTagSide.PLAYER : ArenaTagSide.ENEMY;
     return (
-      trapped.value || !!this.getTag(TrappedTag) || !!globalScene.arena.getTagOnSide(ArenaTagType.FAIRY_LOCK, side)
+      trapped.value
+      || !!this.getTag(TrappedTag)
+      || !!globalScene.arena.getTagOnSide(ArenaTagType.FAIRY_LOCK, side)
+      || !!globalScene.arena.getTagOnSide(ArenaTagType.EVENT_HORIZON, side)
     );
   }
 

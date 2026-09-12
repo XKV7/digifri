@@ -18,7 +18,7 @@ import type { AbilityId } from "#enums/ability-id";
 import { EggTier } from "#enums/egg-type";
 import type { MoveId } from "#enums/move-id";
 import { SpeciesFormKey } from "#enums/species-form-key";
-import type { SpeciesId } from "#enums/species-id";
+import { SpeciesId } from "#enums/species-id";
 import type { LevelMoves, PokemonSpeciesData, SpeciesDataMap } from "#types/pokemon-species";
 
 /**
@@ -205,6 +205,11 @@ export class SpeciesDataRegistry {
   public getSpeciesForEggTier(tier: EggTier): PokemonSpecies[] {
     const ret: PokemonSpecies[] = [];
     for (const speciesData of Object.values(this._data)) {
+      // ADEUS is unlock-only (see Unlockables.ADEUS, won on the Adeus encounter) - never
+      // obtainable via eggs/gacha, regardless of whatever eggTier value its species data carries.
+      if (speciesData.species.speciesId === SpeciesId.ADEUS) {
+        continue;
+      }
       if (speciesData.eggTier === tier) {
         ret.push(speciesData.species);
       }

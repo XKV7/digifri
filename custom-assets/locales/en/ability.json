@@ -2,5 +2,13 @@
   "error": {
     "name": "Error",
     "description": "One-hit KO moves always land."
+  },
+  "singularity": {
+    "name": "Singularity",
+    "description": "Raises every stat by 2 stages upon entering battle."
+  },
+  "eventHorizon": {
+    "name": "Event Horizon",
+    "description": "Opens an Event Horizon on entering battle. While it's up, neither side can flee or switch, and any Pokemon entering the field has its Speed lowered by 1 stage."
   }
 }

@@ -1,0 +1,21 @@
+{
+  "textures": [
+    {
+      "image": "pokemon_icons_adeus.png",
+      "format": "RGBA8888",
+      "size": { "w": 26, "h": 26 },
+      "scale": 1,
+      "frames": [
+        {
+          "filename": "9001",
+          "rotated": false,
+          "trimmed": true,
+          "sourceSize": { "w": 40, "h": 30 },
+          "spriteSourceSize": { "x": 7, "y": 2, "w": 26, "h": 26 },
+          "frame": { "x": 0, "y": 0, "w": 26, "h": 26 }
+        }
+      ]
+    }
+  ],
+  "meta": { "app": "custom", "version": "1.0" }
+}

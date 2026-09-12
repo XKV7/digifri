@@ -3032,6 +3032,33 @@ export class PreLeaveFieldClearWeatherAbAttr extends PreLeaveFieldAbAttr {
 }
 
 /**
+ * Ability attribute to remove one or more arena tags upon this Pokemon leaving the field.
+ * Mirrors {@linkcode PostSummonRemoveArenaTagAbAttr}, but triggered on leaving rather than summon.
+ */
+export class PreLeaveFieldRemoveArenaTagAbAttr extends PreLeaveFieldAbAttr {
+  /** The arena tags that this attribute should remove. */
+  private readonly arenaTags: NonEmptyTuple<ArenaTagType>;
+
+  /**
+   * @param tagTypes - The arena tags that this attribute should remove
+   */
+  constructor(tagTypes: NonEmptyTuple<ArenaTagType>) {
+    super(false);
+    this.arenaTags = tagTypes;
+  }
+
+  override canApply(_params: AbAttrBaseParams): boolean {
+    return globalScene.arena.hasTag(this.arenaTags);
+  }
+
+  override apply({ simulated }: AbAttrBaseParams): void {
+    if (!simulated) {
+      globalScene.arena.removeTagsOnSide(this.arenaTags, ArenaTagSide.BOTH);
+    }
+  }
+}
+
+/**
  * Attribute that updates the active {@linkcode SuppressAbilitiesTag} when its user leaves the field.
  * @sealed
  */

@@ -2,6 +2,7 @@ import { BiomeId } from "#enums/biome-id";
 import { MysteryEncounterType } from "#enums/mystery-encounter-type";
 import { ATrainersTestEncounter } from "#mystery-encounters/a-trainers-test-encounter";
 import { AbsoluteAvariceEncounter } from "#mystery-encounters/absolute-avarice-encounter";
+import { AdeusEncounter } from "#mystery-encounters/adeus-encounter";
 import { AnOfferYouCantRefuseEncounter } from "#mystery-encounters/an-offer-you-cant-refuse-encounter";
 import { ArceusTrialEncounter } from "#mystery-encounters/arceus-trial-encounter";
 import { BerriesAboundEncounter } from "#mystery-encounters/berries-abound-encounter";
@@ -168,6 +169,7 @@ const civilizationBiomeEncounters: MysteryEncounterType[] = [
  */
 const anyBiomeEncounters: MysteryEncounterType[] = [
   MysteryEncounterType.ARCEUS_TRIAL,
+  MysteryEncounterType.ADEUS_ENCOUNTER,
   MysteryEncounterType.FIGHT_OR_FLIGHT,
   MysteryEncounterType.DARK_DEAL,
   MysteryEncounterType.MYSTERIOUS_CHEST,
@@ -242,6 +244,7 @@ export const mysteryEncountersByBiome = new Map<BiomeId, MysteryEncounterType[]>
 
 export function initMysteryEncounters() {
   allMysteryEncounters[MysteryEncounterType.ARCEUS_TRIAL] = ArceusTrialEncounter;
+  allMysteryEncounters[MysteryEncounterType.ADEUS_ENCOUNTER] = AdeusEncounter;
   allMysteryEncounters[MysteryEncounterType.MYSTERIOUS_CHALLENGERS] = MysteriousChallengersEncounter;
   allMysteryEncounters[MysteryEncounterType.MYSTERIOUS_CHEST] = MysteriousChestEncounter;
   allMysteryEncounters[MysteryEncounterType.DARK_DEAL] = DarkDealEncounter;

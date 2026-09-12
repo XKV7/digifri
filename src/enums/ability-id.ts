@@ -639,4 +639,15 @@ export enum AbilityId {
   SPICY_SPRAY,
   /** Not a real ability - MissingNo.'s passive. Guarantees a hit with one-hit-KO moves. */
   ERROR,
+  /**
+   * Not a real ability - Adeus's own ability. While the Event Horizon field is active
+   * (see EVENT_HORIZON below), raises every stat by 2 stages.
+   */
+  SINGULARITY,
+  /**
+   * Not a real ability - Adeus's own passive. Sets the Event Horizon field on switch-in (traps
+   * both sides in battle and drops every Pokemon's Speed by 1 stage on entry while it's active)
+   * and clears it again on switching out.
+   */
+  EVENT_HORIZON,
 }

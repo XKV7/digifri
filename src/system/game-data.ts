@@ -179,6 +179,7 @@ export class GameData {
       [Unlockables.SPLICED_ENDLESS_MODE]: false,
       [Unlockables.EVIOLITE]: false,
       [Unlockables.HEAVENLY_FLUTE]: false,
+      [Unlockables.ADEUS]: false,
     };
     this.achvUnlocks = {};
     this.voucherUnlocks = {};

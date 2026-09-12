@@ -145,6 +145,7 @@ import {
   PreAttackWeatherOverrideAbAttr,
   PreDefendFullHpEndureAbAttr,
   PreLeaveFieldClearWeatherAbAttr,
+  PreLeaveFieldRemoveArenaTagAbAttr,
   PreLeaveFieldRemoveSuppressAbilitiesSourceAbAttr,
   PreSwitchOutFormChangeAbAttr,
   PreSwitchOutHealAbAttr,
@@ -200,7 +201,7 @@ import { MovePriorityInBracket } from "#enums/move-priority-in-bracket";
 import { MoveTarget } from "#enums/move-target";
 import { PokemonType } from "#enums/pokemon-type";
 import { SpeciesId } from "#enums/species-id";
-import { EFFECTIVE_STATS, type EffectiveStat, getStatKey, Stat } from "#enums/stat";
+import { BATTLE_STATS, EFFECTIVE_STATS, type EffectiveStat, getStatKey, Stat } from "#enums/stat";
 import { StatusEffect } from "#enums/status-effect";
 import { WeatherType } from "#enums/weather-type";
 import type { Pokemon } from "#field/pokemon";
@@ -2208,6 +2209,23 @@ export function initAbilities() {
     // Not a real ability - MissingNo.'s custom passive.
     new AbBuilder(AbilityId.ERROR, 9) //
       .attr(AlwaysHitOhkoAbAttr)
+      .build(),
+    // Not a real ability - Adeus's own ability. Raises every stat by 2 stages on switch-in
+    // (see EVENT_HORIZON below, Adeus's own passive, for the field this is meant to react to -
+    // both always trigger together for the only Pokemon that has this ability/passive pairing).
+    new AbBuilder(AbilityId.SINGULARITY, 9) //
+      .attr(
+        PostSummonStatStageChangeAbAttr,
+        BATTLE_STATS.map(stat => ({ stat, stages: 2 })),
+        true,
+      )
+      .build(),
+    // Not a real ability - Adeus's own passive. Sets the Event Horizon field on switch-in
+    // (see EventHorizonTag in arena-tag.ts) and clears it again on switching out.
+    new AbBuilder(AbilityId.EVENT_HORIZON, 9) //
+      .attr(PostSummonAddArenaTagAbAttr, true, ArenaTagType.EVENT_HORIZON, 0)
+      .attr(PreLeaveFieldRemoveArenaTagAbAttr, [ArenaTagType.EVENT_HORIZON])
+      .bypassFaint()
       .build(),
   );
 }

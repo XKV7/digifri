@@ -31,4 +31,5 @@ export enum MysteryEncounterType {
   GLOBAL_TRADE_SYSTEM,
   THE_EXPERT_POKEMON_BREEDER,
   ARCEUS_TRIAL,
+  ADEUS_ENCOUNTER,
 }

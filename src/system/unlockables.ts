@@ -19,5 +19,8 @@ export function getUnlockableName(unlockable: Unlockables) {
       // instead of the translated name), so this bypasses the lookup entirely for guaranteed-correct
       // text until that's root-caused.
       return "천계의 피리";
+    case Unlockables.ADEUS:
+      // Hardcoded for the same reason as HEAVENLY_FLUTE above.
+      return "아데우스";
   }
 }

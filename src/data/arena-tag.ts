@@ -1483,6 +1483,42 @@ export class FairyLockTag extends SerializableArenaTag {
 }
 
 /**
+ * Arena Tag class for Adeus's own custom Event Horizon field (see `AbilityId.EVENT_HORIZON` in
+ * ab-attrs.ts). Traps both sides in battle for as long as it's up (checked directly in
+ * `Pokemon#isTrapped()`, mirroring how {@linkcode FairyLockTag} above is checked) and drops the
+ * Speed of every Pokemon entering the field by 1 stage while it's active.
+ */
+export class EventHorizonTag extends SerializableArenaTag {
+  public readonly tagType = ArenaTagType.EVENT_HORIZON;
+
+  constructor(sourceId?: number) {
+    super(0, undefined, sourceId);
+  }
+
+  protected override get onAddMessageKey(): string {
+    return "arenaTag:eventHorizonOnAdd";
+  }
+  protected override get onRemoveMessageKey(): string {
+    return "arenaTag:eventHorizonOnRemove";
+  }
+
+  /**
+   * Drops the Speed of a Pokemon entering the field by 1 stage.
+   * @param simulated - Whether the activation is simulated
+   * @param pokemon - The {@linkcode Pokemon} switching in
+   */
+  override apply(simulated: boolean, pokemon: Pokemon): void {
+    if (!simulated) {
+      globalScene.phaseManager.unshiftNew("StatStageChangePhase", {
+        battlerIndex: pokemon.getBattlerIndex(),
+        changes: [{ stat: Stat.SPD, stages: -1 }],
+        sourcePokemon: pokemon,
+      });
+    }
+  }
+}
+
+/**
  * Arena tag class for {@link https://bulbapedia.bulbagarden.net/wiki/Neutralizing_Gas_(Ability) Neutralizing Gas}
  *
  * Keeps track of the number of pokemon on the field with Neutralizing Gas - If it drops to zero, the effect is ended and abilities are reactivated
@@ -1806,6 +1842,8 @@ export function getArenaTag(
       return new SuppressAbilitiesTag(sourceId);
     case ArenaTagType.PENDING_HEAL:
       return new PendingHealTag();
+    case ArenaTagType.EVENT_HORIZON:
+      return new EventHorizonTag(sourceId);
     default:
       return null;
   }
@@ -1855,5 +1893,6 @@ export type ArenaTagTypeMap = {
   [ArenaTagType.FAIRY_LOCK]: FairyLockTag;
   [ArenaTagType.NEUTRALIZING_GAS]: SuppressAbilitiesTag;
   [ArenaTagType.PENDING_HEAL]: PendingHealTag;
+  [ArenaTagType.EVENT_HORIZON]: EventHorizonTag;
   [ArenaTagType.NONE]: NoneTag;
 };

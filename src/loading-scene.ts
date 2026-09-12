@@ -637,6 +637,8 @@ export class LoadingScene extends SceneBase {
     // SpeciesId.MISSING_NO's own small dedicated icon atlas - see getIconAtlasKey() in
     // pokemon-species.ts for why it isn't packed into pokemon_icons_1 with the rest of Gen 1.
     this.loadAtlas("pokemon_icons_missingno", "");
+    // SpeciesId.ADEUS's own dedicated icon atlas - same reasoning as MISSING_NO above.
+    this.loadAtlas("pokemon_icons_adeus", "");
 
     return this;
   }

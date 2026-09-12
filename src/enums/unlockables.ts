@@ -4,4 +4,5 @@ export enum Unlockables {
   SPLICED_ENDLESS_MODE,
   EVIOLITE,
   HEAVENLY_FLUTE,
+  ADEUS,
 }

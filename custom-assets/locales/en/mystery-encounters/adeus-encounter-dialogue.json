@@ -1,0 +1,19 @@
+{
+  "intro": "Space itself warps as {{adeusName}} reveals its form!",
+  "title": "Adeus",
+  "description": "An entity of unknown origin said to rival Arceus itself, Adeus, blocks your way.\nDefeat it, and you'll be able to use Adeus as a starter forever after.",
+  "query": "What will you do?",
+  "option": {
+    "1": {
+      "label": "Accept the challenge",
+      "tooltip": "(-) Extremely Tough Battle\n(+) Unlocks Adeus as a starter",
+      "selected": "Adeus watches you without moving.$The battle begins!"
+    },
+    "2": {
+      "label": "Turn away",
+      "tooltip": "(-) No reward",
+      "selected": "You quietly turn away."
+    }
+  },
+  "outro": "Adeus's power fades completely, and it collapses.$You can now use Adeus as a starter forever after!"
+}

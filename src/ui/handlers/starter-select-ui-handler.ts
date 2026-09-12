@@ -43,6 +43,7 @@ import { SpeciesId } from "#enums/species-id";
 import { TextStyle } from "#enums/text-style";
 import { UiMode } from "#enums/ui-mode";
 import { UiTheme } from "#enums/ui-theme";
+import { Unlockables } from "#enums/unlockables";
 import type { CandyUpgradeNotificationChangedEvent } from "#events/battle-scene";
 import { BattleSceneEventType } from "#events/battle-scene";
 import { getModifierTypeFuncById, type ModifierType, ModifierTypeGenerator } from "#modifiers/modifier-type";
@@ -3770,9 +3771,14 @@ export class StarterSelectUiHandler extends MessageUiHandler {
       // Checked here (evaluated fresh on every filter pass) rather than once in setup(), since
       // setup() runs before the player's save data has even loaded.
       const isMissingNoUncaught = container.species.speciesId === SpeciesId.MISSING_NO && !caughtAttr;
+      // Adeus is likewise hidden until its own encounter has been won (see Unlockables.ADEUS) -
+      // it's never caught in the normal sense, so gated by the unlock flag instead of caughtAttr.
+      const isAdeusLocked =
+        container.species.speciesId === SpeciesId.ADEUS && !globalScene.gameData.isUnlocked(Unlockables.ADEUS);
 
       if (
         !isMissingNoUncaught
+        && !isAdeusLocked
         && fitsGen
         && fitsType
         && fitsCaught

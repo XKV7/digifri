@@ -242,10 +242,11 @@ export abstract class PokemonSpeciesForm {
   }
 
   getRegion(): Region {
-    // MissingNo.'s speciesId (9000) falls into the numeric range the regional-form species
-    // use to encode their region (e.g. 8000+baseId for Paldea), but it isn't a regional form -
-    // the generic `/2000` mapping would otherwise misclassify it as Paldean.
-    if (this.speciesId === SpeciesId.MISSING_NO) {
+    // MissingNo. and Adeus's speciesIds (9000/9001) fall into the numeric range the
+    // regional-form species use to encode their region (e.g. 8000+baseId for Paldea), but
+    // neither is a regional form - the generic `/2000` mapping would otherwise misclassify
+    // them as Paldean.
+    if (this.speciesId === SpeciesId.MISSING_NO || this.speciesId === SpeciesId.ADEUS) {
       return Region.NORMAL;
     }
     return Math.floor(this.speciesId / 2000) as Region;
@@ -407,11 +408,11 @@ export abstract class PokemonSpeciesForm {
 
   /** Compute the sprite ID of the pokemon form. */
   getSpriteId(female: boolean, formIndex?: number, shiny?: boolean, variant = 0, back = false): string {
-    // MissingNo. has no shiny/variant artwork - only the base custom sprite exists. Falling
-    // through to the normal shiny-prefix logic below would compute a sprite key (e.g.
+    // MissingNo. and Adeus have no shiny/variant artwork - only their base custom sprites exist.
+    // Falling through to the normal shiny-prefix logic below would compute a sprite key (e.g.
     // "shiny__9000") with no matching atlas file, and the resulting failed load silently leaves
-    // whatever sprite was previously displayed on screen instead of MissingNo.'s own.
-    if (this.speciesId === SpeciesId.MISSING_NO) {
+    // whatever sprite was previously displayed on screen instead of their own.
+    if (this.speciesId === SpeciesId.MISSING_NO || this.speciesId === SpeciesId.ADEUS) {
       shiny = false;
     }
     const baseSpriteKey = this.getBaseSpriteKey(female, formIndex);
@@ -459,14 +460,17 @@ export abstract class PokemonSpeciesForm {
   }
 
   getIconAtlasKey(formIndex?: number, shiny?: boolean, variant?: number): string {
-    // MISSING_NO isn't part of any real Pokédex generation, so it has no place in the shared
-    // per-generation icon atlas (pokemon_icons_1.png etc.) that every other Gen 1 species' icon
-    // is packed into - editing that shared file risks every other icon in it. It gets its own
-    // small dedicated one-frame atlas instead (see custom-assets/README.md), whose one frame is
-    // named to match what getIconId() already returns by default for a non-shiny Pokemon
+    // MISSING_NO and ADEUS aren't part of any real Pokédex generation, so they have no place in
+    // the shared per-generation icon atlas (pokemon_icons_1.png etc.) that every other species'
+    // icon is packed into - editing that shared file risks every other icon in it. Each gets its
+    // own small dedicated one-frame atlas instead (see custom-assets/README.md), whose one frame
+    // is named to match what getIconId() already returns by default for a non-shiny Pokemon
     // (String(this.speciesId)), so no getIconId() override is needed.
     if (this.speciesId === SpeciesId.MISSING_NO) {
       return "pokemon_icons_missingno";
+    }
+    if (this.speciesId === SpeciesId.ADEUS) {
+      return "pokemon_icons_adeus";
     }
     const variantDataIndex = this.getVariantDataIndex(formIndex);
     const isVariant =
@@ -575,6 +579,10 @@ export abstract class PokemonSpeciesForm {
         case SpeciesId.MISSING_NO:
           // Not a regional form - the generic `%2000` mapping would otherwise collide with
           // whichever real species has cry number 1000.
+          break;
+        case SpeciesId.ADEUS:
+          // Not a regional form, and has no cry file of its own - the generic `%2000` mapping
+          // would otherwise collide with whichever real species has cry number 1001.
           break;
         default:
           speciesId %= 2000;

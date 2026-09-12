@@ -38,4 +38,6 @@ export enum ArenaTagType {
   FAIRY_LOCK = "FAIRY_LOCK",
   NEUTRALIZING_GAS = "NEUTRALIZING_GAS",
   PENDING_HEAL = "PENDING_HEAL",
+  /** Not a real game mechanic - Adeus's own field (see AbilityId.EVENT_HORIZON). */
+  EVENT_HORIZON = "EVENT_HORIZON",
 }
