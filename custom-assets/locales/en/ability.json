@@ -5,7 +5,7 @@
   },
   "singularity": {
     "name": "Singularity",
-    "description": "Raises every stat by 2 stages upon entering battle."
+    "description": "While the field is under an Event Horizon, raises 6 battle stats (Attack/Defense/Sp. Atk/Sp. Def/Speed/Accuracy) by 2 stages upon entering battle."
   },
   "eventHorizon": {
     "name": "Event Horizon",

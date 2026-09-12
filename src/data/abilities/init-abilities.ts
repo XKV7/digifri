@@ -2210,15 +2210,20 @@ export function initAbilities() {
     new AbBuilder(AbilityId.ERROR, 9) //
       .attr(AlwaysHitOhkoAbAttr)
       .build(),
-    // Not a real ability - Adeus's own ability. Raises every stat by 2 stages on switch-in
-    // (see EVENT_HORIZON below, Adeus's own passive, for the field this is meant to react to -
-    // both always trigger together for the only Pokemon that has this ability/passive pairing).
-    new AbBuilder(AbilityId.SINGULARITY, 9) //
+    // Not a real ability - Adeus's own ability. While the Event Horizon field (see EVENT_HORIZON
+    // below, Adeus's own passive) is up, raises 6 battle stats by 2 stages on switch-in - every
+    // BATTLE_STATS entry except Evasiveness. Given a postSummonPriority below EVENT_HORIZON's (and
+    // below the default 0 that PostSummonPhase's own entry-hazard-style effects run at) so the
+    // field is already up - via the passive below, not yet via this same entry's base
+    // PostSummonPhase, which would otherwise also apply Event Horizon's own entry Speed drop to
+    // Adeus itself - by the time this condition is checked.
+    new AbBuilder(AbilityId.SINGULARITY, 9, -1) //
       .attr(
         PostSummonStatStageChangeAbAttr,
-        BATTLE_STATS.map(stat => ({ stat, stages: 2 })),
+        BATTLE_STATS.filter(stat => stat !== Stat.EVA).map(stat => ({ stat, stages: 2 })),
         true,
       )
+      .condition(() => !!globalScene.arena.getTag(ArenaTagType.EVENT_HORIZON))
       .build(),
     // Not a real ability - Adeus's own passive. Sets the Event Horizon field on switch-in
     // (see EventHorizonTag in arena-tag.ts) and clears it again on switching out.

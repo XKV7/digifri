@@ -31,13 +31,24 @@ describe("Species - Adeus", () => {
       .moveset(MoveId.SPLASH);
   });
 
-  it("raises all 7 battle stats by 2 stages on switch-in via Singularity", async () => {
+  it("raises 6 battle stats (all but Evasiveness) by 2 stages on switch-in via Singularity while Event Horizon is up", async () => {
     await game.classicMode.startBattle(SpeciesId.MAGIKARP);
 
     const adeus = game.field.getEnemyPokemon();
     expect(adeus).toHaveAbilityApplied(AbilityId.SINGULARITY);
     for (const stat of BATTLE_STATS) {
-      expect(adeus.getStatStage(stat)).toBe(2);
+      expect(adeus.getStatStage(stat)).toBe(stat === Stat.EVA ? 0 : 2);
+    }
+  });
+
+  it("does not raise stats via Singularity if the Event Horizon field isn't up", async () => {
+    game.override.enemyHasPassiveAbility(false);
+    await game.classicMode.startBattle(SpeciesId.MAGIKARP);
+
+    const adeus = game.field.getEnemyPokemon();
+    expect(game.scene.arena.getTag(ArenaTagType.EVENT_HORIZON)).toBeUndefined();
+    for (const stat of BATTLE_STATS) {
+      expect(adeus.getStatStage(stat)).toBe(0);
     }
   });
 
