@@ -37,7 +37,15 @@ describe("Species - Adeus", () => {
     const adeus = game.field.getEnemyPokemon();
     expect(adeus).toHaveAbilityApplied(AbilityId.SINGULARITY);
     for (const stat of BATTLE_STATS) {
-      expect(adeus.getStatStage(stat)).toBe(stat === Stat.EVA ? 0 : 2);
+      if (stat === Stat.EVA) {
+        expect(adeus.getStatStage(stat)).toBe(0);
+      } else if (stat === Stat.SPD) {
+        // Net +1, not +2 - Event Horizon's own "any Pokemon entering the field" Speed drop is
+        // intentionally not exempted for Adeus's own entry, stacking with Singularity's +2 here.
+        expect(adeus.getStatStage(stat)).toBe(1);
+      } else {
+        expect(adeus.getStatStage(stat)).toBe(2);
+      }
     }
   });
 
@@ -74,17 +82,20 @@ describe("Species - Adeus", () => {
     expect(tag).toBeDefined();
 
     const magikarp = game.field.getPlayerPokemon();
-    expect(magikarp.getStatStage(Stat.SPD)).toBe(0);
+    // Magikarp is itself "entering the field" as Event Horizon goes up at the start of the battle,
+    // so it already takes the same Speed drop applied to every entrant (see the doc comment on
+    // EVENT_HORIZON's postSummonPriority in init-abilities.ts for why this also applies to Adeus's
+    // own entry).
+    expect(magikarp.getStatStage(Stat.SPD)).toBe(-1);
 
-    // Directly exercising the tag's own entry hook against the Pokemon already on the field, mirroring
-    // what post-summon-phase.ts does for any Pokemon that's actually summoned - a real switch-in can't
-    // be used here since both sides are trapped while Event Horizon is up (see the test above).
-    // The phase it queues won't actually run until the turn advances, so select a move to drive it.
+    // Directly exercising the tag's own entry hook again, mirroring a later mid-battle entry (e.g. a
+    // switch-in) - a real switch can't be used here since both sides are trapped while Event Horizon
+    // is up (see the test above). The phase it queues won't run until the turn advances.
     tag!.apply(false, magikarp);
     game.move.select(MoveId.SPLASH);
     await game.phaseInterceptor.to("StatStageChangePhase");
 
-    expect(magikarp.getStatStage(Stat.SPD)).toBe(-1);
+    expect(magikarp.getStatStage(Stat.SPD)).toBe(-2);
   });
 
   it("clears the Event Horizon field once Adeus leaves the field", async () => {

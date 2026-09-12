@@ -2212,12 +2212,8 @@ export function initAbilities() {
       .build(),
     // Not a real ability - Adeus's own ability. While the Event Horizon field (see EVENT_HORIZON
     // below, Adeus's own passive) is up, raises 6 battle stats by 2 stages on switch-in - every
-    // BATTLE_STATS entry except Evasiveness. Given a postSummonPriority below EVENT_HORIZON's (and
-    // below the default 0 that PostSummonPhase's own entry-hazard-style effects run at) so the
-    // field is already up - via the passive below, not yet via this same entry's base
-    // PostSummonPhase, which would otherwise also apply Event Horizon's own entry Speed drop to
-    // Adeus itself - by the time this condition is checked.
-    new AbBuilder(AbilityId.SINGULARITY, 9, -1) //
+    // BATTLE_STATS entry except Evasiveness.
+    new AbBuilder(AbilityId.SINGULARITY, 9) //
       .attr(
         PostSummonStatStageChangeAbAttr,
         BATTLE_STATS.filter(stat => stat !== Stat.EVA).map(stat => ({ stat, stages: 2 })),
@@ -2226,8 +2222,12 @@ export function initAbilities() {
       .condition(() => !!globalScene.arena.getTag(ArenaTagType.EVENT_HORIZON))
       .build(),
     // Not a real ability - Adeus's own passive. Sets the Event Horizon field on switch-in
-    // (see EventHorizonTag in arena-tag.ts) and clears it again on switching out.
-    new AbBuilder(AbilityId.EVENT_HORIZON, 9) //
+    // (see EventHorizonTag in arena-tag.ts) and clears it again on switching out. Given a
+    // postSummonPriority above the default 0 so the field is up before this same entry's base
+    // PostSummonPhase (which applies Event Horizon's own entry Speed drop - intentionally including
+    // to Adeus itself, net +1 Speed instead of +2 once Singularity's own boost also applies) and
+    // before Singularity's condition (above) are both checked.
+    new AbBuilder(AbilityId.EVENT_HORIZON, 9, 1) //
       .attr(PostSummonAddArenaTagAbAttr, true, ArenaTagType.EVENT_HORIZON, 0)
       .attr(PreLeaveFieldRemoveArenaTagAbAttr, [ArenaTagType.EVENT_HORIZON])
       .bypassFaint()
