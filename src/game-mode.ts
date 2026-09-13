@@ -220,7 +220,11 @@ export class GameMode implements GameModeConfig {
       }
       return waveIndex % 10 === 5 || (!(waveIndex % 10) && waveIndex > 10 && !this.isWaveFinal(waveIndex));
     }
-    if (waveIndex % 30 === (offsetGym ? 0 : 20) && !this.isWaveFinal(waveIndex)) {
+    if (
+      waveIndex % 30 === (offsetGym ? 0 : 20)
+      && !this.isWaveFinal(waveIndex)
+      && !this.isNightmareCheckpointBoss(waveIndex)
+    ) {
       return true;
     }
     if (waveIndex % 10 !== 1 && waveIndex % 10) {

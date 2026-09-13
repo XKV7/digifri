@@ -95,5 +95,29 @@ describe("game-mode", () => {
       );
       expect(nightmareGameMode.getEnemyModifierChance(true)).toBeLessThan(classicGameMode.getEnemyModifierChance(true));
     });
+
+    it("never generates a gym-leader trainer battle on a checkpoint boss wave, regardless of offsetGym", () => {
+      // The gym-leader-every-30-waves pattern lands on wave%30===20 when offsetGym is false, or
+      // wave%30===0 when true - waves 200/800 (%30===20) and 600 (%30===0) would otherwise collide
+      // with it and get hijacked into a trainer battle instead of the intended Eternatus checkpoint
+      // fight, since only isWaveFinal(1000) - not the checkpoints - is exempted by default.
+      for (const offsetGym of [false, true]) {
+        game.scene.offsetGym = offsetGym;
+        expect(nightmareGameMode.isWaveTrainer(200)).toBe(false);
+        expect(nightmareGameMode.isWaveTrainer(400)).toBe(false);
+        expect(nightmareGameMode.isWaveTrainer(600)).toBe(false);
+        expect(nightmareGameMode.isWaveTrainer(800)).toBe(false);
+      }
+    });
+
+    it("still generates gym-leader trainer battles on non-checkpoint waves matching the pattern", () => {
+      game.scene.offsetGym = false;
+      expect(nightmareGameMode.isWaveTrainer(20)).toBe(true);
+      expect(nightmareGameMode.isWaveTrainer(230)).toBe(true);
+
+      game.scene.offsetGym = true;
+      expect(nightmareGameMode.isWaveTrainer(30)).toBe(true);
+      expect(nightmareGameMode.isWaveTrainer(240)).toBe(true);
+    });
   });
 });
