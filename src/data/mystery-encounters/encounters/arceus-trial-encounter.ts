@@ -4,12 +4,14 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { CLASSIC_MODE_MYSTERY_ENCOUNTER_WAVES } from "#app/constants";
+import { HARDCORE_MODE_MYSTERY_ENCOUNTER_WAVES } from "#app/constants";
 import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
 import { modifierTypes } from "#data/data-lists";
 import { SpeciesFormChangeManualTrigger } from "#data/form-change-triggers";
+import { GameModes } from "#enums/game-modes";
 import { MoveId } from "#enums/move-id";
+import { MysteryEncounterOptionMode } from "#enums/mystery-encounter-option-mode";
 import { MysteryEncounterTier } from "#enums/mystery-encounter-tier";
 import { MysteryEncounterType } from "#enums/mystery-encounter-type";
 import { Nature } from "#enums/nature";
@@ -26,7 +28,8 @@ import {
 } from "#mystery-encounters/encounter-phase-utils";
 import type { MysteryEncounter } from "#mystery-encounters/mystery-encounter";
 import { MysteryEncounterBuilder } from "#mystery-encounters/mystery-encounter";
-import { RandomChanceRequirement } from "#mystery-encounters/mystery-encounter-requirements";
+import { MysteryEncounterOptionBuilder } from "#mystery-encounters/mystery-encounter-option";
+import { NotGameModeRequirement, RandomChanceRequirement } from "#mystery-encounters/mystery-encounter-requirements";
 
 /**
  * Called from DamageAnimPhase#end() (mirroring how the classic-mode Eternatus final boss
@@ -69,7 +72,14 @@ export const ArceusTrialEncounter: MysteryEncounter = MysteryEncounterBuilder.wi
   MysteryEncounterType.ARCEUS_TRIAL,
 )
   .withEncounterTier(MysteryEncounterTier.MASTER)
-  .withSceneWaveRangeRequirement(...CLASSIC_MODE_MYSTERY_ENCOUNTER_WAVES)
+  .withSceneWaveRangeRequirement(...HARDCORE_MODE_MYSTERY_ENCOUNTER_WAVES)
+  .withDisallowedGameModes(
+    GameModes.CLASSIC,
+    GameModes.ENDLESS,
+    GameModes.SPLICED_ENDLESS,
+    GameModes.DAILY,
+    GameModes.CHALLENGE,
+  )
   // Additional 1/2048 rarity gate on top of the MASTER tier's own (already very low) weighting -
   // see RandomChanceRequirement's own doc comment.
   .withSceneRequirement(new RandomChanceRequirement(2048))
@@ -141,19 +151,23 @@ export const ArceusTrialEncounter: MysteryEncounter = MysteryEncounterBuilder.wi
       await initBattleWithEnemyConfig(encounter.enemyPartyConfigs[0]);
     },
   )
-  .withSimpleOption(
-    {
-      buttonLabel: `${namespace}:option.2.label`,
-      buttonTooltip: `${namespace}:option.2.tooltip`,
-      selected: [
-        {
-          text: `${namespace}:option.2.selected`,
-        },
-      ],
-    },
-    async () => {
-      leaveEncounterWithoutBattle();
-      return true;
-    },
+  .withOption(
+    MysteryEncounterOptionBuilder.newOptionWithMode(MysteryEncounterOptionMode.DEFAULT)
+      .withDialogue({
+        buttonLabel: `${namespace}:option.2.label`,
+        buttonTooltip: `${namespace}:option.2.tooltip`,
+        selected: [
+          {
+            text: `${namespace}:option.2.selected`,
+          },
+        ],
+      })
+      // Hardcore mode removes the option to back out of this high-risk encounter without a fight.
+      .withSceneRequirement(new NotGameModeRequirement(GameModes.NIGHTMARE))
+      .withOptionPhase(async () => {
+        leaveEncounterWithoutBattle();
+        return true;
+      })
+      .build(),
   )
   .build();

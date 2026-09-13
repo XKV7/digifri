@@ -4,6 +4,7 @@ import { allAbilities } from "#data/data-lists";
 import { SpeciesFormChangeItemTrigger } from "#data/form-change-triggers";
 import type { AbilityId } from "#enums/ability-id";
 import { FormChangeItem } from "#enums/form-change-item";
+import type { GameModes } from "#enums/game-modes";
 import { MoveId } from "#enums/move-id";
 import type { MysteryEncounterType } from "#enums/mystery-encounter-type";
 import { Nature } from "#enums/nature";
@@ -232,6 +233,29 @@ export class RandomChanceRequirement extends EncounterSceneRequirement {
 
   override getDialogueToken(_pokemon?: PlayerPokemon): [string, string] {
     return ["chanceDenominator", this.chanceDenominator.toString()];
+  }
+}
+
+/**
+ * Unmet whenever the current game mode is one of the given disallowed modes - useful for disabling
+ * a specific encounter option (e.g. the "decline" option on a high-risk encounter) in game modes
+ * where it shouldn't be available, without needing any dedicated UI code (options are automatically
+ * disabled when their scene requirement isn't met, see MysteryEncounterOptionBuilder).
+ */
+export class NotGameModeRequirement extends EncounterSceneRequirement {
+  disallowedModes: GameModes[];
+
+  constructor(...disallowedModes: GameModes[]) {
+    super();
+    this.disallowedModes = disallowedModes;
+  }
+
+  override meetsRequirement(): boolean {
+    return !this.disallowedModes.includes(globalScene.gameMode.modeId);
+  }
+
+  override getDialogueToken(_pokemon?: PlayerPokemon): [string, string] {
+    return ["disallowedModes", this.disallowedModes.join(", ")];
   }
 }
 

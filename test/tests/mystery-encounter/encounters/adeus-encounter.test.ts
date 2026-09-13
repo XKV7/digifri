@@ -6,6 +6,7 @@
 
 import type { BattleScene } from "#app/battle-scene";
 import { AbilityId } from "#enums/ability-id";
+import { GameModes } from "#enums/game-modes";
 import { MoveId } from "#enums/move-id";
 import { MysteryEncounterType } from "#enums/mystery-encounter-type";
 import { SpeciesId } from "#enums/species-id";
@@ -100,5 +101,28 @@ describe("Adeus - Mystery Encounter", () => {
     // by retreating via option 2) is built from - must stay untouched, or that outro leaks into
     // encounters that never fought Adeus at all.
     expect(AdeusEncounter.dialogue.outro).toBeUndefined();
+  });
+
+  it("is disallowed in every mode except Hardcore (Nightmare)", () => {
+    expect(AdeusEncounter.disallowedGameModes).toEqual(
+      expect.arrayContaining([
+        GameModes.CLASSIC,
+        GameModes.ENDLESS,
+        GameModes.SPLICED_ENDLESS,
+        GameModes.DAILY,
+        GameModes.CHALLENGE,
+      ]),
+    );
+    expect(AdeusEncounter.disallowedGameModes).not.toContain(GameModes.NIGHTMARE);
+  });
+
+  it("disables the decline option (option 2) only in Hardcore mode", async () => {
+    await game.runToMysteryEncounter(MysteryEncounterType.ADEUS_ENCOUNTER, defaultParty);
+
+    const declineOption = scene.currentBattle.mysteryEncounter?.options[1];
+    expect(declineOption?.meetsRequirements()).toBe(true);
+
+    scene.gameMode.modeId = GameModes.NIGHTMARE;
+    expect(declineOption?.meetsRequirements()).toBe(false);
   });
 });

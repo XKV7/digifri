@@ -6,6 +6,7 @@
 
 import type { BattleScene } from "#app/battle-scene";
 import { AbilityId } from "#enums/ability-id";
+import { GameModes } from "#enums/game-modes";
 import { MoveId } from "#enums/move-id";
 import { MysteryEncounterType } from "#enums/mystery-encounter-type";
 import { SpeciesId } from "#enums/species-id";
@@ -120,5 +121,28 @@ describe("Arceus Trial - Mystery Encounter", () => {
     await skipBattleRunMysteryEncounterRewardsPhase(game);
 
     expect(scene.gameData.isUnlocked(Unlockables.HEAVENLY_FLUTE)).toBe(false);
+  });
+
+  it("is disallowed in every mode except Hardcore (Nightmare)", () => {
+    expect(ArceusTrialEncounter.disallowedGameModes).toEqual(
+      expect.arrayContaining([
+        GameModes.CLASSIC,
+        GameModes.ENDLESS,
+        GameModes.SPLICED_ENDLESS,
+        GameModes.DAILY,
+        GameModes.CHALLENGE,
+      ]),
+    );
+    expect(ArceusTrialEncounter.disallowedGameModes).not.toContain(GameModes.NIGHTMARE);
+  });
+
+  it("disables the decline option (option 2) only in Hardcore mode", async () => {
+    await game.runToMysteryEncounter(MysteryEncounterType.ARCEUS_TRIAL, defaultParty);
+
+    const declineOption = scene.currentBattle.mysteryEncounter?.options[1];
+    expect(declineOption?.meetsRequirements()).toBe(true);
+
+    scene.gameMode.modeId = GameModes.NIGHTMARE;
+    expect(declineOption?.meetsRequirements()).toBe(false);
   });
 });
