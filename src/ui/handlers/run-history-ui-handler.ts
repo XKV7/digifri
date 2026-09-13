@@ -372,6 +372,9 @@ class RunEntryContainer extends Phaser.GameObjects.Container {
       case GameModes.CHALLENGE:
         mode = i18next.t("gameMode:challenge");
         break;
+      case GameModes.NIGHTMARE:
+        mode = i18next.t("gameMode:hardcore");
+        break;
     }
     gameModeLabel.appendText(mode, false);
     if (data.gameMode === GameModes.SPLICED_ENDLESS) {

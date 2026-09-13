@@ -1,5 +1,9 @@
 import { FixedBattleConfig } from "#app/battle";
-import { CHALLENGE_MODE_MYSTERY_ENCOUNTER_WAVES, CLASSIC_MODE_MYSTERY_ENCOUNTER_WAVES } from "#app/constants";
+import {
+  CHALLENGE_MODE_MYSTERY_ENCOUNTER_WAVES,
+  CLASSIC_MODE_MYSTERY_ENCOUNTER_WAVES,
+  HARDCORE_MODE_MYSTERY_ENCOUNTER_WAVES,
+} from "#app/constants";
 import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
 import { activeOverrides } from "#app/overrides";
@@ -303,6 +307,8 @@ export class GameMode implements GameModeConfig {
         return waveIndex % 250 === 0;
       case GameModes.DAILY:
         return waveIndex === 50;
+      case GameModes.NIGHTMARE:
+        return waveIndex === 1000;
     }
   }
 
@@ -318,19 +324,38 @@ export class GameMode implements GameModeConfig {
    * @returns `true` if the current battle is against classic mode's final boss
    */
   isBattleClassicFinalBoss(waveIndex: number): boolean {
-    return (this.modeId === GameModes.CLASSIC || this.modeId === GameModes.CHALLENGE) && this.isWaveFinal(waveIndex);
+    return (
+      (this.modeId === GameModes.CLASSIC || this.modeId === GameModes.CHALLENGE || this.modeId === GameModes.NIGHTMARE)
+      && this.isWaveFinal(waveIndex)
+    );
   }
 
   /**
    * The wave past which EncounterPhase/GameOverPhase's "skipped the final wave" failsafes should
-   * trigger (see their own `> getClassicFailsafeWave()` checks). Currently 200 for every mode that
-   * reads it (only Classic/Challenge, via `isClassic`) - pulled into its own method (rather than the
-   * literal `200` those two call sites used to hardcode) so a future mode with a different final
-   * wave only needs a case added here instead of touching both call sites directly.
+   * trigger (see their own `> getClassicFailsafeWave()` checks). Classic/Challenge end at wave 200;
+   * Nightmare extends the run to wave 1000, so it needs its own threshold here instead of the
+   * literal `200` those two call sites used to hardcode.
    * @returns The failsafe wave threshold for the current mode
    */
   getClassicFailsafeWave(): number {
-    return 200;
+    switch (this.modeId) {
+      case GameModes.NIGHTMARE:
+        return 1000;
+      default:
+        return 200;
+    }
+  }
+
+  /**
+   * Checks whether the given wave should force an intermediate Eternatus checkpoint battle in
+   * Nightmare mode (every 200 waves, excluding wave 1000 which is the true final boss). Kept
+   * separate from `isWaveFinal` since that method's true/false drives the "run is complete"
+   * victory/game-over flows, which must NOT trigger on these intermediate checkpoints.
+   * @param waveIndex - The wave to check.
+   * @returns Whether `waveIndex` is a Nightmare checkpoint boss wave.
+   */
+  isNightmareCheckpointBoss(waveIndex: number): boolean {
+    return this.modeId === GameModes.NIGHTMARE && waveIndex % 200 === 0 && waveIndex !== 1000;
   }
 
   /**
@@ -401,6 +426,7 @@ export class GameMode implements GameModeConfig {
     switch (this.modeId) {
       case GameModes.CLASSIC:
       case GameModes.CHALLENGE:
+      case GameModes.NIGHTMARE:
         return 5000;
       case GameModes.DAILY:
         return 2500;
@@ -415,6 +441,8 @@ export class GameMode implements GameModeConfig {
       case GameModes.CHALLENGE:
       case GameModes.DAILY:
         return isBoss ? 6 : 18;
+      case GameModes.NIGHTMARE:
+        return isBoss ? 4 : 10;
       case GameModes.ENDLESS:
       case GameModes.SPLICED_ENDLESS:
         return isBoss ? 4 : 12;
@@ -433,6 +461,8 @@ export class GameMode implements GameModeConfig {
         return i18next.t("gameMode:dailyRun");
       case GameModes.CHALLENGE:
         return i18next.t("gameMode:challenge");
+      case GameModes.NIGHTMARE:
+        return i18next.t("gameMode:hardcore");
     }
   }
 
@@ -445,6 +475,8 @@ export class GameMode implements GameModeConfig {
         return CLASSIC_MODE_MYSTERY_ENCOUNTER_WAVES;
       case GameModes.CHALLENGE:
         return CHALLENGE_MODE_MYSTERY_ENCOUNTER_WAVES;
+      case GameModes.NIGHTMARE:
+        return HARDCORE_MODE_MYSTERY_ENCOUNTER_WAVES;
       default:
         return [0, 0];
     }
@@ -474,6 +506,8 @@ export class GameMode implements GameModeConfig {
         return i18next.t("gameMode:dailyRun");
       case GameModes.CHALLENGE:
         return i18next.t("gameMode:challenge");
+      case GameModes.NIGHTMARE:
+        return i18next.t("gameMode:hardcore");
     }
   }
 }
@@ -514,6 +548,12 @@ export function getGameMode(gameMode: GameModes): GameMode {
           isChallenge: true,
           hasMysteryEncounters: true,
         },
+        classicFixedBattles,
+      );
+    case GameModes.NIGHTMARE:
+      return new GameMode(
+        GameModes.NIGHTMARE,
+        { isClassic: true, hasTrainers: true, hasMysteryEncounters: true },
         classicFixedBattles,
       );
   }

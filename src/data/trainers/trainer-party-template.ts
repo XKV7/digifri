@@ -285,6 +285,7 @@ export function getGymLeaderPartyTemplate() {
       return trainerPartyTemplates.GYM_LEADER_3;
     case GameModes.CHALLENGE: // In the future, there may be a ChallengeType to call here. For now, use classic's.
     case GameModes.CLASSIC:
+    case GameModes.NIGHTMARE:
       if (currentBattle?.waveIndex <= 20) {
         return trainerPartyTemplates.GYM_LEADER_1; // 1 avg 1 strong
       }

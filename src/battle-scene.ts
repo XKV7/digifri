@@ -1521,6 +1521,7 @@ export class BattleScene extends SceneBase {
     if (
       this.gameMode.isWaveFinal(waveIndex) // Endless bosses and classic mode finales are never double battles
       || this.gameMode.isEndlessBoss(waveIndex)
+      || this.gameMode.isNightmareCheckpointBoss(waveIndex)
       || battleType === BattleType.MYSTERY_ENCOUNTER // MEs are never double battles
     ) {
       return false;

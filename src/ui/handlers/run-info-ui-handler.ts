@@ -595,6 +595,9 @@ export class RunInfoUiHandler extends UiHandler {
       case GameModes.CLASSIC:
         modeText.appendText(`${i18next.t("gameMode:classic")}`, false);
         break;
+      case GameModes.NIGHTMARE:
+        modeText.appendText(`${i18next.t("gameMode:hardcore")}`, false);
+        break;
     }
 
     // If the player achieves a personal best in Endless, the mode text will be tinted similarly to SSS luck to celebrate their achievement.

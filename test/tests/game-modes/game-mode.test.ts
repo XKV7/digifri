@@ -39,4 +39,43 @@ describe("game-mode", () => {
       expect(classicGameMode.isWaveTrainer(19)).toBeFalsy();
     });
   });
+
+  describe("nightmare (hardcore)", () => {
+    let nightmareGameMode: GameMode;
+    beforeEach(() => {
+      nightmareGameMode = getGameMode(GameModes.NIGHTMARE);
+    });
+
+    it("ends the run at wave 1000, not wave 200", () => {
+      expect(nightmareGameMode.isWaveFinal(1000)).toBeTruthy();
+      expect(nightmareGameMode.isWaveFinal(200)).toBeFalsy();
+    });
+
+    it("treats wave 1000 as the classic-style final boss wave", () => {
+      expect(nightmareGameMode.isBattleClassicFinalBoss(1000)).toBeTruthy();
+      expect(nightmareGameMode.isBattleClassicFinalBoss(200)).toBeFalsy();
+    });
+
+    it("uses 1000 as its skip-detection failsafe wave", () => {
+      expect(nightmareGameMode.getClassicFailsafeWave()).toBe(1000);
+    });
+
+    it("flags waves 200/400/600/800 as checkpoint bosses but not wave 1000 or non-multiples of 200", () => {
+      expect(nightmareGameMode.isNightmareCheckpointBoss(200)).toBeTruthy();
+      expect(nightmareGameMode.isNightmareCheckpointBoss(400)).toBeTruthy();
+      expect(nightmareGameMode.isNightmareCheckpointBoss(600)).toBeTruthy();
+      expect(nightmareGameMode.isNightmareCheckpointBoss(800)).toBeTruthy();
+      expect(nightmareGameMode.isNightmareCheckpointBoss(1000)).toBeFalsy();
+      expect(nightmareGameMode.isNightmareCheckpointBoss(250)).toBeFalsy();
+    });
+
+    it("does not flag checkpoint waves for other modes", () => {
+      const classicGameMode = getGameMode(GameModes.CLASSIC);
+      expect(classicGameMode.isNightmareCheckpointBoss(200)).toBeFalsy();
+    });
+
+    it("uses the hardcore mystery encounter wave range", () => {
+      expect(nightmareGameMode.getMysteryEncounterLegalWaves()).toEqual([10, 980]);
+    });
+  });
 });

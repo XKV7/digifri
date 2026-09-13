@@ -112,6 +112,13 @@ export class TitlePhase extends Phase {
             },
           });
           options.push({
+            label: GameMode.getModeName(GameModes.NIGHTMARE),
+            handler: () => {
+              setModeAndEnd(GameModes.NIGHTMARE);
+              return true;
+            },
+          });
+          options.push({
             label: i18next.t("menu:dailyRun"),
             handler: () => {
               this.initDailyRun();

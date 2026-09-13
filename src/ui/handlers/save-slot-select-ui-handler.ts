@@ -515,6 +515,7 @@ class SessionSlot extends Phaser.GameObjects.Container {
     let fallbackName = `${GameMode.getModeName(data.gameMode)}`;
     switch (data.gameMode) {
       case GameModes.CLASSIC:
+      case GameModes.NIGHTMARE:
         fallbackName += ` (${globalScene.gameData.gameStats.classicSessionsPlayed + 1})`;
         break;
       case GameModes.ENDLESS:
