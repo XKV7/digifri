@@ -375,7 +375,7 @@ export class SelectModifierPhase extends BattlePhase {
 
   // Function that determines how many reward slots are available
   private getModifierCount(): number {
-    const modifierCountHolder = new NumberHolder(3);
+    const modifierCountHolder = new NumberHolder(globalScene.gameMode.getBaseModifierCount());
     globalScene.applyModifiers(ExtraModifierModifier, true, modifierCountHolder);
     globalScene.applyModifiers(TempExtraModifierModifier, true, modifierCountHolder);
 

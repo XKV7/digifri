@@ -197,6 +197,8 @@ export class GameMode implements GameModeConfig {
     switch (this.modeId) {
       case GameModes.DAILY:
         return waveIndex + 30 + (ignoreCurveChanges ? 0 : Math.floor(waveIndex / 5));
+      case GameModes.NIGHTMARE:
+        return Math.floor(waveIndex * 1.15);
       default:
         return waveIndex;
     }
@@ -420,6 +422,18 @@ export class GameMode implements GameModeConfig {
     const status = new BooleanHolder(!this.hasNoShop);
     applyChallenges(ChallengeType.SHOP, status);
     return status.value;
+  }
+
+  /**
+   * @returns The number of modifier choices offered at the shop after each 10-wave segment.
+   */
+  getBaseModifierCount(): number {
+    switch (this.modeId) {
+      case GameModes.NIGHTMARE:
+        return 2;
+      default:
+        return 3;
+    }
   }
 
   getClearScoreBonus(): number {

@@ -77,5 +77,23 @@ describe("game-mode", () => {
     it("uses the hardcore mystery encounter wave range", () => {
       expect(nightmareGameMode.getMysteryEncounterLegalWaves()).toEqual([10, 980]);
     });
+
+    it("scales enemy level curve harder than classic", () => {
+      const classicGameMode = getGameMode(GameModes.CLASSIC);
+      expect(nightmareGameMode.getWaveForDifficulty(100)).toBeGreaterThan(classicGameMode.getWaveForDifficulty(100));
+    });
+
+    it("offers fewer shop reward slots than classic", () => {
+      const classicGameMode = getGameMode(GameModes.CLASSIC);
+      expect(nightmareGameMode.getBaseModifierCount()).toBeLessThan(classicGameMode.getBaseModifierCount());
+    });
+
+    it("gives enemies items less often than classic", () => {
+      const classicGameMode = getGameMode(GameModes.CLASSIC);
+      expect(nightmareGameMode.getEnemyModifierChance(false)).toBeLessThan(
+        classicGameMode.getEnemyModifierChance(false),
+      );
+      expect(nightmareGameMode.getEnemyModifierChance(true)).toBeLessThan(classicGameMode.getEnemyModifierChance(true));
+    });
   });
 });

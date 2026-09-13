@@ -3570,6 +3570,14 @@ export class BattleScene extends SceneBase {
       MysteryEncounterTier.MASTER,
     ];
 
+    // Hardcore mode skews the tier roll towards rarer, higher-risk encounters
+    if (this.gameMode.modeId === GameModes.NIGHTMARE) {
+      tierWeights[0] = Math.floor(tierWeights[0] * 0.3);
+      tierWeights[1] = Math.floor(tierWeights[1] * 0.5);
+      tierWeights[3] *= 4;
+      tierWeights[4] *= 8;
+    }
+
     // Adjust tier weights by previously encountered events to lower odds of only Common/Great in run
     // biome-ignore format: biome sucks at formatting this line
     for (const seenEncounterData of this.mysteryEncounterSaveData.encounteredEvents) {
