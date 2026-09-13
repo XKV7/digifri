@@ -322,6 +322,18 @@ export class GameMode implements GameModeConfig {
   }
 
   /**
+   * The wave past which EncounterPhase/GameOverPhase's "skipped the final wave" failsafes should
+   * trigger (see their own `> getClassicFailsafeWave()` checks). Currently 200 for every mode that
+   * reads it (only Classic/Challenge, via `isClassic`) - pulled into its own method (rather than the
+   * literal `200` those two call sites used to hardcode) so a future mode with a different final
+   * wave only needs a case added here instead of touching both call sites directly.
+   * @returns The failsafe wave threshold for the current mode
+   */
+  getClassicFailsafeWave(): number {
+    return 200;
+  }
+
+  /**
    * Check whether the current wave is an Endless boss of any kind.
    * @param waveIndex - The current wave number.
    * @returns Whether `waveIndex` corresponds to an Endless boss.

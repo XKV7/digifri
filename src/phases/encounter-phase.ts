@@ -59,8 +59,11 @@ export class EncounterPhase extends BattlePhase {
 
     globalScene.eventTarget.dispatchEvent(new EncounterPhaseEvent());
 
-    // Failsafe if players somehow skip floor 200 in classic mode
-    if (globalScene.gameMode.isClassic && globalScene.currentBattle.waveIndex > 200) {
+    // Failsafe if players somehow skip the final wave in classic-family modes
+    if (
+      globalScene.gameMode.isClassic
+      && globalScene.currentBattle.waveIndex > globalScene.gameMode.getClassicFailsafeWave()
+    ) {
       globalScene.phaseManager.unshiftNew("GameOverPhase");
     }
 
