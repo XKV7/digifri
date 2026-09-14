@@ -15,7 +15,16 @@ import {
   setMyActivePvpRoomId,
 } from "#app/pvp-room";
 import { openPvpRoomPanel } from "#app/pvp-room-panel";
-import { beginPvpTeamEditMode, endPvpTeamEditMode, loadPvpTeam, savePvpTeam } from "#app/pvp-team";
+import {
+  beginPvpTeamEditMode,
+  endPvpTeamEditMode,
+  loadPvpDecks,
+  loadPvpTeam,
+  PVP_DECK_COUNT,
+  type PvpDeck,
+  savePvpDeck,
+  setActivePvpDeckIndex,
+} from "#app/pvp-team";
 import { handleTutorial, Tutorial } from "#app/tutorial";
 import { bypassLogin, isApp, isBeta, isDev } from "#constants/app-constants";
 import { AdminMode, getAdminModeName } from "#enums/admin-mode";
@@ -611,6 +620,107 @@ export class MenuUiHandler extends MessageUiHandler {
   }
 
   /**
+   * Opens the PvP team registration menu: lists the account's PVP_DECK_COUNT deck slots
+   * (independently editable via openPvpDeckMenu()) and which one is marked active - the deck an
+   * opponent's client actually loads to build this account's side of a real battle (see
+   * setActivePvpDeckIndex()).
+   */
+  private async openPvpTeamMenu(): Promise<void> {
+    const ui = this.getUi();
+    const ctx = getCloudSaveContext();
+    if (!ctx) {
+      return;
+    }
+    const { decks, activeDeckIndex } = await loadPvpDecks();
+
+    const options: OptionSelectItem[] = [];
+    for (let i = 0; i < PVP_DECK_COUNT; i++) {
+      const deck = decks[i];
+      const isActive = i === activeDeckIndex;
+      const status = deck ? `${deck.starters.length}마리 등록됨` : "비어있음";
+      options.push({
+        label: `덱 ${i + 1}${isActive ? " [사용 중]" : ""} (${status})`,
+        handler: () => {
+          ui.revertMode();
+          void this.openPvpDeckMenu(i, deck, isActive);
+          return true;
+        },
+      });
+    }
+    options.push({
+      label: i18next.t("menu:cancel"),
+      handler: () => {
+        ui.revertMode();
+        return true;
+      },
+    });
+    ui.setOverlayMode(UiMode.OPTION_SELECT, { options });
+  }
+
+  /** Second-level menu for one deck slot: edit it, or (if not already active) mark it active. */
+  private async openPvpDeckMenu(index: number, deck: PvpDeck | null, isActive: boolean): Promise<void> {
+    const ui = this.getUi();
+    const options: OptionSelectItem[] = [
+      {
+        label: "편집하기",
+        handler: () => {
+          ui.revertMode();
+          this.startPvpDeckEdit(index);
+          return true;
+        },
+      },
+    ];
+    if (!isActive && deck) {
+      options.push({
+        label: "이 덱 사용하기",
+        handler: () => {
+          ui.revertMode();
+          void setActivePvpDeckIndex(index).then(ok => {
+            ui.showText(
+              ok ? `덱 ${index + 1}을(를) 사용하도록 설정했습니다.` : "설정에 실패했습니다. 다시 시도해주세요.",
+              null,
+              () => ui.showText(""),
+              fixedInt(2000),
+            );
+          });
+          return true;
+        },
+      });
+    }
+    options.push({
+      label: i18next.t("menu:cancel"),
+      handler: () => {
+        ui.revertMode();
+        void this.openPvpTeamMenu();
+        return true;
+      },
+    });
+    ui.setOverlayMode(UiMode.OPTION_SELECT, { options });
+  }
+
+  /** Opens the starter-select screen in PvP edit mode to build/edit one deck slot. */
+  private startPvpDeckEdit(index: number): void {
+    const ui = this.getUi();
+    const prevMoney = globalScene.money;
+    beginPvpTeamEditMode();
+    ui.setOverlayMode(UiMode.STARTER_SELECT, (starters: Starter[]) => {
+      endPvpTeamEditMode();
+      globalScene.money = prevMoney;
+      ui.revertMode();
+      void savePvpDeck(index, `덱 ${index + 1}`, starters).then(ok => {
+        ui.showText(
+          ok
+            ? `덱 ${index + 1}이(가) 저장되었습니다. (${starters.length}마리)`
+            : "PvP 팀 저장에 실패했습니다. 다시 시도해주세요.",
+          null,
+          () => ui.showText(""),
+          fixedInt(2000),
+        );
+      });
+    });
+  }
+
+  /**
    * Opens the PvP lobby: if the caller already has an active room (created or joined,
    * remembered locally), shows its current status; otherwise offers to browse open rooms
    * to join (showPvpRoomList()) or create a new one. See src/pvp-room.ts.
@@ -1031,23 +1141,7 @@ export class MenuUiHandler extends MessageUiHandler {
         }
         case MenuOptions.PVP_TEAM: {
           ui.revertMode();
-          const prevMoney = globalScene.money;
-          beginPvpTeamEditMode();
-          ui.setOverlayMode(UiMode.STARTER_SELECT, (starters: Starter[]) => {
-            endPvpTeamEditMode();
-            globalScene.money = prevMoney;
-            ui.revertMode();
-            void savePvpTeam(starters).then(ok => {
-              ui.showText(
-                ok
-                  ? `PvP 팀이 저장되었습니다. (${starters.length}마리)`
-                  : "PvP 팀 저장에 실패했습니다. 다시 시도해주세요.",
-                null,
-                () => ui.showText(""),
-                fixedInt(2000),
-              );
-            });
-          });
+          void this.openPvpTeamMenu();
           success = true;
           break;
         }
