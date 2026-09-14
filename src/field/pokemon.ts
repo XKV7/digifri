@@ -4514,6 +4514,41 @@ export abstract class Pokemon extends Phaser.GameObjects.Container {
   }
 
   /**
+   * Build a throwaway cosmetic Pokemon showing what this Pokemon would look like after the given
+   * form change - used only to configure the "after" sprites in {@linkcode FormChangePhase}'s
+   * animation (see its `doEvolution()`), then discarded. Deliberately on the base class rather
+   * than {@linkcode PlayerPokemon} alone: FormChangePhase's modal/item-triggered path also runs
+   * for a mirrored opponent's reveal in PvP (see pvp-battle.ts's createPvpFormChangeRevealPhase),
+   * constructed with an EnemyPokemon cast to PlayerPokemon for typing purposes only - at runtime
+   * that's a genuine EnemyPokemon, so this must actually exist on every Pokemon, not just
+   * PlayerPokemon, or the cast silently produces a `TypeError: ... .getPossibleForm is not a
+   * function` that FormChangePhase never catches, permanently stalling the phase queue.
+   * @param formChange - The form change to preview
+   * @returns A disposable {@linkcode Pokemon} in the post-form-change appearance
+   */
+  getPossibleForm(formChange: SpeciesFormChange): Promise<Pokemon> {
+    return new Promise(resolve => {
+      const formIndex = Math.max(
+        this.species.forms.findIndex(f => f.formKey === formChange.formKey),
+        0,
+      );
+      const ret = globalScene.addPlayerPokemon(
+        this.species,
+        this.level,
+        this.abilityIndex,
+        formIndex,
+        this.gender,
+        this.shiny,
+        this.variant,
+        this.ivs,
+        this.nature,
+        this,
+      );
+      ret.loadAssets().then(() => resolve(ret));
+    });
+  }
+
+  /**
    * Play this Pokémon's cry sound
    * @param soundConfig - Optional sound configuration to apply to the cry
    * @param sceneOverride - Optional scene to use instead of the global scene
@@ -6216,28 +6251,6 @@ export class PlayerPokemon extends Pokemon {
         globalScene.updateModifiers(true);
       }
     }
-  }
-
-  getPossibleForm(formChange: SpeciesFormChange): Promise<Pokemon> {
-    return new Promise(resolve => {
-      const formIndex = Math.max(
-        this.species.forms.findIndex(f => f.formKey === formChange.formKey),
-        0,
-      );
-      const ret = globalScene.addPlayerPokemon(
-        this.species,
-        this.level,
-        this.abilityIndex,
-        formIndex,
-        this.gender,
-        this.shiny,
-        this.variant,
-        this.ivs,
-        this.nature,
-        this,
-      );
-      ret.loadAssets().then(() => resolve(ret));
-    });
   }
 
   changeForm(formChange: SpeciesFormChange): Promise<void> {
