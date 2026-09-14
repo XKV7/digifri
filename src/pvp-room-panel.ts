@@ -32,6 +32,7 @@ import {
   finishPvpTeamPreview,
   initiatePvpBattle,
   type PvpRoomWithId,
+  setMyActivePvpRoomId,
   submitPvpTeamPreviewPicks,
   subscribePvpRoom,
 } from "#app/pvp-room";
@@ -192,9 +193,26 @@ function renderStartingBattle(): void {
   panel.replaceChildren(renderHeader("대전 시작"), renderStatusLine("대전을 불러오는 중..."));
 }
 
-function renderError(message: string): void {
+/**
+ * @param clearLocalRoom - If true, forgets this room as our locally-remembered active room (see
+ * pvp-room.ts's getMyActivePvpRoomId) when the player dismisses the error. Without this, a room
+ * whose data can never actually resolve (e.g. one side's registered team is missing) left the
+ * player permanently stuck: clicking PvP 대전 always re-anchored straight back to the same
+ * broken room and never reached the "입장하기"/"새 방 만들기" menu again. Only set for errors
+ * that indicate the room itself - not just this one attempt - is unusable.
+ */
+function renderError(message: string, clearLocalRoom = false): void {
   const panel = ensurePanel();
-  panel.replaceChildren(renderHeader("오류"), renderStatusLine(message), makeButton("닫기", closePvpRoomPanel));
+  panel.replaceChildren(
+    renderHeader("오류"),
+    renderStatusLine(message),
+    makeButton("닫기", () => {
+      if (clearLocalRoom) {
+        setMyActivePvpRoomId(null);
+      }
+      closePvpRoomPanel();
+    }),
+  );
 }
 
 function renderPicker(
@@ -324,7 +342,7 @@ async function renderForRoom(roomId: string, isHost: boolean, room: PvpRoomWithI
   const opponentUid = isHost ? room.guestUid : room.hostUid;
   const [myTeam, opponentTeam] = await Promise.all([loadPvpTeam(), opponentUid ? loadPvpTeam(opponentUid) : null]);
   if (!myTeam || myTeam.length === 0 || !opponentTeam || opponentTeam.length === 0) {
-    renderError("팀 정보를 불러오지 못했습니다.");
+    renderError("팀 정보를 불러오지 못했습니다.", true);
     return;
   }
   renderPicker(roomId, isHost, opponentName, opponentTeam, myTeam);
