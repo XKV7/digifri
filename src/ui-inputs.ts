@@ -16,7 +16,7 @@ import { SettingsDisplayUiHandler } from "#ui/settings-display-ui-handler";
 import { SettingsGamepadUiHandler } from "#ui/settings-gamepad-ui-handler";
 import { SettingsKeyboardUiHandler } from "#ui/settings-keyboard-ui-handler";
 import { SettingsUiHandler } from "#ui/settings-ui-handler";
-import { StarterSelectUiHandler } from "#ui/starter-select-ui-handler";
+import { StarterSelectUiHandler, triggerPvpQuickConfirmMoveset } from "#ui/starter-select-ui-handler";
 import Phaser from "phaser";
 
 type ActionKeys = Record<Button, () => void>;
@@ -106,6 +106,7 @@ export class UiInputs {
           import("./dev-function").then(m => m.customDevFunction());
         }
       },
+      [Button.QUICK_CONFIRM]: () => this.buttonQuickConfirm(),
     };
     return actions;
   }
@@ -130,6 +131,7 @@ export class UiInputs {
       [Button.SPEED_UP]: () => {},
       [Button.SLOW_DOWN]: () => {},
       [Button.DEV_CUSTOM]: () => {},
+      [Button.QUICK_CONFIRM]: () => {},
     };
     return actions;
   }
@@ -146,6 +148,15 @@ export class UiInputs {
 
   buttonTouch(): void {
     globalScene.ui.processInput(Button.SUBMIT) || globalScene.ui.processInput(Button.ACTION);
+  }
+
+  /**
+   * PvP moveset picker shortcut only - a no-op everywhere else. See
+   * `triggerPvpQuickConfirmMoveset()`'s doc comment for why this bypasses the normal
+   * `ui.processInput()` dispatch used by every other button here.
+   */
+  buttonQuickConfirm(): void {
+    triggerPvpQuickConfirmMoveset();
   }
 
   buttonStats(pressed = true): void {

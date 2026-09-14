@@ -334,6 +334,27 @@ interface SpeciesDetails {
   teraType?: PokemonType | undefined;
 }
 
+/**
+ * While the PvP moveset picker (`choosePvpMoveset()`) is open, this holds the same handler the
+ * list's own "확정하기" option runs - set when the screen opens, cleared the moment it resolves
+ * (confirm or cancel). `Button.QUICK_CONFIRM` (the O-key/touch-button shortcut, wired in
+ * ui-inputs.ts) calls `triggerPvpQuickConfirmMoveset()` directly rather than going through
+ * `ui.processInput()`, since by the time this option list is showing, `UI#mode` is
+ * `UiMode.OPTION_SELECT` (a generic, reused-everywhere handler) rather than
+ * `UiMode.STARTER_SELECT` - there's no way to scope a generic OPTION_SELECT input handler to
+ * "only this specific list" without this kind of explicit out-of-band hook.
+ */
+let pvpQuickConfirmMovesetHandler: (() => void) | null = null;
+
+/** Returns false (no-op) if the PvP moveset picker isn't currently open. */
+export function triggerPvpQuickConfirmMoveset(): boolean {
+  if (!pvpQuickConfirmMovesetHandler) {
+    return false;
+  }
+  pvpQuickConfirmMovesetHandler();
+  return true;
+}
+
 export class StarterSelectUiHandler extends MessageUiHandler {
   private starterSelectContainer: Phaser.GameObjects.Container;
   private starterSelectScrollBar: ScrollBar;
@@ -3150,6 +3171,11 @@ export class StarterSelectUiHandler extends MessageUiHandler {
     let restoreCursorAt = 0;
 
     return new Promise(resolve => {
+      const finish = (result: StarterMoveset | null) => {
+        pvpQuickConfirmMovesetHandler = null;
+        document.getElementById("touchControls")?.removeAttribute("data-pvp-moveset-confirm");
+        resolve(result);
+      };
       const render = () => {
         ui.setMode(UiMode.STARTER_SELECT).then(() => {
           if (pool.length > 0) {
@@ -3169,19 +3195,20 @@ export class StarterSelectUiHandler extends MessageUiHandler {
             },
             onHover: () => this.moveInfoOverlay.show(allMoves[moveId]),
           }));
+          const confirmHandler = () => {
+            if (chosen.length === 0) {
+              render();
+              return true;
+            }
+            this.clearText();
+            this.moveInfoOverlay.clear();
+            ui.setMode(UiMode.STARTER_SELECT).then(() => finish(chosen.slice(0, 4) as StarterMoveset));
+            return true;
+          };
           options.push(
             {
               label: chosen.length > 0 ? "확정하기" : "확정하기 (최소 1개 선택)",
-              handler: () => {
-                if (chosen.length === 0) {
-                  render();
-                  return true;
-                }
-                this.clearText();
-                this.moveInfoOverlay.clear();
-                ui.setMode(UiMode.STARTER_SELECT).then(() => resolve(chosen.slice(0, 4) as StarterMoveset));
-                return true;
-              },
+              handler: confirmHandler,
               onHover: () => this.moveInfoOverlay.clear(),
             },
             {
@@ -3189,7 +3216,7 @@ export class StarterSelectUiHandler extends MessageUiHandler {
               handler: () => {
                 this.clearText();
                 this.moveInfoOverlay.clear();
-                ui.setMode(UiMode.STARTER_SELECT).then(() => resolve(null));
+                ui.setMode(UiMode.STARTER_SELECT).then(() => finish(null));
                 return true;
               },
               onHover: () => this.moveInfoOverlay.clear(),
@@ -3204,6 +3231,10 @@ export class StarterSelectUiHandler extends MessageUiHandler {
           // Use the handler's own setCursor(), not Ui#setCursor() — the latter also plays the
           // select sound on a change, which would double up with the toggle's own sound.
           ui.getHandler().setCursor(restoreCursorAt);
+          // Lets the O-key/touch shortcut confirm without scrolling to the bottom of the list -
+          // see the pvpQuickConfirmMovesetHandler doc comment above the class.
+          pvpQuickConfirmMovesetHandler = confirmHandler;
+          document.getElementById("touchControls")?.setAttribute("data-pvp-moveset-confirm", "1");
         });
       };
       ui.setMode(UiMode.STARTER_SELECT).then(() => {

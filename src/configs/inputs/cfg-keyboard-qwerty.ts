@@ -219,6 +219,7 @@ export const CFG_KEYBOARD_QWERTY: KeyboardConfig = {
     [SettingKeyboard.ALT_BUTTON_SPEED_UP]: Button.SPEED_UP,
     [SettingKeyboard.ALT_BUTTON_SLOW_DOWN]: Button.SLOW_DOWN,
     [SettingKeyboard.ALT_BUTTON_CYCLE_TERA]: Button.CYCLE_TERA,
+    [SettingKeyboard.BUTTON_QUICK_CONFIRM]: Button.QUICK_CONFIRM,
     ...(isDev ? { [SettingKeyboard.BUTTON_DEV_CUSTOM]: Button.DEV_CUSTOM } : {}),
   },
   default: {
@@ -248,7 +249,7 @@ export const CFG_KEYBOARD_QWERTY: KeyboardConfig = {
     KEY_K: -1,
     KEY_L: -1,
     KEY_M: SettingKeyboard.ALT_BUTTON_MENU,
-    KEY_O: -1,
+    KEY_O: SettingKeyboard.BUTTON_QUICK_CONFIRM,
     KEY_P: -1,
     KEY_Q: isDev ? SettingKeyboard.BUTTON_DEV_CUSTOM : -1,
     KEY_S: SettingKeyboard.ALT_BUTTON_DOWN,

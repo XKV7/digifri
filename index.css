@@ -248,6 +248,20 @@ input:-internal-autofill-selected {
   display: none;
 }
 
+/* PvP moveset picker only: quick-confirm button (O-key equivalent). Reuses the
+ * STARTER_SELECT screen's UiMode.OPTION_SELECT overlay to list moves, and
+ * OPTION_SELECT is reused across many unrelated screens (settings, etc.), so this
+ * can't be scoped with a data-ui-mode check alone - toggled instead via the
+ * #touchControls[data-pvp-moveset-confirm] attribute set/cleared in
+ * choosePvpMoveset() (src/ui/handlers/starter-select-ui-handler.ts). */
+#control-group-pvp-moveset-confirm {
+  display: none;
+}
+
+#touchControls[data-pvp-moveset-confirm="1"] #control-group-pvp-moveset-confirm {
+  display: flex;
+}
+
 /* Configuration toolbar */
 
 #configToolbar {
@@ -391,6 +405,14 @@ input:-internal-autofill-selected {
 
 #control-group-extra-2 {
   width: var(--control-group-extra-wide-size);
+  right: var(--control-group-extra-2-offset);
+  bottom: var(--control-group-extra-2-offset);
+}
+
+/* Reuses control-group-extra-2's on-screen slot - that group's own buttons are
+ * always hidden while the moveset picker's OPTION_SELECT overlay is up (see the
+ * "Show cycle buttons only on STARTER_SELECT" rules above), so there's no overlap. */
+#control-group-pvp-moveset-confirm {
   right: var(--control-group-extra-2-offset);
   bottom: var(--control-group-extra-2-offset);
 }
