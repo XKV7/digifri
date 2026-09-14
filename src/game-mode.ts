@@ -198,7 +198,7 @@ export class GameMode implements GameModeConfig {
       case GameModes.DAILY:
         return waveIndex + 30 + (ignoreCurveChanges ? 0 : Math.floor(waveIndex / 5));
       case GameModes.NIGHTMARE:
-        return Math.floor(waveIndex * 1.15);
+        return Math.floor(waveIndex * 1.3);
       default:
         return waveIndex;
     }
@@ -426,6 +426,22 @@ export class GameMode implements GameModeConfig {
     const status = new BooleanHolder(!this.hasNoShop);
     applyChallenges(ChallengeType.SHOP, status);
     return status.value;
+  }
+
+  /**
+   * Multiplier applied to post-battle money rewards (see MoneyRewardPhase), on top of any
+   * existing Golden Poke Ball / Happy Hour bonuses. Does not affect shop prices or mystery
+   * encounter money costs, which read BattleScene#getWaveMoneyAmount directly without going
+   * through this multiplier.
+   * @returns The money reward multiplier for the current mode
+   */
+  getMoneyRewardMultiplier(): number {
+    switch (this.modeId) {
+      case GameModes.NIGHTMARE:
+        return 0.5;
+      default:
+        return 1;
+    }
   }
 
   /**

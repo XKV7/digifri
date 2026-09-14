@@ -24,6 +24,8 @@ export class MoneyRewardPhase extends BattlePhase {
       moneyAmount.value *= 2;
     }
 
+    moneyAmount.value = Math.floor(moneyAmount.value * globalScene.gameMode.getMoneyRewardMultiplier());
+
     globalScene.addMoney(moneyAmount.value);
 
     const userLocale = navigator.language || "en-US";

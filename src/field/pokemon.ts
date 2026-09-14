@@ -81,6 +81,7 @@ import { Challenges } from "#enums/challenges";
 import { DexAttr } from "#enums/dex-attr";
 import { ExpGainsSpeed } from "#enums/exp-gains-speed";
 import { FieldPosition } from "#enums/field-position";
+import { GameModes } from "#enums/game-modes";
 import { HitResult } from "#enums/hit-result";
 import { LearnMoveSituation } from "#enums/learn-move-situation";
 import { LearnableMoveSource } from "#enums/learnable-move-source";
@@ -1425,6 +1426,10 @@ export abstract class Pokemon extends Phaser.GameObjects.Container {
     if (critBoostTag) {
       // Dragon cheer only gives +1 crit stage to non-dragon types
       critStage.value += critBoostTag.critStages;
+    }
+
+    if (source.isEnemy() && globalScene.gameMode.modeId === GameModes.NIGHTMARE) {
+      critStage.value += 1;
     }
 
     console.log(`crit stage: +${critStage.value}`);

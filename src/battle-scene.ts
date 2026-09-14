@@ -2004,6 +2004,11 @@ export class BattleScene extends SceneBase {
     }
     ret += Math.floor(waveIndex / 250);
 
+    // Hardcore bosses take longer to bring down - one extra shield on top of the above
+    if (this.gameMode.modeId === GameModes.NIGHTMARE) {
+      ret++;
+    }
+
     return ret;
   }
 

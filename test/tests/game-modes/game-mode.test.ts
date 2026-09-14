@@ -119,5 +119,23 @@ describe("game-mode", () => {
       expect(nightmareGameMode.isWaveTrainer(30)).toBe(true);
       expect(nightmareGameMode.isWaveTrainer(240)).toBe(true);
     });
+
+    it("pays out half the money reward of classic on a battle win", () => {
+      const classicGameMode = getGameMode(GameModes.CLASSIC);
+      expect(nightmareGameMode.getMoneyRewardMultiplier()).toBe(0.5);
+      expect(classicGameMode.getMoneyRewardMultiplier()).toBe(1);
+    });
+
+    it("gives bosses one extra health segment compared to classic", () => {
+      const wave = 50;
+      const level = 50;
+      game.scene.gameMode = getGameMode(GameModes.CLASSIC);
+      const classicSegments = game.scene.getEncounterBossSegments(wave, level);
+
+      game.scene.gameMode = nightmareGameMode;
+      const nightmareSegments = game.scene.getEncounterBossSegments(wave, level);
+
+      expect(nightmareSegments).toBe(classicSegments + 1);
+    });
   });
 });
