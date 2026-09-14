@@ -1294,6 +1294,29 @@ export class StarterSelectUiHandler extends MessageUiHandler {
       this.pokemonPassiveLockedIcon.setVisible(notFreshStart);
       this.pokemonPassiveText.setVisible(notFreshStart);
 
+      // PvP team registration only: `args[1]`, if present, is a previously-registered deck's
+      // Starter[] (see menu-ui-handler.ts's startPvpDeckEdit()) to pre-fill the party row/grid
+      // checkmarks with, instead of opening on an empty selection. Bulk-seeds this.starters/
+      // this.starterSpecies directly from the already-fully-formed Starter objects (shiny/
+      // variant/formIndex/female etc.) rather than replaying the interactive per-mon add flow -
+      // updateStarters() below (via updateScroll()) picks up the seeded starterSpecies on its own
+      // to draw the grid checkmarks, so this only needs to additionally prime the 6 fixed party
+      // icon sprites the same way addToParty() does for an interactively-added Pokemon.
+      const existingStarters = (args[1] as Starter[] | undefined)?.slice(0, PLAYER_PARTY_MAX_SIZE);
+      if (existingStarters && existingStarters.length > 0) {
+        for (const starter of existingStarters) {
+          const species = speciesDataRegistry.getSpecies(starter.speciesId);
+          const index = this.starterSpecies.length;
+          const { formIndex, shiny, variant } = starter;
+          const female = starter.female ?? false;
+          this.starterIcons[index].setTexture(species.getIconAtlasKey(formIndex, shiny, variant));
+          this.starterIcons[index].setFrame(species.getIconId(female, formIndex, shiny, variant));
+          this.checkIconId(this.starterIcons[index], species, female, formIndex, shiny, variant);
+          this.starters.push(starter);
+          this.starterSpecies.push(species);
+        }
+      }
+
       this.resetFilters();
       this.updateStarters();
 

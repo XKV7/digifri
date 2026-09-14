@@ -665,7 +665,7 @@ export class MenuUiHandler extends MessageUiHandler {
         label: "편집하기",
         handler: () => {
           ui.revertMode();
-          this.startPvpDeckEdit(index);
+          this.startPvpDeckEdit(index, deck);
           return true;
         },
       },
@@ -698,26 +698,34 @@ export class MenuUiHandler extends MessageUiHandler {
     ui.setOverlayMode(UiMode.OPTION_SELECT, { options });
   }
 
-  /** Opens the starter-select screen in PvP edit mode to build/edit one deck slot. */
-  private startPvpDeckEdit(index: number): void {
+  /**
+   * Opens the starter-select screen in PvP edit mode to build/edit one deck slot. If `existingDeck`
+   * is non-null, its Starters pre-fill the party row/grid instead of starting from empty (see
+   * StarterSelectUiHandler#show()'s args[1] handling).
+   */
+  private startPvpDeckEdit(index: number, existingDeck: PvpDeck | null): void {
     const ui = this.getUi();
     const prevMoney = globalScene.money;
     beginPvpTeamEditMode();
-    ui.setOverlayMode(UiMode.STARTER_SELECT, (starters: Starter[]) => {
-      endPvpTeamEditMode();
-      globalScene.money = prevMoney;
-      ui.revertMode();
-      void savePvpDeck(index, `덱 ${index + 1}`, starters).then(ok => {
-        ui.showText(
-          ok
-            ? `덱 ${index + 1}이(가) 저장되었습니다. (${starters.length}마리)`
-            : "PvP 팀 저장에 실패했습니다. 다시 시도해주세요.",
-          null,
-          () => ui.showText(""),
-          fixedInt(2000),
-        );
-      });
-    });
+    ui.setOverlayMode(
+      UiMode.STARTER_SELECT,
+      (starters: Starter[]) => {
+        endPvpTeamEditMode();
+        globalScene.money = prevMoney;
+        ui.revertMode();
+        void savePvpDeck(index, `덱 ${index + 1}`, starters).then(ok => {
+          ui.showText(
+            ok
+              ? `덱 ${index + 1}이(가) 저장되었습니다. (${starters.length}마리)`
+              : "PvP 팀 저장에 실패했습니다. 다시 시도해주세요.",
+            null,
+            () => ui.showText(""),
+            fixedInt(2000),
+          );
+        });
+      },
+      existingDeck?.starters,
+    );
   }
 
   /**
