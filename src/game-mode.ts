@@ -21,6 +21,7 @@ import { BiomeId } from "#enums/biome-id";
 import { ChallengeType } from "#enums/challenge-type";
 import { Challenges } from "#enums/challenges";
 import { GameModes } from "#enums/game-modes";
+import { MysteryEncounterType } from "#enums/mystery-encounter-type";
 import { SpeciesId } from "#enums/species-id";
 import { classicFixedBattles, type FixedBattleConfigs } from "#trainers/fixed-battle-configs";
 import type { CustomDailyRunConfig } from "#types/daily-run";
@@ -354,14 +355,50 @@ export class GameMode implements GameModeConfig {
 
   /**
    * Checks whether the given wave should force an intermediate Eternatus checkpoint battle in
-   * Nightmare mode (every 200 waves, excluding wave 1000 which is the true final boss). Kept
-   * separate from `isWaveFinal` since that method's true/false drives the "run is complete"
-   * victory/game-over flows, which must NOT trigger on these intermediate checkpoints.
+   * Nightmare mode (waves 200/400/600). Kept separate from `isWaveFinal` since that method's
+   * true/false drives the "run is complete" victory/game-over flows, which must NOT trigger on
+   * these intermediate checkpoints. Waves 800 and 1000 are NOT included here - those are forced
+   * Mystery Encounters (see `getFixedMysteryEncounterType`), not Eternatus fights.
    * @param waveIndex - The wave to check.
    * @returns Whether `waveIndex` is a Nightmare checkpoint boss wave.
    */
   isNightmareCheckpointBoss(waveIndex: number): boolean {
-    return this.modeId === GameModes.NIGHTMARE && waveIndex % 200 === 0 && waveIndex !== 1000;
+    return this.modeId === GameModes.NIGHTMARE && (waveIndex === 200 || waveIndex === 400 || waveIndex === 600);
+  }
+
+  /**
+   * Checks whether the given wave should let the Nightmare checkpoint Eternatus reach its second
+   * (Eternamax) phase - currently only wave 600. This is folded into `Battle#isClassicFinalBoss`
+   * (see battle.ts), which grants that wave the same phase-two mechanics (guaranteed transform,
+   * double battle switch-in, Mini Black Hole reward, dedicated dialogue/BGM) as the true final
+   * boss, without touching `isWaveFinal` - so the run does NOT end at wave 600.
+   * @param waveIndex - The wave to check.
+   * @returns Whether `waveIndex` is the Nightmare phase-two checkpoint wave.
+   */
+  isNightmarePhaseTwoWave(waveIndex: number): boolean {
+    return this.modeId === GameModes.NIGHTMARE && waveIndex === 600;
+  }
+
+  /**
+   * Returns the Mystery Encounter that must occur on the given wave in Nightmare mode, if any -
+   * this completely bypasses the normal random Mystery Encounter roll/tier system (see
+   * BattleScene#handleNonFixedBattle). Used to guarantee Adeus at wave 800 and the Arceus Trial
+   * at wave 1000 (Nightmare's true final boss).
+   * @param waveIndex - The wave to check.
+   * @returns The `MysteryEncounterType` forced on this wave, or `null` if none.
+   */
+  getFixedMysteryEncounterType(waveIndex: number): MysteryEncounterType | null {
+    if (this.modeId !== GameModes.NIGHTMARE) {
+      return null;
+    }
+    switch (waveIndex) {
+      case 800:
+        return MysteryEncounterType.ADEUS_ENCOUNTER;
+      case 1000:
+        return MysteryEncounterType.ARCEUS_TRIAL;
+      default:
+        return null;
+    }
   }
 
   /**

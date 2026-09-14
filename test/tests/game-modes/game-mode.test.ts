@@ -1,6 +1,7 @@
 import type { GameMode } from "#app/game-mode";
 import { getGameMode } from "#app/game-mode";
 import { GameModes } from "#enums/game-modes";
+import { MysteryEncounterType } from "#enums/mystery-encounter-type";
 import { GameManager } from "#test/framework/game-manager";
 import * as Utils from "#utils/common";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -60,11 +61,12 @@ describe("game-mode", () => {
       expect(nightmareGameMode.getClassicFailsafeWave()).toBe(1000);
     });
 
-    it("flags waves 200/400/600/800 as checkpoint bosses but not wave 1000 or non-multiples of 200", () => {
+    it("flags waves 200/400/600 as Eternatus checkpoint bosses but not 800/1000/other waves", () => {
       expect(nightmareGameMode.isNightmareCheckpointBoss(200)).toBeTruthy();
       expect(nightmareGameMode.isNightmareCheckpointBoss(400)).toBeTruthy();
       expect(nightmareGameMode.isNightmareCheckpointBoss(600)).toBeTruthy();
-      expect(nightmareGameMode.isNightmareCheckpointBoss(800)).toBeTruthy();
+      // 800 and 1000 are forced Mystery Encounters (Adeus, Arceus Trial), not Eternatus checkpoints.
+      expect(nightmareGameMode.isNightmareCheckpointBoss(800)).toBeFalsy();
       expect(nightmareGameMode.isNightmareCheckpointBoss(1000)).toBeFalsy();
       expect(nightmareGameMode.isNightmareCheckpointBoss(250)).toBeFalsy();
     });
@@ -72,6 +74,27 @@ describe("game-mode", () => {
     it("does not flag checkpoint waves for other modes", () => {
       const classicGameMode = getGameMode(GameModes.CLASSIC);
       expect(classicGameMode.isNightmareCheckpointBoss(200)).toBeFalsy();
+    });
+
+    it("only allows the Eternatus checkpoint to reach its second (Eternamax) phase at wave 600", () => {
+      expect(nightmareGameMode.isNightmarePhaseTwoWave(200)).toBeFalsy();
+      expect(nightmareGameMode.isNightmarePhaseTwoWave(400)).toBeFalsy();
+      expect(nightmareGameMode.isNightmarePhaseTwoWave(600)).toBeTruthy();
+      expect(nightmareGameMode.isNightmarePhaseTwoWave(1000)).toBeFalsy();
+
+      const classicGameMode = getGameMode(GameModes.CLASSIC);
+      expect(classicGameMode.isNightmarePhaseTwoWave(600)).toBeFalsy();
+    });
+
+    it("forces Adeus at wave 800 and the Arceus Trial at wave 1000", () => {
+      expect(nightmareGameMode.getFixedMysteryEncounterType(800)).toBe(MysteryEncounterType.ADEUS_ENCOUNTER);
+      expect(nightmareGameMode.getFixedMysteryEncounterType(1000)).toBe(MysteryEncounterType.ARCEUS_TRIAL);
+      expect(nightmareGameMode.getFixedMysteryEncounterType(200)).toBeNull();
+      expect(nightmareGameMode.getFixedMysteryEncounterType(600)).toBeNull();
+
+      const classicGameMode = getGameMode(GameModes.CLASSIC);
+      expect(classicGameMode.getFixedMysteryEncounterType(800)).toBeNull();
+      expect(classicGameMode.getFixedMysteryEncounterType(1000)).toBeNull();
     });
 
     it("uses the hardcore mystery encounter wave range", () => {
@@ -96,9 +119,9 @@ describe("game-mode", () => {
       expect(nightmareGameMode.getEnemyModifierChance(true)).toBeLessThan(classicGameMode.getEnemyModifierChance(true));
     });
 
-    it("never generates a gym-leader trainer battle on a checkpoint boss wave, regardless of offsetGym", () => {
+    it("never generates a gym-leader trainer battle on an Eternatus checkpoint wave, regardless of offsetGym", () => {
       // The gym-leader-every-30-waves pattern lands on wave%30===20 when offsetGym is false, or
-      // wave%30===0 when true - waves 200/800 (%30===20) and 600 (%30===0) would otherwise collide
+      // wave%30===0 when true - waves 200 (%30===20) and 600 (%30===0) would otherwise collide
       // with it and get hijacked into a trainer battle instead of the intended Eternatus checkpoint
       // fight, since only isWaveFinal(1000) - not the checkpoints - is exempted by default.
       for (const offsetGym of [false, true]) {
@@ -106,7 +129,6 @@ describe("game-mode", () => {
         expect(nightmareGameMode.isWaveTrainer(200)).toBe(false);
         expect(nightmareGameMode.isWaveTrainer(400)).toBe(false);
         expect(nightmareGameMode.isWaveTrainer(600)).toBe(false);
-        expect(nightmareGameMode.isWaveTrainer(800)).toBe(false);
       }
     });
 

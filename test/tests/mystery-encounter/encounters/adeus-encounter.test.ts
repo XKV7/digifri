@@ -103,7 +103,7 @@ describe("Adeus - Mystery Encounter", () => {
     expect(AdeusEncounter.dialogue.outro).toBeUndefined();
   });
 
-  it("is disallowed in every mode except Hardcore (Nightmare)", () => {
+  it("is disallowed from the normal random roll in every mode, including Hardcore (Nightmare) - it's guaranteed instead at wave 800", () => {
     expect(AdeusEncounter.disallowedGameModes).toEqual(
       expect.arrayContaining([
         GameModes.CLASSIC,
@@ -111,9 +111,9 @@ describe("Adeus - Mystery Encounter", () => {
         GameModes.SPLICED_ENDLESS,
         GameModes.DAILY,
         GameModes.CHALLENGE,
+        GameModes.NIGHTMARE,
       ]),
     );
-    expect(AdeusEncounter.disallowedGameModes).not.toContain(GameModes.NIGHTMARE);
   });
 
   it("disables the decline option (option 2) only in Hardcore mode", async () => {

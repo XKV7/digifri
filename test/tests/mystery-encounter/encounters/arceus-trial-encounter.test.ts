@@ -123,7 +123,7 @@ describe("Arceus Trial - Mystery Encounter", () => {
     expect(scene.gameData.isUnlocked(Unlockables.HEAVENLY_FLUTE)).toBe(false);
   });
 
-  it("is disallowed in every mode except Hardcore (Nightmare)", () => {
+  it("is disallowed from the normal random roll in every mode, including Hardcore (Nightmare) - it's guaranteed instead at wave 1000", () => {
     expect(ArceusTrialEncounter.disallowedGameModes).toEqual(
       expect.arrayContaining([
         GameModes.CLASSIC,
@@ -131,9 +131,9 @@ describe("Arceus Trial - Mystery Encounter", () => {
         GameModes.SPLICED_ENDLESS,
         GameModes.DAILY,
         GameModes.CHALLENGE,
+        GameModes.NIGHTMARE,
       ]),
     );
-    expect(ArceusTrialEncounter.disallowedGameModes).not.toContain(GameModes.NIGHTMARE);
   });
 
   it("disables the decline option (option 2) only in Hardcore mode", async () => {

@@ -27,7 +27,7 @@ describe("Nightmare (Hardcore) - Eternatus checkpoints", () => {
   });
 
   it.each([
-    200, 400, 600, 800,
+    200, 400,
   ])("spawns a regular-form Eternatus in a single (non-Eternamax) battle on checkpoint wave %i", async wave => {
     game.override.startingWave(wave);
     await game.runToFinalBossEncounter([SpeciesId.BIDOOF], GameModes.NIGHTMARE);
@@ -37,26 +37,33 @@ describe("Nightmare (Hardcore) - Eternatus checkpoints", () => {
     expect(game.field.getEnemyPokemon().species.speciesId).toBe(SpeciesId.ETERNATUS);
     expect(game.field.getEnemyPokemon().formIndex).toBe(0);
     // isClassicFinalBoss gates the Eternamax phase-two transform (see damage-anim-phase.ts /
-    // post-turn-status-effect-phase.ts) - it must stay false on checkpoints so the fight never
-    // escalates into the true final boss experience.
+    // post-turn-status-effect-phase.ts) - it must stay false on 200/400 so the fight never
+    // escalates past phase one.
     expect(game.scene.currentBattle.isClassicFinalBoss).toBe(false);
     expect(game.scene.currentBattle.double).toBe(false);
   });
 
-  it("spawns Eternatus as the true, Eternamax-capable final boss on wave 1000", async () => {
-    game.override.startingWave(1000);
+  it("allows the checkpoint Eternatus to reach its second (Eternamax) phase on wave 600, without ending the run", async () => {
+    game.override.startingWave(600);
     await game.runToFinalBossEncounter([SpeciesId.BIDOOF], GameModes.NIGHTMARE);
 
-    expect(game.scene.currentBattle.waveIndex).toBe(1000);
+    expect(game.scene.currentBattle.waveIndex).toBe(600);
     expect(game.scene.arena.biomeId).toBe(BiomeId.END);
     expect(game.field.getEnemyPokemon().species.speciesId).toBe(SpeciesId.ETERNATUS);
+    expect(game.field.getEnemyPokemon().formIndex).toBe(0);
+    // Wave 600 gets the same isClassicFinalBoss-gated mechanics as the true final boss
+    // (guaranteed phase-two transform, double battle switch-in, etc.)...
     expect(game.scene.currentBattle.isClassicFinalBoss).toBe(true);
+    // ...but isWaveFinal must stay false, since this checkpoint must NOT end the run.
+    expect(game.scene.gameMode.isWaveFinal(600)).toBe(false);
   });
 
-  it("does NOT treat non-multiples-of-200 waves as checkpoints", () => {
+  it("does NOT treat non-checkpoint waves as Eternatus checkpoints", () => {
     const nightmareGameMode = game.scene.gameMode;
     nightmareGameMode.modeId = GameModes.NIGHTMARE;
     expect(nightmareGameMode.isNightmareCheckpointBoss(199)).toBe(false);
     expect(nightmareGameMode.isNightmareCheckpointBoss(201)).toBe(false);
+    expect(nightmareGameMode.isNightmareCheckpointBoss(800)).toBe(false);
+    expect(nightmareGameMode.isNightmareCheckpointBoss(1000)).toBe(false);
   });
 });

@@ -1448,6 +1448,17 @@ export class BattleScene extends SceneBase {
    */
   private handleNonFixedBattle(resolved: NewBattleInitialProps): void {
     const { waveIndex } = resolved;
+
+    // Nightmare's forced wave-800/1000 bosses (Adeus, Arceus Trial) bypass the trainer/wild
+    // decision and the normal Mystery Encounter roll entirely.
+    const fixedEncounterType = this.gameMode.getFixedMysteryEncounterType(waveIndex);
+    if (fixedEncounterType != null) {
+      resolved.battleType = BattleType.MYSTERY_ENCOUNTER;
+      resolved.mysteryEncounterType = fixedEncounterType;
+      this.mysteryEncounterSaveData.encounterSpawnChance = BASE_MYSTERY_ENCOUNTER_SPAWN_WEIGHT;
+      return;
+    }
+
     resolved.battleType =
       !this.gameMode.hasTrainers || activeOverrides.DISABLE_STANDARD_TRAINERS_OVERRIDE
         ? BattleType.WILD

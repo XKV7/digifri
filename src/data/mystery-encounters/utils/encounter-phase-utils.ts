@@ -857,6 +857,13 @@ export function handleMysteryEncounterVictory(addHealPhase = false, doNotContinu
         // Only lapse eggs once for multi-battle encounters
         globalScene.phaseManager.pushNew("EggLapsePhase");
       }
+    } else {
+      // Winning a Mystery Encounter on the true final wave (e.g. Nightmare's forced Arceus
+      // Trial at wave 1000) ends the run - mirrors VictoryPhase's own non-ME final wave branch.
+      globalScene.currentBattle.battleType = BattleType.CLEAR;
+      globalScene.score += globalScene.gameMode.getClearScoreBonus();
+      globalScene.updateScoreText();
+      globalScene.phaseManager.pushNew("GameOverPhase", true);
     }
   }
 }

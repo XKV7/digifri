@@ -133,7 +133,17 @@ export class Battle {
   }
 
   public get isClassicFinalBoss(): boolean {
-    return this.gameMode.isClassic && this.gameMode.isWaveFinal(this.waveIndex);
+    // A Mystery Encounter (e.g. Nightmare's forced Arceus Trial at wave 1000) is never the
+    // classic-style Eternatus final boss, even on a wave that otherwise qualifies - letting it
+    // through here would hijack the ME's own intro/dialogue flow with Eternatus-specific final
+    // boss presentation logic (see doEncounter() in encounter-phase.ts and its siblings).
+    if (this.isBattleMysteryEncounter()) {
+      return false;
+    }
+    return (
+      (this.gameMode.isClassic && this.gameMode.isWaveFinal(this.waveIndex))
+      || this.gameMode.isNightmarePhaseTwoWave(this.waveIndex)
+    );
   }
 
   public getLevelForWave(): number {

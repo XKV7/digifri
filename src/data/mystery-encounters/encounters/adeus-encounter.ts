@@ -41,12 +41,15 @@ export const AdeusEncounter: MysteryEncounter = MysteryEncounterBuilder.withEnco
 )
   .withEncounterTier(MysteryEncounterTier.MASTER)
   .withSceneWaveRangeRequirement(...HARDCORE_MODE_MYSTERY_ENCOUNTER_WAVES)
+  // Never spawns via the normal random roll in ANY mode, including Nightmare - it's guaranteed
+  // instead at wave 800 via GameMode#getFixedMysteryEncounterType (see BattleScene#handleNonFixedBattle).
   .withDisallowedGameModes(
     GameModes.CLASSIC,
     GameModes.ENDLESS,
     GameModes.SPLICED_ENDLESS,
     GameModes.DAILY,
     GameModes.CHALLENGE,
+    GameModes.NIGHTMARE,
   )
   // Same rarity gate as the Arceus Trial - see RandomChanceRequirement's own doc comment.
   .withSceneRequirement(new RandomChanceRequirement(2048))
