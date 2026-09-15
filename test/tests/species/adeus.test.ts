@@ -118,6 +118,24 @@ describe("Species - Adeus", () => {
     );
   });
 
+  it("sets the Event Horizon field even as a non-boss player Pokemon with its passive forced on", async () => {
+    // Every other test in this file exercises Event Horizon via Adeus as the enemy encounter
+    // Pokemon, which always has its passive active through isBoss() regardless of the raw passive
+    // flag (see Pokemon#hasPassive()). A PvP-registered Adeus is built as a normal, non-boss
+    // PlayerPokemon instead (see buildPvpPokemon() in pvp-battle.ts, which forwards the registered
+    // Starter's own `passive` field straight through) - hasPassive() only falls back to isBoss()
+    // when that raw flag is false, so this is the one path that silently never activated Event
+    // Horizon at all when addToPartyPvp() (starter-select-ui-handler.ts) hardcoded every
+    // PvP-registered Starter's `passive` to false, regardless of species.
+    game.override.starterSpecies(SpeciesId.ADEUS).passiveAbility(AbilityId.EVENT_HORIZON);
+    await game.classicMode.startBattle(SpeciesId.ADEUS);
+
+    const adeus = game.field.getPlayerPokemon();
+    expect(adeus.isBoss()).toBe(false);
+    expect(adeus.hasPassive()).toBe(true);
+    expect(game.scene.arena.getTag(ArenaTagType.EVENT_HORIZON)).toBeDefined();
+  });
+
   it("clears the Event Horizon field once Adeus leaves the field", async () => {
     game.override.moveset(MoveId.SHEER_COLD).ability(AbilityId.NO_GUARD).startingLevel(100).enemyLevel(1);
     await game.classicMode.startBattle(SpeciesId.MAGIKARP);

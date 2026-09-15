@@ -3087,7 +3087,13 @@ export class StarterSelectUiHandler extends MessageUiHandler {
         formIndex: props.formIndex,
         female: props.female,
         abilityIndex,
-        passive: false,
+        // Always on, same as every other normal-run unlock gate this screen already ignores for
+        // PvP (any evolution stage, level 100, full movepool - see the other fields below): a
+        // hardcoded false here previously meant a Pokemon whose passive is core to its actual
+        // design - e.g. Adeus's Event Horizon field, or MissingNo.'s Error - silently didn't work
+        // at all in PvP even though the same Pokemon fought normally (with its passive active) in
+        // its own Mystery Encounter, with no indication anything was different.
+        passive: true,
         nature,
         moveset,
         pokerus: false,
