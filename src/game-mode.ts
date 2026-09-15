@@ -354,33 +354,30 @@ export class GameMode implements GameModeConfig {
   }
 
   /**
-   * Checks whether the player's starting party - Pokemon present from the very start of the run,
-   * not caught along the way (see the `metBiome === -1` convention used elsewhere, e.g.
-   * `Pokemon#hasPassive`) - includes Dialga, Palkia, AND Giratina, all three. Gates whether
-   * Nightmare's wave 800 becomes the Adeus encounter (see `getFixedMysteryEncounterType`) rather
-   * than a third Eternatus checkpoint - a nod to Adeus's own design, whose moveset is the union of
-   * these three legendaries' own movesets (see generation-04.ts).
-   * @returns Whether the starting party contains all three of Dialga, Palkia, and Giratina.
+   * Checks whether the player has Dialga, Palkia, AND Giratina all three registered as available
+   * starters (i.e. caught at least once - see `dexData[speciesId].caughtAttr`, the same flag
+   * `StarterSelectUiHandler`'s own starter-picker screen uses to decide which species can be
+   * picked at all), regardless of whether any of them were actually chosen for this particular
+   * run's starting party. Gates whether Nightmare's wave 800 becomes the Adeus encounter (see
+   * `getFixedMysteryEncounterType`) rather than a third Eternatus checkpoint - a nod to Adeus's
+   * own design, whose moveset is the union of these three legendaries' own movesets (see
+   * generation-04.ts).
+   * @returns Whether Dialga, Palkia, and Giratina are all registered starters.
    */
-  private hasStartingCreationTrio(): boolean {
-    const startingSpecies = new Set(
-      globalScene
-        .getPlayerParty()
-        .filter(p => p.metBiome === -1)
-        .map(p => p.species.speciesId),
-    );
+  private hasCreationTrioUnlocked(): boolean {
+    const { dexData } = globalScene.gameData;
     return (
-      startingSpecies.has(SpeciesId.DIALGA)
-      && startingSpecies.has(SpeciesId.PALKIA)
-      && startingSpecies.has(SpeciesId.GIRATINA)
+      !!dexData[SpeciesId.DIALGA]?.caughtAttr
+      && !!dexData[SpeciesId.PALKIA]?.caughtAttr
+      && !!dexData[SpeciesId.GIRATINA]?.caughtAttr
     );
   }
 
   /**
    * Checks whether the given wave should force an intermediate Eternatus checkpoint battle in
-   * Nightmare mode (waves 200/400/600, always - plus 800 when the starting party isn't Dialga/
-   * Palkia/Giratina, see `hasStartingCreationTrio`). Kept separate from `isWaveFinal` since that
-   * method's true/false drives the "run is complete" victory/game-over flows, which must NOT
+   * Nightmare mode (waves 200/400/600, always - plus 800 when Dialga/Palkia/Giratina aren't all
+   * registered starters, see `hasCreationTrioUnlocked`). Kept separate from `isWaveFinal` since
+   * that method's true/false drives the "run is complete" victory/game-over flows, which must NOT
    * trigger on these intermediate checkpoints. Wave 1000 is NOT included here - that's a forced
    * Mystery Encounter (see `getFixedMysteryEncounterType`), not an Eternatus fight.
    * @param waveIndex - The wave to check.
@@ -394,14 +391,14 @@ export class GameMode implements GameModeConfig {
       waveIndex === 200
       || waveIndex === 400
       || waveIndex === 600
-      || (waveIndex === 800 && !this.hasStartingCreationTrio())
+      || (waveIndex === 800 && !this.hasCreationTrioUnlocked())
     );
   }
 
   /**
    * Checks whether the given wave should let the Nightmare checkpoint Eternatus reach its second
    * (Eternamax) phase - wave 600 always, plus wave 800 when it's falling back to an Eternatus
-   * checkpoint instead of the Adeus encounter (see `hasStartingCreationTrio`). This is folded into
+   * checkpoint instead of the Adeus encounter (see `hasCreationTrioUnlocked`). This is folded into
    * `Battle#isClassicFinalBoss` (see battle.ts), which grants that wave the same phase-two
    * mechanics (guaranteed transform, double battle switch-in, Mini Black Hole reward, dedicated
    * dialogue/BGM) as the true final boss, without touching `isWaveFinal` - so the run does NOT end
@@ -413,16 +410,16 @@ export class GameMode implements GameModeConfig {
     if (this.modeId !== GameModes.NIGHTMARE) {
       return false;
     }
-    return waveIndex === 600 || (waveIndex === 800 && !this.hasStartingCreationTrio());
+    return waveIndex === 600 || (waveIndex === 800 && !this.hasCreationTrioUnlocked());
   }
 
   /**
    * Returns the Mystery Encounter that must occur on the given wave in Nightmare mode, if any -
    * this completely bypasses the normal random Mystery Encounter roll/tier system (see
    * BattleScene#handleNonFixedBattle). Used to guarantee the Arceus Trial at wave 1000 (Nightmare's
-   * true final boss), and Adeus at wave 800 specifically when the starting party is Dialga/Palkia/
-   * Giratina (see `hasStartingCreationTrio`) - otherwise wave 800 instead falls back to a third
-   * Eternatus checkpoint (see `isNightmareCheckpointBoss`/`isNightmarePhaseTwoWave`).
+   * true final boss), and Adeus at wave 800 specifically when Dialga, Palkia, and Giratina are all
+   * registered starters (see `hasCreationTrioUnlocked`) - otherwise wave 800 instead falls back to
+   * a third Eternatus checkpoint (see `isNightmareCheckpointBoss`/`isNightmarePhaseTwoWave`).
    * @param waveIndex - The wave to check.
    * @returns The `MysteryEncounterType` forced on this wave, or `null` if none.
    */
@@ -432,7 +429,7 @@ export class GameMode implements GameModeConfig {
     }
     switch (waveIndex) {
       case 800:
-        return this.hasStartingCreationTrio() ? MysteryEncounterType.ADEUS_ENCOUNTER : null;
+        return this.hasCreationTrioUnlocked() ? MysteryEncounterType.ADEUS_ENCOUNTER : null;
       case 1000:
         return MysteryEncounterType.ARCEUS_TRIAL;
       default:

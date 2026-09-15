@@ -5,11 +5,11 @@
  */
 
 import { BiomeId } from "#enums/biome-id";
+import { DexAttr } from "#enums/dex-attr";
 import { GameModes } from "#enums/game-modes";
 import { MoveId } from "#enums/move-id";
 import { SpeciesId } from "#enums/species-id";
 import { GameManager } from "#test/framework/game-manager";
-import { initSceneWithoutEncounterPhase } from "#test/utils/game-manager-utils";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 describe("Nightmare (Hardcore) - Eternatus checkpoints", () => {
@@ -59,7 +59,7 @@ describe("Nightmare (Hardcore) - Eternatus checkpoints", () => {
     expect(game.scene.gameMode.isWaveFinal(600)).toBe(false);
   });
 
-  it("also falls back to the checkpoint Eternatus at wave 800 (with its own Eternamax phase two) when the starting party isn't Dialga+Palkia+Giratina", async () => {
+  it("also falls back to the checkpoint Eternatus at wave 800 (with its own Eternamax phase two) when Dialga/Palkia/Giratina aren't all registered starters", async () => {
     game.override.startingWave(800);
     await game.runToFinalBossEncounter([SpeciesId.BIDOOF], GameModes.NIGHTMARE);
 
@@ -79,15 +79,17 @@ describe("Nightmare (Hardcore) - Eternatus checkpoints", () => {
     expect(nightmareGameMode.isNightmareCheckpointBoss(1000)).toBe(false);
   });
 
-  it("treats wave 800 as an Eternatus checkpoint only when the starting party is missing Dialga, Palkia or Giratina", () => {
+  it("treats wave 800 as an Eternatus checkpoint only when Dialga, Palkia or Giratina isn't a registered starter", () => {
     const nightmareGameMode = game.scene.gameMode;
     nightmareGameMode.modeId = GameModes.NIGHTMARE;
 
-    // No starting party set up yet - hasStartingCreationTrio() reads an empty party, so wave 800
+    // Fresh save, none of the trio caught yet - hasCreationTrioUnlocked() is false, so wave 800
     // falls back to being a checkpoint just like wave 600.
     expect(nightmareGameMode.isNightmareCheckpointBoss(800)).toBe(true);
 
-    initSceneWithoutEncounterPhase(game.scene, [SpeciesId.DIALGA, SpeciesId.PALKIA, SpeciesId.GIRATINA]);
+    for (const species of [SpeciesId.DIALGA, SpeciesId.PALKIA, SpeciesId.GIRATINA]) {
+      game.scene.gameData.dexData[species].caughtAttr = DexAttr.NON_SHINY;
+    }
     expect(nightmareGameMode.isNightmareCheckpointBoss(800)).toBe(false);
   });
 });
