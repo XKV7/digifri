@@ -199,7 +199,7 @@ export class GameMode implements GameModeConfig {
       case GameModes.DAILY:
         return waveIndex + 30 + (ignoreCurveChanges ? 0 : Math.floor(waveIndex / 5));
       case GameModes.NIGHTMARE:
-        return Math.floor(waveIndex * 1.3);
+        return Math.floor(waveIndex * 1.5);
       default:
         return waveIndex;
     }
@@ -511,7 +511,7 @@ export class GameMode implements GameModeConfig {
   getMoneyRewardMultiplier(): number {
     switch (this.modeId) {
       case GameModes.NIGHTMARE:
-        return 0.5;
+        return 0.3;
       default:
         return 1;
     }

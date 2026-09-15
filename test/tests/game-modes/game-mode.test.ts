@@ -1,7 +1,9 @@
 import type { GameMode } from "#app/game-mode";
 import { getGameMode } from "#app/game-mode";
+import { DexAttr } from "#enums/dex-attr";
 import { GameModes } from "#enums/game-modes";
 import { MysteryEncounterType } from "#enums/mystery-encounter-type";
+import { SpeciesId } from "#enums/species-id";
 import { GameManager } from "#test/framework/game-manager";
 import * as Utils from "#utils/common";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -61,14 +63,24 @@ describe("game-mode", () => {
       expect(nightmareGameMode.getClassicFailsafeWave()).toBe(1000);
     });
 
-    it("flags waves 200/400/600 as Eternatus checkpoint bosses but not 800/1000/other waves", () => {
+    it("flags waves 200/400/600 as Eternatus checkpoint bosses but not 1000/other waves", () => {
       expect(nightmareGameMode.isNightmareCheckpointBoss(200)).toBeTruthy();
       expect(nightmareGameMode.isNightmareCheckpointBoss(400)).toBeTruthy();
       expect(nightmareGameMode.isNightmareCheckpointBoss(600)).toBeTruthy();
-      // 800 and 1000 are forced Mystery Encounters (Adeus, Arceus Trial), not Eternatus checkpoints.
-      expect(nightmareGameMode.isNightmareCheckpointBoss(800)).toBeFalsy();
+      // 1000 is always the forced Arceus Trial, never an Eternatus checkpoint.
       expect(nightmareGameMode.isNightmareCheckpointBoss(1000)).toBeFalsy();
       expect(nightmareGameMode.isNightmareCheckpointBoss(250)).toBeFalsy();
+    });
+
+    it("flags wave 800 as an Eternatus checkpoint only when Dialga/Palkia/Giratina aren't all registered starters", () => {
+      // No starting party set up - none of the trio are registered starters, so wave 800 falls back
+      // to being a checkpoint like wave 600 (see hasCreationTrioUnlocked()).
+      expect(nightmareGameMode.isNightmareCheckpointBoss(800)).toBeTruthy();
+
+      for (const species of [SpeciesId.DIALGA, SpeciesId.PALKIA, SpeciesId.GIRATINA]) {
+        game.scene.gameData.dexData[species].caughtAttr = DexAttr.NON_SHINY;
+      }
+      expect(nightmareGameMode.isNightmareCheckpointBoss(800)).toBeFalsy();
     });
 
     it("does not flag checkpoint waves for other modes", () => {
@@ -86,11 +98,17 @@ describe("game-mode", () => {
       expect(classicGameMode.isNightmarePhaseTwoWave(600)).toBeFalsy();
     });
 
-    it("forces Adeus at wave 800 and the Arceus Trial at wave 1000", () => {
-      expect(nightmareGameMode.getFixedMysteryEncounterType(800)).toBe(MysteryEncounterType.ADEUS_ENCOUNTER);
+    it("forces the Arceus Trial at wave 1000, and Adeus at wave 800 only when the creation trio is registered", () => {
+      // No trio registered yet - wave 800 falls back to null (an Eternatus checkpoint instead).
+      expect(nightmareGameMode.getFixedMysteryEncounterType(800)).toBeNull();
       expect(nightmareGameMode.getFixedMysteryEncounterType(1000)).toBe(MysteryEncounterType.ARCEUS_TRIAL);
       expect(nightmareGameMode.getFixedMysteryEncounterType(200)).toBeNull();
       expect(nightmareGameMode.getFixedMysteryEncounterType(600)).toBeNull();
+
+      for (const species of [SpeciesId.DIALGA, SpeciesId.PALKIA, SpeciesId.GIRATINA]) {
+        game.scene.gameData.dexData[species].caughtAttr = DexAttr.NON_SHINY;
+      }
+      expect(nightmareGameMode.getFixedMysteryEncounterType(800)).toBe(MysteryEncounterType.ADEUS_ENCOUNTER);
 
       const classicGameMode = getGameMode(GameModes.CLASSIC);
       expect(classicGameMode.getFixedMysteryEncounterType(800)).toBeNull();
@@ -142,9 +160,9 @@ describe("game-mode", () => {
       expect(nightmareGameMode.isWaveTrainer(240)).toBe(true);
     });
 
-    it("pays out half the money reward of classic on a battle win", () => {
+    it("pays out 30% of the money reward of classic on a battle win", () => {
       const classicGameMode = getGameMode(GameModes.CLASSIC);
-      expect(nightmareGameMode.getMoneyRewardMultiplier()).toBe(0.5);
+      expect(nightmareGameMode.getMoneyRewardMultiplier()).toBe(0.3);
       expect(classicGameMode.getMoneyRewardMultiplier()).toBe(1);
     });
 
