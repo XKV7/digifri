@@ -9,6 +9,7 @@ import { GameModes } from "#enums/game-modes";
 import { MoveId } from "#enums/move-id";
 import { SpeciesId } from "#enums/species-id";
 import { GameManager } from "#test/framework/game-manager";
+import { initSceneWithoutEncounterPhase } from "#test/utils/game-manager-utils";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 describe("Nightmare (Hardcore) - Eternatus checkpoints", () => {
@@ -58,12 +59,35 @@ describe("Nightmare (Hardcore) - Eternatus checkpoints", () => {
     expect(game.scene.gameMode.isWaveFinal(600)).toBe(false);
   });
 
+  it("also falls back to the checkpoint Eternatus at wave 800 (with its own Eternamax phase two) when the starting party isn't Dialga+Palkia+Giratina", async () => {
+    game.override.startingWave(800);
+    await game.runToFinalBossEncounter([SpeciesId.BIDOOF], GameModes.NIGHTMARE);
+
+    expect(game.scene.currentBattle.waveIndex).toBe(800);
+    expect(game.scene.arena.biomeId).toBe(BiomeId.END);
+    expect(game.field.getEnemyPokemon().species.speciesId).toBe(SpeciesId.ETERNATUS);
+    expect(game.field.getEnemyPokemon().formIndex).toBe(0);
+    expect(game.scene.currentBattle.isClassicFinalBoss).toBe(true);
+    expect(game.scene.gameMode.isWaveFinal(800)).toBe(false);
+  });
+
   it("does NOT treat non-checkpoint waves as Eternatus checkpoints", () => {
     const nightmareGameMode = game.scene.gameMode;
     nightmareGameMode.modeId = GameModes.NIGHTMARE;
     expect(nightmareGameMode.isNightmareCheckpointBoss(199)).toBe(false);
     expect(nightmareGameMode.isNightmareCheckpointBoss(201)).toBe(false);
-    expect(nightmareGameMode.isNightmareCheckpointBoss(800)).toBe(false);
     expect(nightmareGameMode.isNightmareCheckpointBoss(1000)).toBe(false);
+  });
+
+  it("treats wave 800 as an Eternatus checkpoint only when the starting party is missing Dialga, Palkia or Giratina", () => {
+    const nightmareGameMode = game.scene.gameMode;
+    nightmareGameMode.modeId = GameModes.NIGHTMARE;
+
+    // No starting party set up yet - hasStartingCreationTrio() reads an empty party, so wave 800
+    // falls back to being a checkpoint just like wave 600.
+    expect(nightmareGameMode.isNightmareCheckpointBoss(800)).toBe(true);
+
+    initSceneWithoutEncounterPhase(game.scene, [SpeciesId.DIALGA, SpeciesId.PALKIA, SpeciesId.GIRATINA]);
+    expect(nightmareGameMode.isNightmareCheckpointBoss(800)).toBe(false);
   });
 });

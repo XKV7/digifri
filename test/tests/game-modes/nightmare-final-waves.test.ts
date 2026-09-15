@@ -22,6 +22,10 @@ import { generateStarters } from "#test/utils/game-manager-utils";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 const defaultParty = [SpeciesId.LAPRAS, SpeciesId.GENGAR, SpeciesId.ABRA];
+// Wave 800's Adeus encounter is gated on the player's starting party containing all three of
+// these (see GameMode#hasStartingCreationTrio) - a plain defaultParty run falls back to the
+// wave-600-style Eternatus checkpoint instead (see nightmare-checkpoint-boss.test.ts).
+const creationTrioParty = [SpeciesId.DIALGA, SpeciesId.PALKIA, SpeciesId.GIRATINA];
 
 /**
  * Starts a fresh Nightmare-mode run at the given wave and waits for EncounterPhase to finish,
@@ -29,13 +33,13 @@ const defaultParty = [SpeciesId.LAPRAS, SpeciesId.GENGAR, SpeciesId.ABRA];
  * own MysteryEncounterPhase takes over, instead of waiting for CommandPhase (which a wild/trainer
  * battle would reach, but an ME's intro/option-select flow does not).
  */
-async function runNightmareToWave(game: GameManager, wave: number): Promise<void> {
+async function runNightmareToWave(game: GameManager, wave: number, party: SpeciesId[] = defaultParty): Promise<void> {
   game.override.startingWave(wave).disableTrainerWaves();
   await game.runToTitle();
 
   game.onNextPrompt("TitlePhase", UiMode.TITLE, () => {
     game.scene.gameMode = getGameMode(GameModes.NIGHTMARE);
-    const starters = generateStarters(game.scene, defaultParty);
+    const starters = generateStarters(game.scene, party);
     const selectStarterPhase = new SelectStarterPhase();
     game.scene.phaseManager.pushPhase(new EncounterPhase(false));
     selectStarterPhase.initBattle(starters);
@@ -75,15 +79,15 @@ describe("Nightmare (Hardcore) - forced final-wave encounters", () => {
     scene = game.scene;
   });
 
-  it("forces the Adeus encounter at wave 800", async () => {
-    await runNightmareToWave(game, 800);
+  it("forces the Adeus encounter at wave 800 when the starting party is Dialga+Palkia+Giratina", async () => {
+    await runNightmareToWave(game, 800, creationTrioParty);
 
     expect(scene.currentBattle.battleType).toBe(BattleType.MYSTERY_ENCOUNTER);
     expect(scene.currentBattle.mysteryEncounter?.encounterType).toBe(MysteryEncounterType.ADEUS_ENCOUNTER);
   });
 
   it("does not end the run after winning Adeus at wave 800", async () => {
-    await runNightmareToWave(game, 800);
+    await runNightmareToWave(game, 800, creationTrioParty);
     await runMysteryEncounterToEnd(game, 1, undefined, true);
 
     // Should proceed to the normal ME rewards flow, not GameOverPhase - isWaveFinal(800) is false.
