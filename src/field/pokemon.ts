@@ -1594,6 +1594,11 @@ export abstract class Pokemon extends Phaser.GameObjects.Container {
         if (this.hasAbility(AbilityId.WONDER_GUARD, false, true)) {
           statHolder.value = 1;
         }
+        // MissingNo.'s own "glitch" passive - hard-clamps max HP to exactly 20 regardless of
+        // level/IVs/EVs, the same way Shedinja's Wonder Guard quirk above hard-clamps to 1.
+        if (this.hasAbility(AbilityId.ERROR, false, true)) {
+          statHolder.value = 20;
+        }
         if (this.hp > statHolder.value || this.hp === undefined) {
           this.hp = statHolder.value;
         } else if (this.hp) {

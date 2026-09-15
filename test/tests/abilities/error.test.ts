@@ -8,9 +8,8 @@ import Phaser from "phaser";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 describe("AbilityId - Error", () => {
-  // Not MissingNo.'s default passive anymore (that's now No Guard - see missing-no.test.ts), but
-  // the Error ability itself is still implemented and forced via override below to test its own
-  // mechanics in isolation.
+  // MissingNo.'s default passive (see missing-no.test.ts) - forced via override below to test its
+  // own mechanics in isolation, same as any other passive-behavior test.
   let phaserGame: Phaser.Game;
   let game: GameManager;
 
@@ -55,21 +54,28 @@ describe("AbilityId - Error", () => {
     expect(enemy.hp).toBeLessThan(startingHp);
   });
 
-  it("should not affect a normal move's accuracy for a Pokemon with the Error passive", async () => {
-    // Tackle isn't a one-hit-KO move, so Error shouldn't force it to always hit - just checking
-    // the passive doesn't broadly bypass all accuracy checks like No Guard does.
+  it("should guarantee a hit with a normal (non-OHKO) low-accuracy move too, like No Guard", async () => {
+    // Error is now equivalent to No Guard for accuracy purposes - it isn't limited to OHKO moves.
+    // Hyper Beam is only 90% accurate, so this would occasionally miss (and fail this assertion)
+    // if Error weren't bypassing the accuracy check entirely.
     game.override
       .starterSpecies(SpeciesId.MISSING_NO)
       .passiveAbility(AbilityId.ERROR)
-      .moveset([MoveId.TACKLE])
+      .moveset([MoveId.HYPER_BEAM])
       .enemySpecies(SpeciesId.MAGIKARP)
-      .enemyAbility(AbilityId.NO_GUARD) // NO_GUARD only exists here to make the enemy's own move land reliably
       .enemyMoveset(MoveId.SPLASH);
     await game.classicMode.startBattle(SpeciesId.MISSING_NO);
 
     const missingno = game.field.getPlayerPokemon();
-    expect(missingno.hasAbilityWithAttr("AlwaysHitOhkoAbAttr")).toBe(true);
-    expect(missingno.hasAbilityWithAttr("AlwaysHitAbAttr")).toBe(false);
+    expect(missingno.hasAbilityWithAttr("AlwaysHitAbAttr")).toBe(true);
+
+    const enemy = game.field.getEnemyPokemon();
+    const startingHp = enemy.hp;
+
+    game.move.select(MoveId.HYPER_BEAM);
+    await game.toEndOfTurn();
+
+    expect(enemy.hp).toBeLessThan(startingHp);
   });
 
   it("should learn all 4 one-hit-KO moves at level 100 but not before, and no TM moves at all", () => {

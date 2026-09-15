@@ -637,7 +637,11 @@ export enum AbilityId {
   ABILITY_317,
   /** {@link https://bulbapedia.bulbagarden.net/wiki/Spicy_Spray_(Ability) | Source} */
   SPICY_SPRAY,
-  /** Not a real ability - MissingNo.'s passive. Guarantees a hit with one-hit-KO moves. */
+  /**
+   * Not a real ability - MissingNo.'s passive. Every move, used by or against the holder, always
+   * hits (No Guard's own effect); damage taken is clamped to exactly 1 and max HP is hard-clamped
+   * to exactly 20, regardless of level/IVs/EVs.
+   */
   ERROR,
   /**
    * Not a real ability - Adeus's own ability. While the Event Horizon field is active

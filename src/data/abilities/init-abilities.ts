@@ -5,7 +5,6 @@ import {
   AllyMoveCategoryPowerBoostAbAttr,
   AllyStatMultiplierAbAttr,
   AlwaysHitAbAttr,
-  AlwaysHitOhkoAbAttr,
   ArenaTrapAbAttr,
   AttackTypeImmunityAbAttr,
   BattlerTagImmunityAbAttr,
@@ -2206,16 +2205,22 @@ export function initAbilities() {
       .attr(PostDefendApplyStatusEffectAbAttr, 100, false, StatusEffect.BURN)
       .bypassFaint()
       .build(),
-    // Not a real ability - MissingNo.'s own passive (its actual ability1 is MAGIC_GUARD). Makes
-    // its own OHKO moves (it learns Guillotine at level 100) always hit. Damage it takes from
-    // moves is separately clamped to exactly 1 - see the AbilityId.ERROR check in
-    // Pokemon#getAttackDamage() in field/pokemon.ts, since that clamp needs to run earlier than
+    // Not a real ability - MissingNo.'s own passive (its actual ability1 is MAGIC_GUARD). A "glitch
+    // Pokemon" gimmick: every move, both used by and against MissingNo., always hits (No Guard's
+    // own AlwaysHitAbAttr - originally this used AlwaysHitOhkoAbAttr to only guarantee its own OHKO
+    // moves, but that left OneHitKOAttr's separate user.level >= target.level condition unbypassed,
+    // so a Guillotine that should've always hit could still just fail outright with no message).
+    // Damage it takes from moves is separately clamped to exactly 1 - see the AbilityId.ERROR check
+    // in Pokemon#getAttackDamage() in field/pokemon.ts, since that clamp needs to run earlier than
     // any AbAttr hook in that method (before its fixed-damage/OHKO branches) to also cover those.
-    // hasAbility() checks both the active and passive slots, so that check doesn't care which one
-    // ERROR is actually assigned to. Status effect damage never reaches getAttackDamage() at all
-    // (see the same doc comment in pokemon.ts) - MAGIC_GUARD blocks it as normal.
+    // Its max HP is likewise hard-clamped to exactly 20 regardless of level/IVs/EVs - see the
+    // AbilityId.ERROR check in Pokemon#calculateStats(), mirroring the same pattern Shedinja's own
+    // fixed-1-HP quirk uses there via WONDER_GUARD. hasAbility() checks both the active and passive
+    // slots, so that check doesn't care which one ERROR is actually assigned to. Status effect
+    // damage never reaches getAttackDamage() at all (see the same doc comment in pokemon.ts) -
+    // MAGIC_GUARD blocks it as normal.
     new AbBuilder(AbilityId.ERROR, 9) //
-      .attr(AlwaysHitOhkoAbAttr)
+      .attr(AlwaysHitAbAttr)
       .build(),
     // Not a real ability - Adeus's own ability. While the Event Horizon field (see EVENT_HORIZON
     // below, Adeus's own passive) is up, raises 6 battle stats by 2 stages on switch-in - every

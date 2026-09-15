@@ -46,7 +46,7 @@ describe("Species - MissingNo.", () => {
     expect(speciesDataRegistry.getPassive(SpeciesId.MISSING_NO, 0)).toBe(AbilityId.ERROR);
   });
 
-  it("should always hit with its own OHKO moves when its passive (Error) is active", async () => {
+  it("should always hit (No Guard) with every move, both used by and against it, when its passive (Error) is active", async () => {
     // .passiveAbility() forces the passive active regardless of whether it's actually been
     // unlocked with candy on this save - same technique every other passive-behavior test in
     // this file uses.
@@ -54,7 +54,15 @@ describe("Species - MissingNo.", () => {
     await game.classicMode.startBattle(SpeciesId.MISSING_NO);
 
     const missingno = game.field.getPlayerPokemon();
-    expect(missingno.hasAbilityWithAttr("AlwaysHitOhkoAbAttr")).toBe(true);
+    expect(missingno.hasAbilityWithAttr("AlwaysHitAbAttr")).toBe(true);
+  });
+
+  it("should always have exactly 20 max HP, regardless of level, when its passive (Error) is active", async () => {
+    game.override.starterSpecies(SpeciesId.MISSING_NO).passiveAbility(AbilityId.ERROR).startingLevel(100);
+    await game.classicMode.startBattle(SpeciesId.MISSING_NO);
+
+    const missingno = game.field.getPlayerPokemon();
+    expect(missingno.getMaxHp()).toBe(20);
   });
 
   it("takes exactly 1 damage from a move regardless of its calculated power, including fixed-damage and OHKO moves", async () => {
