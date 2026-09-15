@@ -14,6 +14,7 @@
  */
 
 import { getCloudSaveContext } from "#app/gift";
+import type { MoveId } from "#enums/move-id";
 import { randomString } from "#utils/common";
 import {
   collection,
@@ -42,8 +43,17 @@ export type PvpRoomStatus = "waiting" | "team_preview" | "battling" | "finished"
 export type PvpTurnCommand =
   | {
       command: "fight";
-      /** Index (0-3) into the active Pokemon's moveset. */
-      moveIndex: number;
+      /**
+       * The actually-resolved move being used this turn - NOT just an index into the sender's
+       * current moveset. A raw moveset index would desync the two clients whenever the resolved
+       * move differs from whichever slot the cursor was on: Struggle (every move out of PP/usable)
+       * substitutes MoveId.STRUGGLE while the cursor can still be sitting on any real slot, and a
+       * "do nothing" turn (e.g. a queued MoveId.NONE) has no cursor at all. Sending the resolved
+       * MoveId directly - exactly what the sender's own turnCommands[...].move.move already holds
+       * - sidesteps both cases instead of trying to reconstruct them from an index on the
+       * receiving end.
+       */
+      moveId: MoveId;
     }
   | {
       command: "switch";
@@ -371,6 +381,24 @@ export async function initiatePvpBattle(roomId: string): Promise<boolean> {
   }
 }
 
+/**
+ * Shared plumbing for submitPvpTurnCommand/submitPvpSwitchCommand/submitPvpFormChangeState below:
+ * merge-writes a single `<dotted path>` field on the room doc, no-op if not signed in, logging
+ * (not throwing) on failure - each of those three callers only differs in which field/key it
+ * writes to and what to call the write in its own error message.
+ */
+async function updatePvpRoomField(roomId: string, path: string, value: unknown, errorMessage: string): Promise<void> {
+  const ctx = getCloudSaveContext();
+  if (!ctx) {
+    return;
+  }
+  try {
+    await updateDoc(doc(db(), "pvpRooms", roomId), { [path]: value });
+  } catch (err) {
+    console.error(errorMessage, err);
+  }
+}
+
 /** Writes the caller's chosen action for the given battle turn, for the opposing client's PvpEnemyCommandPhase to pick up. */
 export async function submitPvpTurnCommand(
   roomId: string,
@@ -378,16 +406,8 @@ export async function submitPvpTurnCommand(
   turn: number,
   command: PvpTurnCommand,
 ): Promise<void> {
-  const ctx = getCloudSaveContext();
-  if (!ctx) {
-    return;
-  }
-  try {
-    const field = isHost ? "hostTurnCommands" : "guestTurnCommands";
-    await updateDoc(doc(db(), "pvpRooms", roomId), { [`${field}.${turn}`]: command });
-  } catch (err) {
-    console.error("Failed to submit PvP turn command:", err);
-  }
+  const field = isHost ? "hostTurnCommands" : "guestTurnCommands";
+  await updatePvpRoomField(roomId, `${field}.${turn}`, command, "Failed to submit PvP turn command:");
 }
 
 /**
@@ -424,16 +444,8 @@ export async function submitPvpSwitchCommand(
   faintedPokemonId: number,
   command: PvpSwitchCommand,
 ): Promise<void> {
-  const ctx = getCloudSaveContext();
-  if (!ctx) {
-    return;
-  }
-  try {
-    const field = isHost ? "hostSwitchCommands" : "guestSwitchCommands";
-    await updateDoc(doc(db(), "pvpRooms", roomId), { [`${field}.${faintedPokemonId}`]: command });
-  } catch (err) {
-    console.error("Failed to submit PvP switch command:", err);
-  }
+  const field = isHost ? "hostSwitchCommands" : "guestSwitchCommands";
+  await updatePvpRoomField(roomId, `${field}.${faintedPokemonId}`, command, "Failed to submit PvP switch command:");
 }
 
 /**
@@ -470,16 +482,8 @@ export async function submitPvpFormChangeState(
   pokemonId: number,
   active: boolean,
 ): Promise<void> {
-  const ctx = getCloudSaveContext();
-  if (!ctx) {
-    return;
-  }
-  try {
-    const field = isHost ? "hostFormChangeState" : "guestFormChangeState";
-    await updateDoc(doc(db(), "pvpRooms", roomId), { [`${field}.${pokemonId}`]: active });
-  } catch (err) {
-    console.error("Failed to submit PvP form-change state:", err);
-  }
+  const field = isHost ? "hostFormChangeState" : "guestFormChangeState";
+  await updatePvpRoomField(roomId, `${field}.${pokemonId}`, active, "Failed to submit PvP form-change state:");
 }
 
 /**

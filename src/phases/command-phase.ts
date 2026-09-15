@@ -683,11 +683,17 @@ export class CommandPhase extends FieldPhase {
       if (isPvp && (command === Command.FIGHT || command === Command.TERA)) {
         // Tera activation itself isn't synced (a known, narrow gap — see PvpEnemyCommandPhase),
         // only the move choice; the opponent's client just sees a normal fight command either way.
+        // Read back the just-written turnCommand rather than resending `cursor` itself — cursor is
+        // only the raw moveset slot the UI had selected, and handleFightCommand() may have
+        // substituted a different MoveId for it (Struggle when every move is unusable, or NONE for
+        // a queued do-nothing turn) that the opponent's client needs to mirror exactly, not
+        // reconstruct from an index into a moveset it can't be sure still lines up.
         const ctx = getPvpBattleContext();
-        if (ctx) {
+        const resolvedMoveId = globalScene.currentBattle.turnCommands[this.fieldIndex]?.move?.move;
+        if (ctx && resolvedMoveId !== undefined) {
           void submitPvpTurnCommand(ctx.roomId, ctx.isHost, globalScene.currentBattle.turn, {
             command: "fight",
-            moveIndex: cursor,
+            moveId: resolvedMoveId,
           });
         }
       } else if (isPvp && command === Command.POKEMON) {

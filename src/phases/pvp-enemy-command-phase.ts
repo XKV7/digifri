@@ -42,7 +42,7 @@ export class PvpEnemyCommandPhase extends FieldPhase {
       // Shouldn't happen — isPvpBattle implies a live context — but fail safe rather than block
       // the turn loop forever if it somehow does.
       console.error("PvpEnemyCommandPhase started with no active PvP battle context");
-      this.applyCommand({ command: "fight", moveIndex: 0 });
+      this.applyCommand({ command: "fight", moveId: MoveId.NONE });
       return;
     }
 
@@ -79,14 +79,15 @@ export class PvpEnemyCommandPhase extends FieldPhase {
     }
 
     const enemyPokemon = globalScene.getEnemyField()[this.fieldIndex];
-    const moveset = enemyPokemon.getMoveset();
-    const moveEntry = moveset[command.moveIndex] ?? moveset[0];
-    const moveId = moveEntry?.moveId ?? MoveId.STRUGGLE;
+    // command.moveId is the sender's already-resolved move for this turn (Struggle/NONE included,
+    // see PvpTurnCommand's doc comment) - used directly rather than re-derived from an index into
+    // this client's own view of the moveset, which the sender's cursor never actually indexed into
+    // for those cases anyway.
+    const moveId = command.moveId;
     const moveTargets = getMoveTargets(enemyPokemon, moveId);
 
     globalScene.currentBattle.turnCommands[this.fieldIndex + BattlerIndex.ENEMY] = {
       command: Command.FIGHT,
-      cursor: command.moveIndex,
       move: { move: moveId, targets: moveTargets.targets, useMode: MoveUseMode.NORMAL },
     };
 
