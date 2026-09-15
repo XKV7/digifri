@@ -657,8 +657,24 @@ export class MenuUiHandler extends MessageUiHandler {
     ui.setOverlayMode(UiMode.OPTION_SELECT, { options });
   }
 
-  /** Second-level menu for one deck slot: edit it, or (if not already active) mark it active. */
+  /**
+   * Second-level menu for one deck slot: edit it, or (if not already active) mark it active.
+   *
+   * @remarks
+   * Callers reach this from an `OptionSelectItem.handler()` in the deck-list menu (see
+   * openPvpTeamMenu()) via `ui.revertMode(); void this.openPvpDeckMenu(...)`, without awaiting
+   * the revert. `BaseOptionSelectUiHandler.processInput()` calls `this.clear()` on that SAME
+   * shared OPTION_SELECT handler right after the option's `handler()` returns - if this function's
+   * own `ui.setOverlayMode(UiMode.OPTION_SELECT, ...)` call (further down) ran synchronously within
+   * that same handler() call, it would render this submenu and then have it immediately wiped
+   * (config nulled, container hidden) by that leftover clear() call, leaving the screen stuck on a
+   * blank, unresponsive OPTION_SELECT overlay. The `await` below yields one tick first, so this
+   * function's own setOverlayMode() call always lands after the deck-list handler's call stack -
+   * clear() included - has already finished. (openPvpTeamMenu() itself doesn't need this: its own
+   * `await loadPvpDecks()` already provides the same yield before its setOverlayMode() call.)
+   */
   private async openPvpDeckMenu(index: number, deck: PvpDeck | null, isActive: boolean): Promise<void> {
+    await Promise.resolve();
     const ui = this.getUi();
     const options: OptionSelectItem[] = [
       {
