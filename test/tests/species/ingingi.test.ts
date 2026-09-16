@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { speciesDataRegistry } from "#app/global-species-data-registry";
 import { AbilityId } from "#enums/ability-id";
 import { BattlerTagType } from "#enums/battler-tag-type";
 import { MoveId } from "#enums/move-id";
@@ -88,5 +89,21 @@ describe("Species - Ingingi", () => {
     await game.toEndOfTurn();
 
     expect(ingingi.getTag(BattlerTagType.RECHARGING)).toBeDefined();
+  });
+
+  it("getExpandedSpeciesName() returns the plain localized name, not a broken pokemonForm:appendForm.* lookup", () => {
+    // Ingingi's speciesId (6974) is well above getExpandedSpeciesName()'s old `< 2000` early-return
+    // threshold, so it used to fall into the FORMNAME_SPECIES branch meant for real regional/Mega
+    // forms - which has no "ingingi" key in pokemonForm:appendForm, so it silently rendered as the
+    // raw i18next key string instead of the species' own name (same latent bug affected MissingNo./
+    // Adeus, both also >= 2000, and is asserted for here too).
+    const ingingi = speciesDataRegistry.getSpecies(SpeciesId.INGINGI);
+    expect(ingingi.getExpandedSpeciesName()).toBe(ingingi.name);
+
+    const missingNo = speciesDataRegistry.getSpecies(SpeciesId.MISSING_NO);
+    expect(missingNo.getExpandedSpeciesName()).toBe(missingNo.name);
+
+    const adeus = speciesDataRegistry.getSpecies(SpeciesId.ADEUS);
+    expect(adeus.getExpandedSpeciesName()).toBe(adeus.name);
   });
 });

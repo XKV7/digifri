@@ -235,7 +235,11 @@ async function giveAdeus(): Promise<void> {
  * `GameData#saveSystem()` silently discards the whole write (and reverts to whatever was last
  * saved) if `validateSystemData()` finds ANY starter's dex/starter data inconsistent - not
  * necessarily Ingingi's own - so its return value is checked here and surfaced directly, rather
- * than showing the same "success" alert regardless of whether the save actually persisted.
+ * than showing the same "success" alert regardless of whether the save actually persisted. Any
+ * thrown error is caught and alerted too, for the same reason - an unhandled rejection here (this
+ * runs fire-and-forget from a bookmarklet, nothing else awaits it) would otherwise fail silently
+ * with no alert at all. The final alert also echoes back the actual post-save dex/starter state
+ * directly, so this is self-diagnosing without devtools access (e.g. on a tablet).
  */
 async function giveIngingi(): Promise<void> {
   const gameData = globalScene?.gameData;
@@ -244,21 +248,29 @@ async function giveIngingi(): Promise<void> {
     return;
   }
 
-  const egg = new Egg({ species: SpeciesId.INGINGI, sourceType: EggSourceType.EVENT });
-  egg.addEggToGameData();
+  try {
+    const egg = new Egg({ species: SpeciesId.INGINGI, sourceType: EggSourceType.EVENT });
+    egg.addEggToGameData();
 
-  unlockDexEntry(gameData, SpeciesId.INGINGI, allNatureAttr());
-  unlockStarterEntry(gameData, SpeciesId.INGINGI);
+    unlockDexEntry(gameData, SpeciesId.INGINGI, allNatureAttr());
+    unlockStarterEntry(gameData, SpeciesId.INGINGI);
 
-  const saved = await gameData.saveSystem();
-  if (!saved) {
-    alert(
-      "저장에 실패해서 읭읭이 알/도감/스타터 등록이 적용되지 않았습니다. 콘솔에 뜬 'Corrupt save data detected!' 로그를 확인해주세요 - 이 세이브의 다른 스타터 데이터가 손상되어 있으면 전체 저장이 거부됩니다.",
-    );
-    return;
+    const saved = await gameData.saveSystem();
+    const dexEntry = gameData.dexData[SpeciesId.INGINGI];
+    const starterEntry = gameData.starterData[SpeciesId.INGINGI];
+    const stateSummary = `caughtAttr=${dexEntry?.caughtAttr ?? "(없음)"}, starterData candy=${starterEntry?.candyCount ?? "(없음)"}`;
+
+    if (!saved) {
+      alert(
+        `저장에 실패해서 읭읭이 알/도감/스타터 등록이 적용되지 않았습니다 (${stateSummary}). 이 세이브의 다른 스타터 데이터가 손상되어 있으면 전체 저장이 거부됩니다 - 콘솔을 볼 수 있다면 'Corrupt save data detected!' 로그를 확인해주세요.`,
+      );
+      return;
+    }
+    alert(`읭읭이 알을 지급했고, 도감/스타터도 전부 해금 상태로 등록했습니다 (${stateSummary}). 새로고침합니다.`);
+    window.location.reload();
+  } catch (error) {
+    alert(`읭읭이 지급 중 오류가 발생했습니다: ${error}`);
   }
-  alert("읭읭이 알을 지급했고, 도감/스타터도 전부 해금 상태로 등록했습니다. 새로고침합니다.");
-  window.location.reload();
 }
 
 /**

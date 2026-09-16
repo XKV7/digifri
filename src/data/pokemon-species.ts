@@ -472,6 +472,9 @@ export abstract class PokemonSpeciesForm {
     if (this.speciesId === SpeciesId.ADEUS) {
       return "pokemon_icons_adeus";
     }
+    if (this.speciesId === SpeciesId.INGINGI) {
+      return "pokemon_icons_ingingi";
+    }
     const variantDataIndex = this.getVariantDataIndex(formIndex);
     const isVariant =
       shiny && variantData[variantDataIndex] && variant !== undefined && variantData[variantDataIndex][variant];
@@ -1020,7 +1023,18 @@ export class PokemonSpecies extends PokemonSpeciesForm implements Localizable {
    * @returns a string with the region name or other form name attached
    */
   getExpandedSpeciesName(): string {
-    if (this.speciesId < 2000) {
+    // This fork's own non-canon species (MissingNo./Adeus/Ingingi) sit at IDs far above the real
+    // Pokedex range this method's `pokemonForm:appendForm.*` lookup is built for (it splits the
+    // enum member's own name on "_" and expects a FORMNAME_SPECIES-style key, e.g. "hisuiAvalugg" -
+    // ->"pokemonForm:appendForm.hisui" - none of these three have a matching key at all, so the
+    // lookup silently fell through to i18next's raw-key fallback text). None of them have any forms
+    // needing FORMNAME_SPECIES handling either, so they belong with the plain early return below.
+    if (
+      this.speciesId < 2000
+      || this.speciesId === SpeciesId.MISSING_NO
+      || this.speciesId === SpeciesId.ADEUS
+      || this.speciesId === SpeciesId.INGINGI
+    ) {
       return this.name; // Other special cases could be put here too
     }
     // Everything beyond this point essentially follows the pattern of FORMNAME_SPECIES

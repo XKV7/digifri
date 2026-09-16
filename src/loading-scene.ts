@@ -639,6 +639,8 @@ export class LoadingScene extends SceneBase {
     this.loadAtlas("pokemon_icons_missingno", "");
     // SpeciesId.ADEUS's own dedicated icon atlas - same reasoning as MISSING_NO above.
     this.loadAtlas("pokemon_icons_adeus", "");
+    // SpeciesId.INGINGI's own dedicated icon atlas - same reasoning as MISSING_NO above.
+    this.loadAtlas("pokemon_icons_ingingi", "");
 
     return this;
   }
