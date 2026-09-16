@@ -264,10 +264,23 @@ export class GameMode implements GameModeConfig {
     return false;
   }
 
+  /**
+   * Checks whether a wave's trainer should be drawn from the arena's "boss" trainer pool (a
+   * stronger, biome-specific named trainer) rather than its regular pool (see
+   * `Arena#randomTrainerType`). Nightmare adds a 1-in-4 roll for this on top of the usual
+   * every-30-waves gym-style slot, so boss-caliber trainers turn up noticeably more often than
+   * plain ones on the climb to wave 1000, without changing which waves get a trainer at all
+   * (that's `isWaveTrainer`'s call, untouched here).
+   */
   isTrainerBoss(waveIndex: number, biomeType: BiomeId, offsetGym: boolean): boolean {
     switch (this.modeId) {
       case GameModes.DAILY:
         return waveIndex > 10 && waveIndex < 50 && !(waveIndex % 10);
+      case GameModes.NIGHTMARE:
+        return (
+          (biomeType !== BiomeId.END || this.isClassic || this.isWaveFinal(waveIndex))
+          && (waveIndex % 30 === (offsetGym ? 0 : 20) || !randSeedInt(4))
+        );
       default:
         return (
           waveIndex % 30 === (offsetGym ? 0 : 20)

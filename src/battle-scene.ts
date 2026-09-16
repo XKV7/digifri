@@ -63,7 +63,7 @@ import { Stat } from "#enums/stat";
 import { StatusEffect } from "#enums/status-effect";
 import { TextStyle } from "#enums/text-style";
 import { TimeOfDay } from "#enums/time-of-day";
-import type { TrainerSlot } from "#enums/trainer-slot";
+import { TrainerSlot } from "#enums/trainer-slot";
 import { TrainerType } from "#enums/trainer-type";
 import { TrainerVariant } from "#enums/trainer-variant";
 import { TypeHints } from "#enums/type-hints";
@@ -970,6 +970,17 @@ export class BattleScene extends SceneBase {
         throw new Error("The Enemy IV override must be a value between 0 and 31!");
       }
       pokemon.ivs = new Array(6).fill(activeOverrides.ENEMY_IVS_OVERRIDE);
+    }
+
+    // Nightmare trainers fight with perfect (6V) Pokemon - skipped for dataSource'd Pokemon (e.g.
+    // rematches/saved data) and for the override above, which already takes precedence.
+    if (
+      trainerSlot !== TrainerSlot.NONE
+      && !dataSource
+      && activeOverrides.ENEMY_IVS_OVERRIDE === null
+      && this.gameMode.modeId === GameModes.NIGHTMARE
+    ) {
+      pokemon.ivs = new Array(6).fill(31);
     }
 
     if (activeOverrides.ENEMY_NATURE_OVERRIDE !== null) {

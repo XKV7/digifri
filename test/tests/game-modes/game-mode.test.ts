@@ -1,9 +1,14 @@
 import type { GameMode } from "#app/game-mode";
 import { getGameMode } from "#app/game-mode";
+import { speciesDataRegistry } from "#app/global-species-data-registry";
+import * as Messages from "#app/messages";
+import { BiomeId } from "#enums/biome-id";
+import { BiomePoolTier } from "#enums/biome-pool-tier";
 import { DexAttr } from "#enums/dex-attr";
 import { GameModes } from "#enums/game-modes";
 import { MysteryEncounterType } from "#enums/mystery-encounter-type";
 import { SpeciesId } from "#enums/species-id";
+import { TrainerSlot } from "#enums/trainer-slot";
 import type { Pokemon } from "#field/pokemon";
 import { getPartyLuckValue } from "#modifiers/modifier-type";
 import { GameManager } from "#test/framework/game-manager";
@@ -195,6 +200,90 @@ describe("game-mode", () => {
       const nightmareSegments = game.scene.getEncounterBossSegments(wave, level);
 
       expect(nightmareSegments).toBe(classicSegments + 1);
+    });
+
+    it("gives trainer waves a 1-in-4 chance to roll as a boss trainer even off the every-30-waves gym slot", () => {
+      const classicGameMode = getGameMode(GameModes.CLASSIC);
+      // wave 21 with offsetGym=false doesn't match either mode's wave%30===20 gym-slot pattern.
+      const wave = 21;
+
+      vi.spyOn(Utils, "randSeedInt").mockReturnValue(0); // !randSeedInt(4) -> true
+      expect(nightmareGameMode.isTrainerBoss(wave, BiomeId.PLAINS, false)).toBe(true);
+      expect(classicGameMode.isTrainerBoss(wave, BiomeId.PLAINS, false)).toBe(false);
+
+      vi.spyOn(Utils, "randSeedInt").mockReturnValue(1); // !randSeedInt(4) -> false
+      expect(nightmareGameMode.isTrainerBoss(wave, BiomeId.PLAINS, false)).toBe(false);
+    });
+
+    it("skews non-boss trainer flavor away from Common toward rarer tiers, without touching wild species rarity", () => {
+      const arena = game.scene.arena as unknown as {
+        generateNonBossTrainerTier: (tierValue: number) => BiomePoolTier;
+        generateNonBossBiomeTier: (tierValue: number) => BiomePoolTier;
+      };
+
+      // Boundaries of the Nightmare-only 170/200/65/60/17 (of 512) trainer table.
+      expect(arena.generateNonBossTrainerTier(341)).toBe(BiomePoolTier.UNCOMMON);
+      expect(arena.generateNonBossTrainerTier(342)).toBe(BiomePoolTier.COMMON);
+      expect(arena.generateNonBossTrainerTier(141)).toBe(BiomePoolTier.RARE);
+      expect(arena.generateNonBossTrainerTier(142)).toBe(BiomePoolTier.UNCOMMON);
+      expect(arena.generateNonBossTrainerTier(76)).toBe(BiomePoolTier.SUPER_RARE);
+      expect(arena.generateNonBossTrainerTier(77)).toBe(BiomePoolTier.RARE);
+      expect(arena.generateNonBossTrainerTier(16)).toBe(BiomePoolTier.ULTRA_RARE);
+      expect(arena.generateNonBossTrainerTier(17)).toBe(BiomePoolTier.SUPER_RARE);
+
+      // The original 339/118/25/25/5 (of 512) wild species table is untouched.
+      expect(arena.generateNonBossBiomeTier(172)).toBe(BiomePoolTier.UNCOMMON);
+      expect(arena.generateNonBossBiomeTier(173)).toBe(BiomePoolTier.COMMON);
+    });
+
+    it("uses the Nightmare-only trainer tier table (not the wild species one) when generating a trainer's flavor", () => {
+      const arena = game.scene.arena as unknown as {
+        generateNonBossTrainerTier: (tierValue: number) => BiomePoolTier;
+        generateNonBossBiomeTier: (tierValue: number) => BiomePoolTier;
+      };
+      const trainerTierSpy = vi.spyOn(arena, "generateNonBossTrainerTier");
+      const biomeTierSpy = vi.spyOn(arena, "generateNonBossBiomeTier");
+      // Keeps isTrainerBoss's extra roll from firing and pins the tierValue roll, so this wave
+      // deterministically takes the non-boss branch under test.
+      vi.spyOn(Utils, "randSeedInt").mockReturnValue(1);
+
+      game.scene.gameMode = nightmareGameMode;
+      game.scene.arena.randomTrainerType(21);
+      expect(trainerTierSpy).toHaveBeenCalled();
+      expect(biomeTierSpy).not.toHaveBeenCalled();
+
+      trainerTierSpy.mockClear();
+      biomeTierSpy.mockClear();
+
+      game.scene.gameMode = getGameMode(GameModes.CLASSIC);
+      game.scene.arena.randomTrainerType(21);
+      expect(biomeTierSpy).toHaveBeenCalled();
+      expect(trainerTierSpy).not.toHaveBeenCalled();
+    });
+
+    it("gives trainer-owned Pokemon perfect (6V) IVs, unlike classic", () => {
+      // addEnemyPokemon's init() calls into UI code that reads currentBattle, which is null here.
+      vi.spyOn(Messages, "getPokemonNameWithAffix").mockReturnValue("");
+      const species = speciesDataRegistry.getSpecies(SpeciesId.MAGIKARP);
+
+      game.scene.gameMode = nightmareGameMode;
+      const nightmareTrainerMon = game.scene.addEnemyPokemon(species, 50, TrainerSlot.TRAINER);
+      expect(nightmareTrainerMon.ivs).toEqual([31, 31, 31, 31, 31, 31]);
+
+      game.scene.gameMode = getGameMode(GameModes.CLASSIC);
+      const classicTrainerMon = game.scene.addEnemyPokemon(species, 50, TrainerSlot.TRAINER);
+      expect(classicTrainerMon.ivs).not.toEqual([31, 31, 31, 31, 31, 31]);
+    });
+
+    it("does not force 6V IVs on wild (non-trainer) Nightmare Pokemon", () => {
+      vi.spyOn(Messages, "getPokemonNameWithAffix").mockReturnValue("");
+      game.scene.gameMode = nightmareGameMode;
+      const wildMon = game.scene.addEnemyPokemon(
+        speciesDataRegistry.getSpecies(SpeciesId.MAGIKARP),
+        50,
+        TrainerSlot.NONE,
+      );
+      expect(wildMon.ivs).not.toEqual([31, 31, 31, 31, 31, 31]);
     });
   });
 });

@@ -26,6 +26,7 @@ import type { ArenaTagType } from "#enums/arena-tag-type";
 import type { BattlerIndex } from "#enums/battler-index";
 import { BiomeId } from "#enums/biome-id";
 import { BiomePoolTier } from "#enums/biome-pool-tier";
+import { GameModes } from "#enums/game-modes";
 import { CommonAnim } from "#enums/move-anims-common";
 import type { MoveId } from "#enums/move-id";
 import { PokemonType } from "#enums/pokemon-type";
@@ -226,6 +227,10 @@ export class Arena {
    * the difference, shrunk proportionally to each other so their relative
    * ratio (356:124:26) is unchanged.
    *
+   * Shared by both wild species rarity (`randomSpecies`) and non-boss trainer flavor
+   * (`randomTrainerType`) - see `generateNonBossTrainerTier` for the Nightmare-only variant used by
+   * trainer generation specifically, which leaves wild species rarity here untouched.
+   *
    * @param tierValue - Number from `0-511`
    * @returns the generated BiomePoolTier
    */
@@ -240,6 +245,40 @@ export class Arena {
       return BiomePoolTier.RARE;
     }
     if (tierValue >= 5) {
+      return BiomePoolTier.SUPER_RARE;
+    }
+    return BiomePoolTier.ULTRA_RARE;
+  }
+
+  /**
+   * Nightmare-only variant of `generateNonBossBiomeTier`, used exclusively by `randomTrainerType`
+   * so wild species rarity (`randomSpecies`) is left at its normal odds. Common ("grunt"-flavor
+   * trainers like Breeder/Twins) drops from 66% to 33% of rolls; the freed weight is redistributed
+   * toward every rarer, stronger-flavored tier, so trainers other than the dedicated boss-tier
+   * ones (see `isTrainerBoss`) also skew away from plain trash mobs during the climb to wave 1000.
+   *
+   * | Tier       | Tier Values | Chance  |
+   * |:----------:|:-----------:|:-------:|
+   * | Common     | 342-511     | 170/512 |
+   * | Uncommon   | 142-341     | 200/512 |
+   * | Rare       | 77-141      | 65/512  |
+   * | Super Rare | 17-76       | 60/512  |
+   * | Ultra Rare | 0-16        | 17/512  |
+   *
+   * @param tierValue - Number from `0-511`
+   * @returns the generated BiomePoolTier
+   */
+  private generateNonBossTrainerTier(tierValue: number): BiomePoolTier {
+    if (tierValue >= 342) {
+      return BiomePoolTier.COMMON;
+    }
+    if (tierValue >= 142) {
+      return BiomePoolTier.UNCOMMON;
+    }
+    if (tierValue >= 77) {
+      return BiomePoolTier.RARE;
+    }
+    if (tierValue >= 17) {
       return BiomePoolTier.SUPER_RARE;
     }
     return BiomePoolTier.ULTRA_RARE;
@@ -536,7 +575,14 @@ export class Arena {
       && (globalScene.gameMode.isTrainerBoss(waveIndex, this.biomeId, globalScene.offsetGym) || isBoss);
 
     const tierValue = randSeedInt(isTrainerBoss ? 64 : 512);
-    let tier = (isTrainerBoss ? this.generateBossBiomeTier : this.generateNonBossBiomeTier)(tierValue);
+    let tier: BiomePoolTier;
+    if (isTrainerBoss) {
+      tier = this.generateBossBiomeTier(tierValue);
+    } else if (globalScene.gameMode.modeId === GameModes.NIGHTMARE) {
+      tier = this.generateNonBossTrainerTier(tierValue);
+    } else {
+      tier = this.generateNonBossBiomeTier(tierValue);
+    }
 
     console.log("Starting trainer pool tier:", BiomePoolTier[tier]);
     while (this.trainerPool[tier].length === 0 && tier > BiomePoolTier.COMMON) {
