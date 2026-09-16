@@ -5,6 +5,7 @@
  */
 
 import { speciesDataRegistry } from "#app/global-species-data-registry";
+import { Region } from "#data/pokemon-species";
 import { AbilityId } from "#enums/ability-id";
 import { BattlerTagType } from "#enums/battler-tag-type";
 import { MoveId } from "#enums/move-id";
@@ -105,5 +106,23 @@ describe("Species - Ingingi", () => {
 
     const adeus = speciesDataRegistry.getSpecies(SpeciesId.ADEUS);
     expect(adeus.getExpandedSpeciesName()).toBe(adeus.name);
+  });
+
+  it("is not misclassified as a Hisuian regional form (speciesId 6974 falls in the generic 6000-7999 Hisui range)", () => {
+    // Confirmed in practice: without this special case, getRegion() returned Region.HISUI and the
+    // Pokedex rendered Ingingi as "Hisuian Psyduck" (species #974, 6974 % 2000) instead of itself.
+    const ingingi = speciesDataRegistry.getSpecies(SpeciesId.INGINGI);
+    expect(ingingi.getRegion()).toBe(Region.NORMAL);
+    expect(ingingi.isRegional()).toBe(false);
+  });
+
+  it("never computes a shiny sprite key, since it has no shiny artwork", () => {
+    const ingingi = speciesDataRegistry.getSpecies(SpeciesId.INGINGI);
+    expect(ingingi.getSpriteId(false, undefined, true)).not.toContain("shiny__");
+  });
+
+  it("does not collide with a real species' cry (speciesId 6974 % 2000 = 974, Psyduck's)", () => {
+    const ingingi = speciesDataRegistry.getSpecies(SpeciesId.INGINGI);
+    expect(ingingi.getCryKey()).toBe(`cry/${SpeciesId.INGINGI}`);
   });
 });

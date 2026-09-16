@@ -242,11 +242,16 @@ export abstract class PokemonSpeciesForm {
   }
 
   getRegion(): Region {
-    // MissingNo. and Adeus's speciesIds (9000/9001) fall into the numeric range the
-    // regional-form species use to encode their region (e.g. 8000+baseId for Paldea), but
-    // neither is a regional form - the generic `/2000` mapping would otherwise misclassify
-    // them as Paldean.
-    if (this.speciesId === SpeciesId.MISSING_NO || this.speciesId === SpeciesId.ADEUS) {
+    // MissingNo./Adeus/Ingingi's speciesIds (9000/9001/6974) fall into the numeric range the
+    // regional-form species use to encode their region (e.g. 8000+baseId for Paldea, 6000+baseId
+    // for Hisui - Ingingi's own 6974 lands squarely in that Hisui range), but none of them are a
+    // regional form - the generic `/2000` mapping would otherwise misclassify them (Ingingi's own
+    // case confirmed in practice: it rendered as "Hisuian Psyduck," species #974, in the Pokedex).
+    if (
+      this.speciesId === SpeciesId.MISSING_NO
+      || this.speciesId === SpeciesId.ADEUS
+      || this.speciesId === SpeciesId.INGINGI
+    ) {
       return Region.NORMAL;
     }
     return Math.floor(this.speciesId / 2000) as Region;
@@ -408,11 +413,15 @@ export abstract class PokemonSpeciesForm {
 
   /** Compute the sprite ID of the pokemon form. */
   getSpriteId(female: boolean, formIndex?: number, shiny?: boolean, variant = 0, back = false): string {
-    // MissingNo. and Adeus have no shiny/variant artwork - only their base custom sprites exist.
-    // Falling through to the normal shiny-prefix logic below would compute a sprite key (e.g.
-    // "shiny__9000") with no matching atlas file, and the resulting failed load silently leaves
-    // whatever sprite was previously displayed on screen instead of their own.
-    if (this.speciesId === SpeciesId.MISSING_NO || this.speciesId === SpeciesId.ADEUS) {
+    // MissingNo./Adeus/Ingingi have no shiny/variant artwork - only their base custom sprites
+    // exist. Falling through to the normal shiny-prefix logic below would compute a sprite key
+    // (e.g. "shiny__9000") with no matching atlas file, and the resulting failed load silently
+    // leaves whatever sprite was previously displayed on screen instead of their own.
+    if (
+      this.speciesId === SpeciesId.MISSING_NO
+      || this.speciesId === SpeciesId.ADEUS
+      || this.speciesId === SpeciesId.INGINGI
+    ) {
       shiny = false;
     }
     const baseSpriteKey = this.getBaseSpriteKey(female, formIndex);
@@ -586,6 +595,12 @@ export abstract class PokemonSpeciesForm {
         case SpeciesId.ADEUS:
           // Not a regional form, and has no cry file of its own - the generic `%2000` mapping
           // would otherwise collide with whichever real species has cry number 1001.
+          break;
+        case SpeciesId.INGINGI:
+          // Not a regional form, and has no cry file of its own - the generic `%2000` mapping
+          // would otherwise collide with whichever real species has cry number 974 (confirmed in
+          // practice to be Psyduck, the same collision that also broke getRegion()/getSpriteId()
+          // for this speciesId).
           break;
         default:
           speciesId %= 2000;
