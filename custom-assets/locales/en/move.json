@@ -6,5 +6,9 @@
   "ingingEuinging": {
     "name": "Ingingeuinging",
     "effect": "Ingingeuinging!"
+  },
+  "causalityCollapse": {
+    "name": "Causality Collapse",
+    "effect": "A psychic strike that lands before the target can even react. May cause flinching. Can't be used twice in a row."
   }
 }

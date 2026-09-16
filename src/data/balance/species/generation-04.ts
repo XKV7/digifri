@@ -10233,6 +10233,11 @@ export function initGenerationFour(): SpeciesDataMapConfig {
       [EVOLVE_MOVE, MoveId.COSMIC_POWER],
       [EVOLVE_MOVE, MoveId.SUNSTEEL_STRIKE],
       [EVOLVE_MOVE, MoveId.MOONGEIST_BEAM],
+      // Adeus's own signature move - see MoveId.CAUSALITY_COLLAPSE's own doc comment. Learned at
+      // level 1 (like Ingingi's signature moves - see generationNineSpeciesData[SpeciesId.INGINGI]
+      // in generation-09.ts) rather than gated behind the rest of this moveset's level curve, so
+      // it's always known regardless of whatever level Adeus is actually obtained/used at.
+      [1, MoveId.CAUSALITY_COLLAPSE],
       [1, MoveId.SCARY_FACE],
       [1, MoveId.METAL_CLAW],
       [1, MoveId.WATER_PULSE],

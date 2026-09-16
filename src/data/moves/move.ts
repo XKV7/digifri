@@ -12783,5 +12783,11 @@ export function initMoves() {
       .danceMove(),
     // Not a real move - Ingingi's own signature move. Plain attacking move, no secondary effect.
     new AttackMove(MoveId.INGING_EUINGING, PokemonType.NORMAL, MoveCategory.PHYSICAL, 80, 100, 10, -1, 0, 9),
+    // Not a real move - Adeus's own signature move. Priority +8 (near-guaranteed to go first), 30%
+    // flinch chance, and (see consecutiveUseRestriction's own doc comment - same mechanic as
+    // Gigaton Hammer/Blood Moon) can't be selected twice in a row.
+    new AttackMove(MoveId.CAUSALITY_COLLAPSE, PokemonType.PSYCHIC, MoveCategory.SPECIAL, 140, 100, 5, 30, 8, 9)
+      .attr(FlinchAttr)
+      .restriction(consecutiveUseRestriction),
   );
 }

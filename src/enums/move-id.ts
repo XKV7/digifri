@@ -1885,4 +1885,11 @@ export enum MoveId {
   DDALCHUM,
   /** Not a real move - Ingingi's own signature move. No secondary effect. */
   INGING_EUINGING,
+
+  /**
+   * Not a real move - Adeus's own signature move. Psychic, 140 power, special, priority +8, 5 PP,
+   * 30% flinch chance, can't be selected twice in a row (see consecutiveUseRestriction in
+   * move-condition.ts - same mechanic as Gigaton Hammer/Blood Moon).
+   */
+  CAUSALITY_COLLAPSE,
 }

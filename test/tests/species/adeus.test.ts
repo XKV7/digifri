@@ -4,10 +4,14 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { globalScene } from "#app/global-scene";
+import { allMoves } from "#data/data-lists";
 import { AbilityId } from "#enums/ability-id";
 import { ArenaTagType } from "#enums/arena-tag-type";
 import { Command } from "#enums/command";
+import { MoveCategory } from "#enums/move-category";
 import { MoveId } from "#enums/move-id";
+import { PokemonType } from "#enums/pokemon-type";
 import { SpeciesId } from "#enums/species-id";
 import { BATTLE_STATS, Stat } from "#enums/stat";
 import type { CommandPhase } from "#phases/command-phase";
@@ -146,5 +150,85 @@ describe("Species - Adeus", () => {
     await game.phaseInterceptor.to("TurnEndPhase");
 
     expect(game.scene.arena.getTag(ArenaTagType.EVENT_HORIZON)).toBeUndefined();
+  });
+});
+
+describe("Moves - Causality Collapse", () => {
+  let phaserGame: Phaser.Game;
+  let game: GameManager;
+
+  beforeAll(() => {
+    phaserGame = new Phaser.Game({ type: Phaser.HEADLESS });
+  });
+
+  beforeEach(() => {
+    game = new GameManager(phaserGame);
+    game.override
+      .battleStyle("single")
+      .criticalHits(false)
+      .enemySpecies(SpeciesId.MAGIKARP)
+      .enemyMoveset(MoveId.SPLASH)
+      .moveset([MoveId.CAUSALITY_COLLAPSE])
+      // Deliberately slower than the enemy - Causality Collapse's own +8 priority (see below) is
+      // what this test setup is actually exercising, not a raw Speed advantage.
+      .startingLevel(10)
+      .enemyLevel(100);
+  });
+
+  it("is a 140-power, 100-accuracy, 5-PP special Psychic move with 30% flinch chance and priority +8", () => {
+    const move = allMoves[MoveId.CAUSALITY_COLLAPSE];
+    expect(move.type).toBe(PokemonType.PSYCHIC);
+    expect(move.category).toBe(MoveCategory.SPECIAL);
+    expect(move.power).toBe(140);
+    expect(move.accuracy).toBe(100);
+    expect(move.pp).toBe(5);
+    expect(move.chance).toBe(30);
+    expect(move.priority).toBe(8);
+    expect(move.hasAttr("FlinchAttr")).toBe(true);
+  });
+
+  it("goes first even against a much faster opponent, due to its own priority", async () => {
+    await game.classicMode.startBattle(SpeciesId.RATTATA);
+
+    game.move.select(MoveId.CAUSALITY_COLLAPSE);
+    // Stops right as the turn's first MovePhase starts (before running it) - whichever Pokemon it
+    // belongs to is unambiguous proof of move order, unlike inferring it from damage/HP alone.
+    await game.phaseInterceptor.to("MovePhase", false);
+
+    const actingPokemon = (
+      globalScene.phaseManager.getCurrentPhase() as unknown as { getPokemon: () => { isPlayer: () => boolean } }
+    ).getPokemon();
+    expect(actingPokemon.isPlayer()).toBe(true);
+  });
+
+  it("can't be used two turns in a row", async () => {
+    await game.classicMode.startBattle(SpeciesId.RATTATA);
+
+    game.move.select(MoveId.CAUSALITY_COLLAPSE);
+    await game.toNextTurn();
+
+    // Attempting to use Causality Collapse again immediately should fall back to Struggle, exactly
+    // like Gigaton Hammer/Blood Moon (see consecutiveUseRestriction in move-condition.ts).
+    game.move.select(MoveId.CAUSALITY_COLLAPSE);
+    await game.toNextTurn();
+
+    const player = game.field.getPlayerPokemon();
+    expect(player.getLastXMoves()[0]?.move).toBe(MoveId.STRUGGLE);
+  });
+
+  it("can be used again after using a different move in between", async () => {
+    game.override.moveset([MoveId.CAUSALITY_COLLAPSE, MoveId.SPLASH]);
+    await game.classicMode.startBattle(SpeciesId.RATTATA);
+
+    game.move.select(MoveId.CAUSALITY_COLLAPSE);
+    await game.toNextTurn();
+    game.move.select(MoveId.SPLASH);
+    await game.toNextTurn();
+
+    game.move.select(MoveId.CAUSALITY_COLLAPSE);
+    await game.toNextTurn();
+
+    const player = game.field.getPlayerPokemon();
+    expect(player.getLastXMoves()[0]?.move).toBe(MoveId.CAUSALITY_COLLAPSE);
   });
 });
