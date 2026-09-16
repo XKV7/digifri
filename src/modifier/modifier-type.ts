@@ -2938,7 +2938,8 @@ export function getPartyLuckValue(party: readonly Pokemon[]): number {
     0,
     14,
   );
-  return Math.min(timedEventManager.getEventLuckBoost() + (luck ?? 0), 14);
+  const luckWithEventBoost = Math.min(timedEventManager.getEventLuckBoost() + (luck ?? 0), 14);
+  return Phaser.Math.Clamp(luckWithEventBoost + globalScene.gameMode.getLuckOffset(), 0, 14);
 }
 
 export function getLuckString(luckValue: number): string {

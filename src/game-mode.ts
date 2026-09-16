@@ -518,6 +518,22 @@ export class GameMode implements GameModeConfig {
   }
 
   /**
+   * Offset applied on top of the player's raw party luck value (see `getPartyLuckValue` in
+   * modifier-type.ts), before that function's own final 0-14 clamp. Luck feeds into rarer wild
+   * species odds (Arena#randomSpecies) and rarer shop/enemy item tiers, so docking it makes those
+   * luck-based rolls harder to reach in Nightmare mode, on top of its other difficulty levers.
+   * @returns The luck offset for the current mode.
+   */
+  getLuckOffset(): number {
+    switch (this.modeId) {
+      case GameModes.NIGHTMARE:
+        return -3;
+      default:
+        return 0;
+    }
+  }
+
+  /**
    * @returns The number of modifier choices offered at the shop after each 10-wave segment.
    */
   getBaseModifierCount(): number {

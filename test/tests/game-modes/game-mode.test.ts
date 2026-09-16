@@ -4,6 +4,8 @@ import { DexAttr } from "#enums/dex-attr";
 import { GameModes } from "#enums/game-modes";
 import { MysteryEncounterType } from "#enums/mystery-encounter-type";
 import { SpeciesId } from "#enums/species-id";
+import type { Pokemon } from "#field/pokemon";
+import { getPartyLuckValue } from "#modifiers/modifier-type";
 import { GameManager } from "#test/framework/game-manager";
 import * as Utils from "#utils/common";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -164,6 +166,23 @@ describe("game-mode", () => {
       const classicGameMode = getGameMode(GameModes.CLASSIC);
       expect(nightmareGameMode.getMoneyRewardMultiplier()).toBe(0.3);
       expect(classicGameMode.getMoneyRewardMultiplier()).toBe(1);
+    });
+
+    it("docks 3 off the party's effective luck value compared to classic, clamped at 0", () => {
+      const party = [
+        { isAllowedInBattle: () => true, species: { speciesId: SpeciesId.BULBASAUR }, getLuck: () => 10 },
+      ] as unknown as Pokemon[];
+
+      game.scene.gameMode = getGameMode(GameModes.CLASSIC);
+      expect(getPartyLuckValue(party)).toBe(10);
+
+      game.scene.gameMode = nightmareGameMode;
+      expect(getPartyLuckValue(party)).toBe(7);
+
+      const lowLuckParty = [
+        { isAllowedInBattle: () => true, species: { speciesId: SpeciesId.BULBASAUR }, getLuck: () => 2 },
+      ] as unknown as Pokemon[];
+      expect(getPartyLuckValue(lowLuckParty)).toBe(0);
     });
 
     it("gives bosses one extra health segment compared to classic", () => {
