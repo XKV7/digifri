@@ -2,6 +2,7 @@ import type { GameMode } from "#app/game-mode";
 import { getGameMode } from "#app/game-mode";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
 import * as Messages from "#app/messages";
+import { modifierTypes } from "#data/data-lists";
 import { BiomeId } from "#enums/biome-id";
 import { BiomePoolTier } from "#enums/biome-pool-tier";
 import { DexAttr } from "#enums/dex-attr";
@@ -10,6 +11,7 @@ import { MysteryEncounterType } from "#enums/mystery-encounter-type";
 import { SpeciesId } from "#enums/species-id";
 import { TrainerSlot } from "#enums/trainer-slot";
 import type { Pokemon } from "#field/pokemon";
+import type { ExpShareModifier } from "#modifiers/modifier";
 import { getPartyLuckValue } from "#modifiers/modifier-type";
 import { GameManager } from "#test/framework/game-manager";
 import * as Utils from "#utils/common";
@@ -284,6 +286,16 @@ describe("game-mode", () => {
         TrainerSlot.NONE,
       );
       expect(wildMon.ivs).not.toEqual([31, 31, 31, 31, 31, 31]);
+    });
+
+    it("caps EXP Share stacks at 3, down from classic's 5", () => {
+      const expShare = modifierTypes.EXP_SHARE().newModifier() as ExpShareModifier;
+
+      game.scene.gameMode = nightmareGameMode;
+      expect(expShare.getMaxStackCount()).toBe(3);
+
+      game.scene.gameMode = getGameMode(GameModes.CLASSIC);
+      expect(expShare.getMaxStackCount()).toBe(5);
     });
   });
 });

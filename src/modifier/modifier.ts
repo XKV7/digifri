@@ -16,6 +16,7 @@ import { BattlerTagType } from "#enums/battler-tag-type";
 import { BerryType } from "#enums/berry-type";
 import { Color, ShadowColor } from "#enums/color";
 import type { FormChangeItem } from "#enums/form-change-item";
+import { GameModes } from "#enums/game-modes";
 import { LearnMoveType } from "#enums/learn-move-type";
 import type { MoveId } from "#enums/move-id";
 import type { Nature } from "#enums/nature";
@@ -2568,8 +2569,12 @@ export class ExpShareModifier extends PersistentModifier {
     return true;
   }
 
+  /**
+   * @returns The max number of EXP Share stacks the player can hold - 5 normally, but capped at 3
+   * in Nightmare mode so non-participating party members catch up on EXP more slowly.
+   */
   getMaxStackCount(): number {
-    return 5;
+    return globalScene.gameMode.modeId === GameModes.NIGHTMARE ? 3 : 5;
   }
 }
 
