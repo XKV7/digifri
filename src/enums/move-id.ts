@@ -1875,4 +1875,14 @@ export enum MoveId {
   MALIGNANT_CHAIN,
   /**{@link https://bulbapedia.bulbagarden.net/wiki/Nihil_Light_(move) | Source} */
   NIHIL_LIGHT,
+
+  /**
+   * Not a real move - Ingingi's own signature move. Raises all 7 battle stats (including accuracy/
+   * evasion) by 2 stages, then forces the user to recharge (skip its next turn), exactly like Hyper
+   * Beam's own RechargeAttr - normally always bypassed by Ingingi's own ability (see
+   * AbilityId.PARENTAL_OVERBOND), but not by anything else that might copy/call this move.
+   */
+  DDALCHUM,
+  /** Not a real move - Ingingi's own signature move. No secondary effect. */
+  INGING_EUINGING,
 }

@@ -12002,5 +12002,57 @@ export function initGenerationNine(): SpeciesDataMapConfig {
     ],
   };
   //#endregion Regional Variants
+
+  // Not a real Pokémon - a fan-made, playable take on a fan character named "읭읭이" (Ingingi),
+  // added at the user's request with their own art and design (stats/type/ability/moveset). Unlike
+  // MissingNo./Adeus, this one is never obtainable through any normal in-game path at all (no wild
+  // spawn, no egg pool, no Mystery Encounter) - only ever added to a save via the
+  // `window.cheatGiveIngingi()` dev/cheat helper (see cheats.ts).
+  generationNineSpeciesData[SpeciesId.INGINGI] = {
+    species: new PokemonSpecies({
+      id: SpeciesId.INGINGI,
+      generation: 9,
+      mythical: true,
+      category: "Ddalchum Pokémon",
+      type1: PokemonType.NORMAL,
+      type2: null,
+      height: 0.5,
+      weight: 5,
+      // Same ability in both the active and passive slots - see AbilityId.PARENTAL_OVERBOND's own
+      // doc comment, mirroring AbilityId.ERROR's identical "either slot" precedent - so its effect
+      // is guaranteed active regardless of which slot ends up enabled.
+      ability1: AbilityId.PARENTAL_OVERBOND,
+      ability2: AbilityId.NONE,
+      abilityHidden: AbilityId.NONE,
+      baseTotal: 710,
+      baseHp: 125,
+      baseAtk: 195,
+      baseDef: 115,
+      baseSpatk: 15,
+      baseSpdef: 115,
+      baseSpd: 145,
+      catchRate: 3,
+      baseFriendship: 0,
+      baseExp: 300,
+      growthRate: GrowthRate.SLOW,
+      malePercent: null,
+      genderDiffs: false,
+    }),
+    starter: SpeciesId.INGINGI,
+    starterCost: 10,
+    evolutions: [],
+    eggTier: EggTier.LEGENDARY,
+    passives: AbilityId.PARENTAL_OVERBOND,
+    levelMoves: [
+      [1, MoveId.DDALCHUM],
+      [1, MoveId.INGING_EUINGING],
+      [1, MoveId.LEECH_SEED],
+      [1, MoveId.HARDEN],
+      [1, MoveId.DIG],
+      [1, MoveId.AGILITY],
+      [1, MoveId.LICK],
+    ],
+    tms: [],
+  };
   return generationNineSpeciesData;
 }

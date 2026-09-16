@@ -1,7 +1,7 @@
 {
   "error": {
     "name": "Error",
-    "description": "One-hit KO moves always land. All damage taken from moves is fixed at 1 (status effect damage is unaffected and keeps scaling normally off max HP)."
+    "description": "Every move, used by or against the holder, always lands (same as No Guard). All damage taken from moves is fixed at 1, and max HP is likewise fixed at exactly 20 regardless of level (status effect damage is unaffected and keeps scaling normally off max HP). Also immune to every flavor of move recoil: forced recharge turns, fractional/percentage recoil, and self-destruct-style self-KO."
   },
   "singularity": {
     "name": "Singularity",
@@ -10,5 +10,9 @@
   "eventHorizon": {
     "name": "Event Horizon",
     "description": "Opens an Event Horizon on entering battle. While it's up, neither side can flee or switch, and any Pokemon entering the field has its Speed lowered by 1 stage."
+  },
+  "parentalOverbond": {
+    "name": "Parental Overbond",
+    "description": "Every attacking move strikes twice, both hits at full power. Never needs to recharge after its own signature move."
   }
 }

@@ -12776,5 +12776,12 @@ export function initMoves() {
       .attr(NihilLightAttr)
       .target(MoveTarget.ALL_NEAR_ENEMIES)
       .edgeCase(), // Needs to replace the user's Core Enforcer if mega evolved (Zygarde-Complete to Mega Zygarde)
+    // Not a real move - Ingingi's own signature move (see MoveId.DDALCHUM's own doc comment).
+    new SelfStatusMove(MoveId.DDALCHUM, PokemonType.NORMAL, -1, 5, -1, 0, 9)
+      .attr(StatStageChangeAttr, [...BATTLE_STATS], 2, true)
+      .attr(RechargeAttr)
+      .danceMove(),
+    // Not a real move - Ingingi's own signature move. Plain attacking move, no secondary effect.
+    new AttackMove(MoveId.INGING_EUINGING, PokemonType.NORMAL, MoveCategory.PHYSICAL, 80, 100, 10, -1, 0, 9),
   );
 }

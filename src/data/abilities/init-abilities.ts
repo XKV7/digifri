@@ -2252,6 +2252,17 @@ export function initAbilities() {
       .attr(PreLeaveFieldRemoveArenaTagAbAttr, [ArenaTagType.EVENT_HORIZON])
       .bypassFaint()
       .build(),
+    // Not a real ability - Ingingi's own ability ("연딸"). BattlerTagImmunityAbAttr blocks the
+    // RECHARGING tag its own signature move Ddalchum (see MoveId.DDALCHUM) would otherwise add to
+    // the holder - see AbilityId.ERROR's own use of this same attribute for the identical pattern.
+    // AddSecondStrikeAbAttr alone (with no accompanying MoveDamageBoostAbAttr, unlike
+    // AbilityId.PARENTAL_BOND above) makes every attacking move strike twice at full, unreduced
+    // damage each time - Parental Bond's own 25%-power second hit comes entirely from the separate
+    // MoveDamageBoostAbAttr it chains, which this ability deliberately omits.
+    new AbBuilder(AbilityId.PARENTAL_OVERBOND, 9) //
+      .attr(BattlerTagImmunityAbAttr, BattlerTagType.RECHARGING)
+      .attr(AddSecondStrikeAbAttr)
+      .build(),
   );
 }
 

@@ -2183,4 +2183,11 @@ export enum SpeciesId {
    * (Unlockables.ADEUS).
    */
   ADEUS = 9001,
+
+  /**
+   * A wholly original, non-canon entity created for this fork - not a real Pokémon. Not obtainable
+   * through any normal in-game path (no wild spawn, no egg pool, no Mystery Encounter) - only ever
+   * added to a save via the `window.cheatGiveIngingi()` dev/cheat helper (see cheats.ts).
+   */
+  INGINGI = 6974,
 }

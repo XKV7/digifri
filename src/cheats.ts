@@ -225,6 +225,27 @@ async function giveAdeus(): Promise<void> {
 }
 
 /**
+ * Marks Ingingi (읭읭이) as caught (all variants, 31 IVs, all natures) and candy-maxed as a
+ * starter - same "no extra unlock gate" shape {@linkcode giveMissingNo} uses, since Ingingi has no
+ * Unlockables flag of its own (it's never fought/encountered anywhere, so there's no other flow
+ * that would need to independently grant it).
+ */
+async function giveIngingi(): Promise<void> {
+  const gameData = globalScene?.gameData;
+  if (!gameData) {
+    alert("게임이 아직 로딩되지 않았습니다. 타이틀 화면이 뜬 뒤 다시 시도해주세요.");
+    return;
+  }
+
+  unlockDexEntry(gameData, SpeciesId.INGINGI, allNatureAttr());
+  unlockStarterEntry(gameData, SpeciesId.INGINGI);
+
+  await gameData.saveSystem();
+  alert("읭읭이가 도감에 등록되고 스타터로 선택 가능해졌습니다. 새로고침합니다.");
+  window.location.reload();
+}
+
+/**
  * Adds a real egg guaranteed to hatch into MissingNo. to the current save (so it can be hatched
  * and shows up in the egg box like any other egg), and also immediately marks it caught/candy-
  * maxed as a starter - same "fully unlocked" state {@linkcode giveMissingNo} grants directly.
@@ -308,6 +329,7 @@ async function givePikachuAndManaphyEggs(): Promise<void> {
 (window as unknown as { cheatAddExVouchers: (amount: number) => Promise<void> }).cheatAddExVouchers = addExVouchers;
 (window as unknown as { cheatGiveMissingNo: () => Promise<void> }).cheatGiveMissingNo = giveMissingNo;
 (window as unknown as { cheatGiveAdeus: () => Promise<void> }).cheatGiveAdeus = giveAdeus;
+(window as unknown as { cheatGiveIngingi: () => Promise<void> }).cheatGiveIngingi = giveIngingi;
 (window as unknown as { cheatGiveMissingNoEgg: () => Promise<void> }).cheatGiveMissingNoEgg = giveMissingNoEgg;
 (window as unknown as { cheatGiveShinyZacianEgg: () => Promise<void> }).cheatGiveShinyZacianEgg = giveShinyZacianEgg;
 (window as unknown as { cheatGivePikachuAndManaphyEggs: () => Promise<void> }).cheatGivePikachuAndManaphyEggs =

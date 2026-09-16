@@ -656,4 +656,12 @@ export enum AbilityId {
    * and clears it again on switching out.
    */
   EVENT_HORIZON,
+  /**
+   * Not a real ability - Ingingi's own ability ("연딸"). Immune to the recharge turn its own
+   * signature move Ddalchum would otherwise force (a real ability can only ever gain the recharge
+   * tag from its own move anyway, so this has no effect against anyone else's Hyper Beam-style
+   * moves). Every attacking move the holder uses also strikes twice, both hits at full, unreduced
+   * damage - like Parental Bond, but without Parental Bond's own 25% reduction on the second hit.
+   */
+  PARENTAL_OVERBOND,
 }
