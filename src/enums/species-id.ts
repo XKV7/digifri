@@ -2176,10 +2176,11 @@ export enum SpeciesId {
   MISSING_NO = 9000,
 
   /**
-   * A wholly original, non-canon entity created for this fork - not a real Pokémon. Rivals
-   * Arceus; only ever fought as a wild boss in the Adeus encounter (see
-   * mystery-encounters/adeus-encounter.ts). Not normally catchable - winning that encounter
-   * instead permanently unlocks it as a selectable starter (Unlockables.ADEUS).
+   * A wholly original, non-canon entity created for this fork - not a real Pokémon. Far exceeds
+   * even Arceus in raw stats (720 -> 1440 base total, 240 in every stat); only ever fought as a
+   * wild boss in the Adeus encounter (see mystery-encounters/adeus-encounter.ts). Not normally
+   * catchable - winning that encounter instead permanently unlocks it as a selectable starter
+   * (Unlockables.ADEUS).
    */
   ADEUS = 9001,
 }
