@@ -72,6 +72,16 @@ let activeContext: PvpBattleContext | null = null;
 let nextPvpPokemonId = 1;
 /** Whether this (local) side has already used its one form-change-item activation for the current battle — see togglePvpFormChangeItem. Reset at the start of every startPvpBattle() call. */
 let pvpFormChangeUsed = false;
+/**
+ * Unsubscribe for the live subscribePvpFormChangeState() listener startPvpBattle() opens for the
+ * duration of the battle — stays live (not one-shot like the turn/switch command subscriptions)
+ * for as long as this module thinks a PvP battle is running, so it must be torn down explicitly
+ * once one ends (see clearPvpBattleContext()) or it leaks: left dangling, it keeps listening to
+ * the now-finished room's document for the rest of the browser session, and over a full day of
+ * back-to-back matches on the same tab (e.g. a tournament kiosk), each battle adds one more
+ * leaked Firestore listener that's never cleaned up.
+ */
+let formChangeStateUnsub: (() => void) | null = null;
 
 interface PendingPvpFormChangeReveal {
   pokemon: Pokemon;
@@ -93,6 +103,8 @@ export function getPvpBattleContext(): PvpBattleContext | null {
 /** Clears the active PvP battle context. Call once the battle ends (or is aborted) so a later real run isn't mistaken for a PvP battle. */
 export function clearPvpBattleContext(): void {
   activeContext = null;
+  formChangeStateUnsub?.();
+  formChangeStateUnsub = null;
 }
 
 function getPvpFormChangeItemModifiers(pokemon: Pokemon): PokemonFormChangeItemModifier[] {
@@ -398,6 +410,11 @@ export async function startPvpBattle(
   nextPvpPokemonId = 1;
   pvpFormChangeUsed = false;
   pendingFormChangeReveals = [];
+  // Guards against a leaked listener from a previous battle that ended without going through
+  // clearPvpBattleContext() (e.g. one aborted by the error path below, before this function ever
+  // got to opening its own subscription) still being live when this one starts.
+  formChangeStateUnsub?.();
+  formChangeStateUnsub = null;
   globalScene.setSeed(room.pvpSeed);
   globalScene.resetSeed(PVP_WAVE_INDEX);
 
@@ -510,9 +527,9 @@ export async function startPvpBattle(
   // Stays subscribed for the rest of the battle (unlike the turn/switch command channels, which
   // are each consumed once) - mirrors the opponent's form-change-item toggles onto this client's
   // view of their Pokemon as soon as they happen, whenever they happen (see
-  // togglePvpFormChangeItem). No teardown yet since PvP battles have no end-of-battle cleanup
-  // path at all yet - a known, pre-existing gap, not specific to this subscription.
-  subscribePvpFormChangeState(room.id, !isHost, (pokemonId, active) => {
+  // togglePvpFormChangeItem). Torn down by clearPvpBattleContext() once the battle actually ends
+  // (see pvp-battle-end-phase.ts) - see formChangeStateUnsub's own doc comment for why that matters.
+  formChangeStateUnsub = subscribePvpFormChangeState(room.id, !isHost, (pokemonId, active) => {
     const enemyPokemon = globalScene.getEnemyParty().find(p => p.id === pokemonId);
     if (enemyPokemon) {
       applyPvpFormChangeState(enemyPokemon, active);

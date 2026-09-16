@@ -25,13 +25,23 @@ export class VictoryPhase extends PokemonPhase {
 
     const isMysteryEncounter = globalScene.currentBattle.isBattleMysteryEncounter();
 
-    // update Pokemon defeated count except for MEs that disable it
-    if (!isMysteryEncounter || !globalScene.currentBattle.mysteryEncounter?.preventGameStatsUpdates) {
-      globalScene.gameData.gameStats.pokemonDefeated++;
-    }
+    // Pokemon-defeated count and EXP - which cascades into friendship/candy gain, achievement/
+    // ribbon unlocks, and even mid-battle evolution touching the real Pokedex (see
+    // PlayerPokemon#evolve()/#changeForm()) - are all real, permanently persisted account
+    // progress. A PvP battle is a one-off scripted fight between two accounts' standing rosters,
+    // not a real run (see pvp-battle.ts's file header), so none of that should be granted just
+    // because a throwaway PvP Pokemon fainted. PvpBattleEndPhase (pushed below) only blocks the
+    // wave-progression continuation further down - it can't retroactively undo this prefix, which
+    // otherwise runs unconditionally on every enemy faint, PvP or not.
+    if (!globalScene.currentBattle.isPvpBattle) {
+      // update Pokemon defeated count except for MEs that disable it
+      if (!isMysteryEncounter || !globalScene.currentBattle.mysteryEncounter?.preventGameStatsUpdates) {
+        globalScene.gameData.gameStats.pokemonDefeated++;
+      }
 
-    const expValue = this.getPokemon().getExpValue();
-    globalScene.applyPartyExp(expValue, true);
+      const expValue = this.getPokemon().getExpValue();
+      globalScene.applyPartyExp(expValue, true);
+    }
 
     if (isMysteryEncounter) {
       handleMysteryEncounterVictory(false, this.isExpOnly);

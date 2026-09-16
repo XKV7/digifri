@@ -182,6 +182,13 @@ export class MenuUiHandler extends MessageUiHandler {
       },
       { condition: bypassLogin, options: [MenuOptions.LOG_OUT] },
       { condition: !globalScene.currentBattle, options: [MenuOptions.SAVE_AND_QUIT] },
+      // A PvP battle has no real run to save, and quitting via this menu leaves the opponent's
+      // client waiting forever on a Firestore command that will now never arrive (see
+      // pvp-room.ts's subscribePvpTurnCommand/subscribePvpSwitchCommand - neither has a timeout).
+      // Hiding this option here doesn't fix that underlying hang risk (a tab close or crash can
+      // still trigger it), but it does remove the one entirely avoidable way to cause it from
+      // inside the game itself.
+      { condition: !!globalScene.currentBattle?.isPvpBattle, options: [MenuOptions.SAVE_AND_QUIT] },
       // PvP battles are title-screen-only (see pvp-battle.ts#startPvpBattle) so a saved run never
       // gets touched - PVP_TEAM registration is explicitly fine mid-run (see
       // beginPvpTeamEditMode()'s own doc comment), but without this the lobby option stayed
