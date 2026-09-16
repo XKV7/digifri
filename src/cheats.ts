@@ -225,10 +225,17 @@ async function giveAdeus(): Promise<void> {
 }
 
 /**
- * Marks Ingingi (읭읭이) as caught (all variants, 31 IVs, all natures) and candy-maxed as a
- * starter - same "no extra unlock gate" shape {@linkcode giveMissingNo} uses, since Ingingi has no
- * Unlockables flag of its own (it's never fought/encountered anywhere, so there's no other flow
- * that would need to independently grant it).
+ * Adds a real egg guaranteed to hatch into Ingingi (읭읭이) to the current save (so it can be
+ * hatched and shows up in the egg box like any other egg), and also immediately marks it caught/
+ * candy-maxed as a starter - same "give an egg + unlock directly too" shape
+ * {@linkcode giveMissingNoEgg} uses. Ingingi has no Unlockables flag of its own (it's never fought/
+ * encountered anywhere, so there's no other flow that would need to independently grant it).
+ *
+ * @remarks
+ * `GameData#saveSystem()` silently discards the whole write (and reverts to whatever was last
+ * saved) if `validateSystemData()` finds ANY starter's dex/starter data inconsistent - not
+ * necessarily Ingingi's own - so its return value is checked here and surfaced directly, rather
+ * than showing the same "success" alert regardless of whether the save actually persisted.
  */
 async function giveIngingi(): Promise<void> {
   const gameData = globalScene?.gameData;
@@ -237,11 +244,20 @@ async function giveIngingi(): Promise<void> {
     return;
   }
 
+  const egg = new Egg({ species: SpeciesId.INGINGI, sourceType: EggSourceType.EVENT });
+  egg.addEggToGameData();
+
   unlockDexEntry(gameData, SpeciesId.INGINGI, allNatureAttr());
   unlockStarterEntry(gameData, SpeciesId.INGINGI);
 
-  await gameData.saveSystem();
-  alert("읭읭이가 도감에 등록되고 스타터로 선택 가능해졌습니다. 새로고침합니다.");
+  const saved = await gameData.saveSystem();
+  if (!saved) {
+    alert(
+      "저장에 실패해서 읭읭이 알/도감/스타터 등록이 적용되지 않았습니다. 콘솔에 뜬 'Corrupt save data detected!' 로그를 확인해주세요 - 이 세이브의 다른 스타터 데이터가 손상되어 있으면 전체 저장이 거부됩니다.",
+    );
+    return;
+  }
+  alert("읭읭이 알을 지급했고, 도감/스타터도 전부 해금 상태로 등록했습니다. 새로고침합니다.");
   window.location.reload();
 }
 

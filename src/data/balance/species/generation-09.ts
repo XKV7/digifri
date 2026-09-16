@@ -12039,7 +12039,7 @@ export function initGenerationNine(): SpeciesDataMapConfig {
       genderDiffs: false,
     }),
     starter: SpeciesId.INGINGI,
-    starterCost: 10,
+    starterCost: 3,
     evolutions: [],
     eggTier: EggTier.LEGENDARY,
     passives: AbilityId.PARENTAL_OVERBOND,
