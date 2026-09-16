@@ -53,6 +53,14 @@ export class PvpEnemySwitchPhase extends BattlePhase {
   }
 
   private applyCommand(command: PvpSwitchCommand): void {
+    if (command.command === "forfeit") {
+      // The opponent gave up (by choice or their own countdown timer expiring) while I still
+      // needed to pick a replacement for their side's fainted Pokemon - I won by default instead.
+      globalScene.phaseManager.unshiftNew("PvpBattleEndPhase", true);
+      this.end();
+      return;
+    }
+
     const enemyParty = globalScene.getEnemyParty();
     const slotIndex = enemyParty.findIndex(p => p.id === command.pokemonId);
     if (slotIndex === -1) {

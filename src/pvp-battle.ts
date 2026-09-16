@@ -38,7 +38,7 @@ import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
 import type { Phase } from "#app/phase";
 import type { PvpRoomWithId } from "#app/pvp-room";
-import { submitPvpFormChangeState, subscribePvpFormChangeState } from "#app/pvp-room";
+import { submitPvpForfeit, submitPvpFormChangeState, subscribePvpFormChangeState } from "#app/pvp-room";
 import { loadPvpTeam } from "#app/pvp-team";
 import { SpeciesFormChangeItemTrigger } from "#data/form-change-triggers";
 import { Gender } from "#data/gender";
@@ -61,6 +61,13 @@ const PVP_BIOME = BiomeId.TOWN;
 
 /** Fixed wave index used for every PvP battle's seed derivation — arbitrary but must be the same on both clients (it is, since it's a constant, not read from any run state). */
 const PVP_WAVE_INDEX = 1;
+
+/**
+ * Per-action time limit during a live PvP battle (move selection in command-phase.ts, the forced
+ * switch-in after a faint in switch-phase.ts) - no input within this window auto-forfeits the
+ * battle for whichever side let it expire, via forfeitPvpBattle() below.
+ */
+export const PVP_TURN_TIMEOUT_MS = 60000;
 
 interface PvpBattleContext {
   roomId: string;
@@ -105,6 +112,27 @@ export function clearPvpBattleContext(): void {
   activeContext = null;
   formChangeStateUnsub?.();
   formChangeStateUnsub = null;
+}
+
+/**
+ * Forfeits the local side's currently-running PvP battle immediately: writes the forfeit to the
+ * room doc (see submitPvpForfeit in pvp-room.ts) so the opponent's client - whichever of
+ * PvpEnemyCommandPhase/PvpEnemySwitchPhase it happens to be waiting in - picks it up on its very
+ * next snapshot instead of hanging forever on a command that will now never arrive, then queues
+ * PvpBattleEndPhase as a loss for this side. Called either by choice (the repurposed Run command
+ * in command-phase.ts) or automatically (the per-action countdown timer in
+ * command-phase.ts/switch-phase.ts expiring with no input).
+ *
+ * Only queues PvpBattleEndPhase - does not itself end whichever phase is currently running. The
+ * caller is responsible for that (calling `this.end()` immediately after), exactly like resolving
+ * any other command.
+ */
+export function forfeitPvpBattle(): void {
+  const ctx = activeContext;
+  if (ctx) {
+    void submitPvpForfeit(ctx.roomId, ctx.isHost);
+  }
+  globalScene.phaseManager.unshiftNew("PvpBattleEndPhase", false);
 }
 
 function getPvpFormChangeItemModifiers(pokemon: Pokemon): PokemonFormChangeItemModifier[] {

@@ -20,6 +20,8 @@ export class CommandUiHandler extends UiHandler {
   private cursorObj: Phaser.GameObjects.Image | null;
 
   private teraButton: Phaser.GameObjects.Sprite;
+  /** The Command.RUN slot's own label - repurposed to read "Forfeit" during a PvP battle (see show()), since Run itself is always blocked in a trainer battle (which PvP always is). */
+  private runCommandText: Phaser.GameObjects.Text;
 
   protected fieldIndex = 0;
   protected cursor2 = 0;
@@ -63,6 +65,9 @@ export class CommandUiHandler extends UiHandler {
       );
       commandText.setName(commands[c]);
       this.commandsContainer.add(commandText);
+      if (c === Command.RUN) {
+        this.runCommandText = commandText;
+      }
     }
   }
 
@@ -72,6 +77,12 @@ export class CommandUiHandler extends UiHandler {
     this.fieldIndex = args.length > 0 ? (args[0] as number) : 0;
 
     this.commandsContainer.setVisible(true);
+    // Run is always blocked outright in a trainer battle (which PvP always is - see
+    // handleRunCommand() in command-phase.ts), so the slot is repurposed into a forfeit there
+    // instead; relabel it so the button's own text reflects what it now actually does.
+    this.runCommandText.setText(
+      globalScene.currentBattle.isPvpBattle ? i18next.t("commandUiHandler:forfeit") : i18next.t("commandUiHandler:run"),
+    );
 
     let commandPhase: CommandPhase;
     const currentPhase = globalScene.phaseManager.getCurrentPhase();

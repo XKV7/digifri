@@ -1,11 +1,12 @@
 import { globalScene } from "#app/global-scene";
-import { getPvpBattleContext } from "#app/pvp-battle";
+import { forfeitPvpBattle, getPvpBattleContext, PVP_TURN_TIMEOUT_MS } from "#app/pvp-battle";
 import { submitPvpSwitchCommand } from "#app/pvp-room";
 import { PartyUiMode } from "#enums/party-ui-mode";
 import { SwitchType } from "#enums/switch-type";
 import { UiMode } from "#enums/ui-mode";
 import { BattlePhase } from "#phases/battle-phase";
 import { PartyOption, PartyUiHandler } from "#ui/party-ui-handler";
+import type Phaser from "phaser";
 
 /**
  * Opens the party selector UI and transitions into a {@linkcode SwitchSummonPhase}
@@ -17,6 +18,9 @@ export class SwitchPhase extends BattlePhase {
   private readonly switchType: SwitchType;
   private readonly isModal: boolean;
   private readonly doReturn: boolean;
+
+  /** The live per-action countdown started for a PvP battle's forced switch-in - see PVP_TURN_TIMEOUT_MS's own doc comment. */
+  private pvpTimeoutTimer: Phaser.Time.TimerEvent | null = null;
 
   /**
    * Creates a new SwitchPhase
@@ -74,6 +78,8 @@ export class SwitchPhase extends BattlePhase {
       this.isModal ? PartyUiMode.FAINT_SWITCH : PartyUiMode.POST_BATTLE_SWITCH,
       fieldIndex,
       (slotIndex: number, option: PartyOption) => {
+        this.pvpTimeoutTimer?.remove(false);
+        this.pvpTimeoutTimer = null;
         if (slotIndex >= globalScene.currentBattle.getBattlerCount() && slotIndex < 6) {
           const switchType = option === PartyOption.PASS_BATON ? SwitchType.BATON_PASS : this.switchType;
           if (globalScene.currentBattle.isPvpBattle) {
@@ -97,5 +103,16 @@ export class SwitchPhase extends BattlePhase {
       },
       PartyUiHandler.FilterNonFainted,
     );
+
+    // Only reachable once the party selector is actually open, waiting on the LOCAL player's own
+    // choice of replacement - the early-return branches above all end this phase before getting
+    // here (nothing to choose).
+    if (globalScene.currentBattle.isPvpBattle) {
+      this.pvpTimeoutTimer = globalScene.time.delayedCall(PVP_TURN_TIMEOUT_MS, () => {
+        this.pvpTimeoutTimer = null;
+        forfeitPvpBattle();
+        globalScene.ui.setMode(UiMode.MESSAGE).then(() => super.end());
+      });
+    }
   }
 }

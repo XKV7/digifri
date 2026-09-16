@@ -2,7 +2,7 @@ import type { TurnCommand } from "#app/battle";
 import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
 import { getPokemonNameWithAffix } from "#app/messages";
-import { getPvpBattleContext } from "#app/pvp-battle";
+import { forfeitPvpBattle, getPvpBattleContext, PVP_TURN_TIMEOUT_MS } from "#app/pvp-battle";
 import { submitPvpTurnCommand } from "#app/pvp-room";
 import { TrappedTag } from "#data/battler-tags";
 import { getDailyEventSeedBoss } from "#data/daily-seed/daily-run";
@@ -27,6 +27,7 @@ import { FieldPhase } from "#phases/field-phase";
 import type { MoveTargetSet } from "#types/move-target-set";
 import type { TurnMove } from "#types/turn-move";
 import i18next from "i18next";
+import type Phaser from "phaser";
 
 export class CommandPhase extends FieldPhase {
   public readonly phaseName = "CommandPhase";
@@ -36,6 +37,13 @@ export class CommandPhase extends FieldPhase {
    * Whether the command phase is handling a switch command
    */
   private isSwitch = false;
+
+  /**
+   * The live per-action countdown started in start() for a PvP battle - see
+   * startPvpTurnTimeoutIfNeeded()/forfeitPvpBattle(). Always cleared in end() (whichever path
+   * triggers it) so it never fires after this phase has already moved on.
+   */
+  private pvpTimeoutTimer: Phaser.Time.TimerEvent | null = null;
 
   constructor(fieldIndex: number) {
     super();
@@ -198,6 +206,17 @@ export class CommandPhase extends FieldPhase {
       globalScene.ui.setMode(UiMode.FIGHT, this.fieldIndex);
     } else {
       globalScene.ui.setMode(UiMode.COMMAND, this.fieldIndex);
+    }
+
+    // Only reachable once we're actually waiting on the LOCAL player's own input this turn - both
+    // early-return branches above (skip / a queued move already resolved) end this phase before
+    // getting here. See PVP_TURN_TIMEOUT_MS's own doc comment for why this exists.
+    if (globalScene.currentBattle.isPvpBattle) {
+      this.pvpTimeoutTimer = globalScene.time.delayedCall(PVP_TURN_TIMEOUT_MS, () => {
+        this.pvpTimeoutTimer = null;
+        forfeitPvpBattle();
+        this.end();
+      });
     }
   }
 
@@ -570,10 +589,19 @@ export class CommandPhase extends FieldPhase {
    * - The player is in a trainer battle
    * - The player is in a mystery encounter that disallows fleeing
    * - The player's pokemon is trapped by an ability or effect
+   *
+   * During a PvP battle, this command is repurposed entirely into a forfeit (see
+   * forfeitPvpBattle()) instead - a real trainer battle always blocks Run outright (see the
+   * BattleType.TRAINER check below, which PvP would otherwise always hit), which used to leave
+   * players with no way to end a PvP match early at all short of closing the tab.
    * @returns Whether the pokemon is able to leave the field, indicating the command phase should end
    */
   private handleRunCommand(): boolean {
     const { currentBattle, arena } = globalScene;
+    if (currentBattle.isPvpBattle) {
+      forfeitPvpBattle();
+      return true;
+    }
     const mysteryEncounterFleeAllowed = currentBattle.mysteryEncounter?.fleeAllowed ?? true;
     if (arena.biomeId === BiomeId.END || !mysteryEncounterFleeAllowed) {
       this.queueShowText("battle:noEscapeForce");
@@ -734,6 +762,11 @@ export class CommandPhase extends FieldPhase {
   }
 
   end() {
+    // Clears the pending PvP turn-timeout timer (if any) - called from every exit path of this
+    // phase (a real command succeeding, or the timeout itself), so a stale timer can never fire
+    // against a phase that has already moved on.
+    this.pvpTimeoutTimer?.remove(false);
+    this.pvpTimeoutTimer = null;
     globalScene.ui.setMode(UiMode.MESSAGE).then(() => super.end());
   }
 }

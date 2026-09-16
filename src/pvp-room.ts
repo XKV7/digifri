@@ -61,7 +61,8 @@ export type PvpTurnCommand =
       pokemonId: number;
       /** Whether this is a Baton Pass-style switch (stat stages/certain effects carry over). */
       isBaton: boolean;
-    };
+    }
+  | PvpForfeitCommand;
 
 /**
  * One side's chosen replacement when one of their own Pokemon faints mid-battle (see
@@ -72,10 +73,26 @@ export type PvpTurnCommand =
  * order — see buildPvpPokemon/nextPvpPokemonId in pvp-battle.ts) that both clients agree on
  * without needing to exchange anything, since both build the same 6 Pokemon in the same order.
  */
-export interface PvpSwitchCommand {
-  command: "switch";
-  /** The `id` (see above) of the Pokemon being sent in to replace the one that just fainted. */
-  pokemonId: number;
+export type PvpSwitchCommand =
+  | {
+      command: "switch";
+      /** The `id` (see above) of the Pokemon being sent in to replace the one that just fainted. */
+      pokemonId: number;
+    }
+  | PvpForfeitCommand;
+
+/**
+ * Synthetic command both subscribePvpTurnCommand and subscribePvpSwitchCommand can deliver in
+ * place of a real one, whenever the room's forfeit flag (see {@linkcode PvpRoom.hostForfeited}) is
+ * set for whichever side the subscriber is watching - see forfeitPvpBattle() in pvp-battle.ts
+ * (the repurposed Run command, and the per-action countdown timer) for where that flag gets set.
+ * Folding this into the SAME subscription that would otherwise wait forever for a real command is
+ * what actually prevents a mid-battle quit/crash/AFK from permanently hanging the other side's
+ * client: PvpEnemyCommandPhase/PvpEnemySwitchPhase are the only two places a client is ever stuck
+ * waiting on the opponent, and both already had exactly one Firestore listener each for this.
+ */
+interface PvpForfeitCommand {
+  command: "forfeit";
 }
 
 export interface PvpRoom {
@@ -109,6 +126,15 @@ export interface PvpRoom {
    */
   hostFormChangeState?: Record<number, boolean>;
   guestFormChangeState?: Record<number, boolean>;
+  /**
+   * Set to true by the side that forfeits mid-battle (see forfeitPvpBattle() in pvp-battle.ts) -
+   * either by choice (the repurposed Run command) or automatically (the per-action countdown
+   * timer expiring with no input). Checked by subscribePvpTurnCommand/subscribePvpSwitchCommand
+   * on every snapshot, same as the fields above, so the opponent's client picks it up immediately
+   * regardless of which of those two subscriptions happens to be active when it's set.
+   */
+  hostForfeited?: boolean;
+  guestForfeited?: boolean;
 }
 
 export interface PvpRoomWithId extends PvpRoom {
@@ -426,6 +452,14 @@ export function subscribePvpTurnCommand(
     doc(db(), "pvpRooms", roomId),
     snapshot => {
       const room = snapshot.data() as PvpRoom | undefined;
+      // Checked before the specific turn's command - a side that forfeits mid-turn should end the
+      // battle immediately rather than waiting on a command it will now never send (see
+      // PvpForfeitCommand's doc comment).
+      if (wantHostSide ? room?.hostForfeited : room?.guestForfeited) {
+        unsub();
+        onCommand({ command: "forfeit" });
+        return;
+      }
       const command = (wantHostSide ? room?.hostTurnCommands : room?.guestTurnCommands)?.[turn];
       if (command) {
         unsub();
@@ -464,6 +498,13 @@ export function subscribePvpSwitchCommand(
     doc(db(), "pvpRooms", roomId),
     snapshot => {
       const room = snapshot.data() as PvpRoom | undefined;
+      // See subscribePvpTurnCommand's identical check - this is the other of the two places a
+      // client can be stuck waiting on the opponent.
+      if (wantHostSide ? room?.hostForfeited : room?.guestForfeited) {
+        unsub();
+        onCommand({ command: "forfeit" });
+        return;
+      }
       const command = (wantHostSide ? room?.hostSwitchCommands : room?.guestSwitchCommands)?.[faintedPokemonId];
       if (command) {
         unsub();
@@ -473,6 +514,17 @@ export function subscribePvpSwitchCommand(
     err => console.error("PvP switch command subscription failed:", err),
   );
   return unsub;
+}
+
+/**
+ * Marks the caller's side as having forfeited (see {@linkcode PvpRoom.hostForfeited}) - picked up
+ * by whichever of subscribePvpTurnCommand/subscribePvpSwitchCommand the opponent's client happens
+ * to have open at the time. Called from forfeitPvpBattle() in pvp-battle.ts, itself triggered
+ * either by the repurposed Run command or by the per-action countdown timer expiring.
+ */
+export async function submitPvpForfeit(roomId: string, isHost: boolean): Promise<void> {
+  const field = isHost ? "hostForfeited" : "guestForfeited";
+  await updatePvpRoomField(roomId, field, true, "Failed to submit PvP forfeit:");
 }
 
 /** Writes the caller's Pokemon's current form-change-item active state, for the opponent's client to mirror immediately (see PvpRoom.hostFormChangeState). */

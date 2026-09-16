@@ -57,6 +57,13 @@ export class PvpEnemyCommandPhase extends FieldPhase {
   }
 
   private applyCommand(command: PvpTurnCommand): void {
+    if (command.command === "forfeit") {
+      // The opponent gave up (by choice or their own countdown timer expiring) - forfeitPvpBattle()
+      // is for the forfeiting side itself, so it's not used here; this side won by default instead.
+      globalScene.phaseManager.unshiftNew("PvpBattleEndPhase", true);
+      this.end();
+      return;
+    }
     if (command.command === "switch") {
       // Mirrors a voluntary switch exactly like EnemyCommandPhase's own AI-switch branch would -
       // TurnStartPhase reads this turnCommand and creates the actual SwitchSummonPhase, so no
