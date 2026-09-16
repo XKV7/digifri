@@ -640,7 +640,9 @@ export enum AbilityId {
   /**
    * Not a real ability - MissingNo.'s passive. Every move, used by or against the holder, always
    * hits (No Guard's own effect); damage taken is clamped to exactly 1 and max HP is hard-clamped
-   * to exactly 20, regardless of level/IVs/EVs.
+   * to exactly 20, regardless of level/IVs/EVs. Also immune to every flavor of move recoil the
+   * holder's own moves would otherwise inflict: fractional/percentage recoil, Mind Blown-style
+   * self-damage, forced recharge turns (Hyper Beam etc.), and Explosion/Self-Destruct-style self-KO.
    */
   ERROR,
   /**

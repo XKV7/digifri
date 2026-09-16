@@ -1,6 +1,7 @@
 import { speciesDataRegistry } from "#app/global-species-data-registry";
 import { getPassiveCandyCount } from "#balance/starters";
 import { AbilityId } from "#enums/ability-id";
+import { BattlerTagType } from "#enums/battler-tag-type";
 import { MoveId } from "#enums/move-id";
 import { SpeciesId } from "#enums/species-id";
 import { GameManager } from "#test/framework/game-manager";
@@ -76,6 +77,62 @@ describe("AbilityId - Error", () => {
     await game.toEndOfTurn();
 
     expect(enemy.hp).toBeLessThan(startingHp);
+  });
+
+  it("should not need to recharge after using a Hyper Beam-style move", async () => {
+    game.override
+      .starterSpecies(SpeciesId.MISSING_NO)
+      .passiveAbility(AbilityId.ERROR)
+      .moveset([MoveId.HYPER_BEAM])
+      .enemySpecies(SpeciesId.MAGIKARP)
+      .enemyMoveset(MoveId.SPLASH);
+    await game.classicMode.startBattle(SpeciesId.MISSING_NO);
+
+    const missingno = game.field.getPlayerPokemon();
+
+    game.move.select(MoveId.HYPER_BEAM);
+    await game.toEndOfTurn();
+
+    expect(missingno.getTag(BattlerTagType.RECHARGING)).toBeUndefined();
+  });
+
+  it("should take no recoil damage from a percentage-recoil move like Double-Edge", async () => {
+    game.override
+      .starterSpecies(SpeciesId.MISSING_NO)
+      .startingLevel(100)
+      .passiveAbility(AbilityId.ERROR)
+      .moveset([MoveId.DOUBLE_EDGE])
+      .enemySpecies(SpeciesId.MAGIKARP)
+      .enemyLevel(1)
+      .enemyMoveset(MoveId.SPLASH);
+    await game.classicMode.startBattle(SpeciesId.MISSING_NO);
+
+    const missingno = game.field.getPlayerPokemon();
+    const startingHp = missingno.hp;
+
+    game.move.select(MoveId.DOUBLE_EDGE);
+    await game.toEndOfTurn();
+
+    expect(missingno.hp).toBe(startingHp);
+  });
+
+  it("should not faint itself (or take any damage) when using a self-destruct move like Explosion", async () => {
+    game.override
+      .starterSpecies(SpeciesId.MISSING_NO)
+      .passiveAbility(AbilityId.ERROR)
+      .moveset([MoveId.EXPLOSION])
+      .enemySpecies(SpeciesId.MAGIKARP)
+      .enemyMoveset(MoveId.SPLASH);
+    await game.classicMode.startBattle(SpeciesId.MISSING_NO);
+
+    const missingno = game.field.getPlayerPokemon();
+    const startingHp = missingno.hp;
+
+    game.move.select(MoveId.EXPLOSION);
+    await game.toEndOfTurn();
+
+    expect(missingno.isFainted()).toBe(false);
+    expect(missingno.hp).toBe(startingHp);
   });
 
   it("should learn all 4 one-hit-KO moves at level 100 but not before, and no TM moves at all", () => {

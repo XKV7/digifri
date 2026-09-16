@@ -2218,9 +2218,17 @@ export function initAbilities() {
     // fixed-1-HP quirk uses there via WONDER_GUARD. hasAbility() checks both the active and passive
     // slots, so that check doesn't care which one ERROR is actually assigned to. Status effect
     // damage never reaches getAttackDamage() at all (see the same doc comment in pokemon.ts) -
-    // MAGIC_GUARD blocks it as normal.
+    // MAGIC_GUARD blocks it as normal. MissingNo. is also immune to every flavor of move recoil:
+    // Magic Guard already blocks fractional/percentage recoil (Take Down, Flare Blitz, etc.) and
+    // Mind Blown-style indirect self-damage via BlockNonDirectDamageAbAttr (RecoilAttr/
+    // HalfSacrificialAttr in moves/move.ts both check it); BattlerTagImmunityAbAttr below covers
+    // Hyper Beam-style forced recharge turns; and a direct AbilityId.ERROR check in
+    // SacrificialAttr/SacrificialAttrOnHit's apply() (moves/move.ts) covers Explosion/Self-Destruct/
+    // Misty Explosion's own self-KO, which has no AbAttr hook at all upstream (mainline Magic Guard
+    // doesn't block that either, so it needed its own explicit check rather than reusing Magic Guard's).
     new AbBuilder(AbilityId.ERROR, 9) //
       .attr(AlwaysHitAbAttr)
+      .attr(BattlerTagImmunityAbAttr, BattlerTagType.RECHARGING)
       .build(),
     // Not a real ability - Adeus's own ability. While the Event Horizon field (see EVENT_HORIZON
     // below, Adeus's own passive) is up, raises 6 battle stats by 2 stages on switch-in - every

@@ -2277,6 +2277,15 @@ export class SacrificialAttr extends MoveEffectAttr {
    * @returns true if the function succeeds
    */
   apply(user: Pokemon, _target: Pokemon, _move: Move, _args: any[]): boolean {
+    // MissingNo.'s Error is not a real ability (see its own doc comment) and has no generic
+    // AbAttr hook here - Magic Guard (its actual ability1) already blocks recoil/Mind Blown-style
+    // indirect self-damage via BlockNonDirectDamageAbAttr, but a self-destruct move's self-KO is
+    // its own direct core effect (mainline Magic Guard doesn't block it either), so it needed its
+    // own explicit check.
+    if (user.hasAbility(AbilityId.ERROR)) {
+      return false;
+    }
+
     user.damageAndUpdate(user.hp, { result: HitResult.INDIRECT, ignoreSegments: true });
     user.turnData.damageTaken += user.hp;
 
@@ -2312,6 +2321,11 @@ export class SacrificialAttrOnHit extends MoveEffectAttr {
   apply(user: Pokemon, target: Pokemon, move: Move, args: any[]): boolean {
     // If the move fails to hit a target, then the user does not faint and the function returns false
     if (!super.apply(user, target, move, args)) {
+      return false;
+    }
+
+    // See the equivalent check in SacrificialAttr.apply() for why this isn't a generic AbAttr.
+    if (user.hasAbility(AbilityId.ERROR)) {
       return false;
     }
 
