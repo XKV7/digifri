@@ -26,6 +26,15 @@ import type { LevelMoves, PokemonSpeciesData, SpeciesDataMap } from "#types/poke
  */
 export class SpeciesDataRegistry {
   private readonly _data: SpeciesDataMap;
+  // Memoized results for getAllStarters()/getSpeciesForEggTier() - _data's per-species starterCost
+  // and eggTier are only ever set once, during construction (see initPreEvolutions() below, the
+  // only place _data's entries are mutated after that, only ever touches .prevolution), so a full
+  // Object.values(this._data) rescan on every call is pure waste. These two methods are called on
+  // essentially every turn/egg-roll (command-phase.ts's ball-availability check, every egg hatch),
+  // so caching them once avoids a repeated ~1200-species-wide scan on a hot path.
+  private _allStarterIdsCache: SpeciesId[] | null = null;
+  private _allStarterSpeciesCache: PokemonSpecies[] | null = null;
+  private readonly _eggTierSpeciesCache = new Map<EggTier, PokemonSpecies[]>();
 
   // TODO: this (and the other methods) should use `ReadonlyDeep<...>` from type-fest
   get data(): SpeciesDataMap {
@@ -203,6 +212,10 @@ export class SpeciesDataRegistry {
    * @returns An array of all starter species that belong to the given egg tier
    */
   public getSpeciesForEggTier(tier: EggTier): PokemonSpecies[] {
+    const cached = this._eggTierSpeciesCache.get(tier);
+    if (cached) {
+      return cached;
+    }
     const ret: PokemonSpecies[] = [];
     for (const speciesData of Object.values(this._data)) {
       // ADEUS is unlock-only (see Unlockables.ADEUS, won on the Adeus encounter), and INGINGI is
@@ -219,6 +232,7 @@ export class SpeciesDataRegistry {
         ret.push(speciesData.species);
       }
     }
+    this._eggTierSpeciesCache.set(tier, ret);
     return ret;
   }
 
@@ -286,11 +300,23 @@ export class SpeciesDataRegistry {
   public getAllStarters(getSpecies?: false): SpeciesId[];
   public getAllStarters(getSpecies: true): PokemonSpecies[];
   public getAllStarters(getSpecies = false): SpeciesId[] | PokemonSpecies[] {
+    if (getSpecies) {
+      if (this._allStarterSpeciesCache) {
+        return this._allStarterSpeciesCache;
+      }
+    } else if (this._allStarterIdsCache) {
+      return this._allStarterIdsCache;
+    }
     const ret: (SpeciesId | PokemonSpecies)[] = [];
     for (const speciesData of Object.values(this._data)) {
       if (this.isStarter(speciesData.species.speciesId)) {
         ret.push(getSpecies ? speciesData.species : speciesData.species.speciesId);
       }
+    }
+    if (getSpecies) {
+      this._allStarterSpeciesCache = ret as PokemonSpecies[];
+    } else {
+      this._allStarterIdsCache = ret as SpeciesId[];
     }
     return ret as SpeciesId[] | PokemonSpecies[];
   }

@@ -114,6 +114,16 @@ export function submitClassicMonthlyRecord(clearTimeSeconds: number, runStartTim
 }
 
 /**
+ * Session-only cache of the values last (re)submitted by resubmitLeaderboardStats() below, so a
+ * value that hasn't actually changed since the last call is skipped instead of writing an
+ * identical no-op doc to Firestore again - that function runs once every title-screen load (see
+ * title-ui-handler.ts), including after every single PvP match (PvpBattleEndPhase resets back to
+ * the title screen), so a long tournament session would otherwise resubmit the same unchanged
+ * values dozens of times.
+ */
+const lastResubmitted: { endlessMaxWave?: number; pvpWins?: number } = {};
+
+/**
  * Re-submits this account's currently-known best value for every leaderboard stat except Classic
  * clear time, from gameStats (the local source of truth, always updated regardless of whether a
  * past submitLeaderboardStat() call actually reached Firestore). Fire-and-forget, called once
@@ -131,11 +141,13 @@ export function resubmitLeaderboardStats(): void {
   if (!stats) {
     return;
   }
-  if (stats.highestEndlessWave > 0) {
+  if (stats.highestEndlessWave > 0 && stats.highestEndlessWave !== lastResubmitted.endlessMaxWave) {
     submitLeaderboardStat("endlessMaxWave", stats.highestEndlessWave);
+    lastResubmitted.endlessMaxWave = stats.highestEndlessWave;
   }
-  if (stats.pvpWins > 0) {
+  if (stats.pvpWins > 0 && stats.pvpWins !== lastResubmitted.pvpWins) {
     submitLeaderboardStat("pvpWins", stats.pvpWins);
+    lastResubmitted.pvpWins = stats.pvpWins;
   }
 }
 

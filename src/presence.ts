@@ -39,8 +39,18 @@ import {
 const HEARTBEAT_INTERVAL_MS = 30_000;
 /** A client counts as online if its last heartbeat lands within this window - wide enough to tolerate a couple of missed/delayed heartbeats without flickering the count. */
 const PRESENCE_WINDOW_MS = 90_000;
+/**
+ * How long a fetchOnlinePlayerCount() result is reused before hitting Firestore again. The title
+ * screen calls it once per load (including once after every single PvP match, since
+ * PvpBattleEndPhase resets back to the title screen) plus once every 60s on its own timer - in a
+ * tournament with matches shorter than this window, most of those calls would otherwise be an
+ * extra Firestore aggregation query for a count that can't meaningfully have changed since the
+ * last one, which is directly felt as extra network latency right after every match ends.
+ */
+const ONLINE_COUNT_CACHE_MS = 20_000;
 
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+let onlineCountCache: { count: number | null; at: number } | null = null;
 
 function writeHeartbeat(): void {
   const ctx = getCloudSaveContext();
@@ -102,8 +112,15 @@ export function startPresenceHeartbeat(): void {
   heartbeatTimer = setInterval(writeHeartbeat, HEARTBEAT_INTERVAL_MS);
 }
 
-/** Counts signed-in accounts with a recent heartbeat. Returns null if signed out or on failure. */
+/**
+ * Counts signed-in accounts with a recent heartbeat. Returns null if signed out or on failure.
+ * Reuses the last result for ONLINE_COUNT_CACHE_MS instead of always hitting Firestore - see its
+ * own doc comment.
+ */
 export async function fetchOnlinePlayerCount(): Promise<number | null> {
+  if (onlineCountCache && Date.now() - onlineCountCache.at < ONLINE_COUNT_CACHE_MS) {
+    return onlineCountCache.count;
+  }
   const ctx = getCloudSaveContext();
   if (!ctx) {
     return null;
@@ -113,7 +130,9 @@ export async function fetchOnlinePlayerCount(): Promise<number | null> {
     const cutoff = Timestamp.fromMillis(Date.now() - PRESENCE_WINDOW_MS);
     const q = query(collection(db, "presence"), where("lastSeen", ">", cutoff));
     const snapshot = await getCountFromServer(q);
-    return snapshot.data().count;
+    const count = snapshot.data().count;
+    onlineCountCache = { count, at: Date.now() };
+    return count;
   } catch (err) {
     console.error("Failed to fetch online player count:", err);
     return null;

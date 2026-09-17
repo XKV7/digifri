@@ -42,6 +42,16 @@ function db(): Firestore {
   return getFirestore(ctx.app);
 }
 
+/**
+ * How long promptPendingPvpInvite() skips its own inbox check after already having run - it's
+ * called once per title-screen load (once after every single PvP match, since PvpBattleEndPhase
+ * resets back to the title screen) and again whenever the player list panel opens, so bouncing
+ * between the two in quick succession would otherwise fire a redundant Firestore fetch for an
+ * inbox that can't plausibly have gained a new invite in the meantime.
+ */
+const PROMPT_THROTTLE_MS = 10_000;
+let lastPromptCheckAt = 0;
+
 /** Creates an invite-only room and drops an invite into the target's inbox. Returns whether it succeeded. */
 export async function sendPvpInvite(targetUid: string, myName: string): Promise<boolean> {
   const ctx = getCloudSaveContext();
@@ -144,6 +154,10 @@ export async function promptPendingPvpInvite(): Promise<void> {
   if (!myName) {
     return;
   }
+  if (Date.now() - lastPromptCheckAt < PROMPT_THROTTLE_MS) {
+    return;
+  }
+  lastPromptCheckAt = Date.now();
   const invites = await checkPendingPvpInvites();
   const invite = invites[0];
   if (!invite) {

@@ -26,6 +26,18 @@ import { doc, getFirestore, runTransaction } from "firebase/firestore";
 
 const DAILY_VOUCHER_COUNT = 3;
 
+/**
+ * Session-only cache of the last date this account was confirmed to have claimed (whether by this
+ * tab or discovered already-claimed). claimDailyReward() is safe to call every time the title
+ * screen loads, and it does - including once after every single PvP match ends (see
+ * PvpBattleEndPhase's globalScene.reset(true), which returns to the title screen). Without this,
+ * every one of those loads re-runs a full Firestore transaction (a read + a conditional write)
+ * whose answer can't have changed since the last time this same tab already confirmed it - wasted
+ * network round trips that are directly felt as "the game pauses for a moment after every match"
+ * on real-world tournament wifi.
+ */
+let claimedDateCache: string | null = null;
+
 /** Local-date key (not UTC) so "today" lines up with the player's own clock, e.g. "2026-09-09". */
 function getDateKey(date: Date = new Date()): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -43,6 +55,10 @@ export async function claimDailyReward(): Promise<void> {
   }
 
   const today = getDateKey();
+  if (claimedDateCache === today) {
+    return;
+  }
+
   const db = getFirestore(ctx.app);
   const rewardRef = doc(db, "dailyRewards", ctx.user.uid);
 
@@ -61,6 +77,8 @@ export async function claimDailyReward(): Promise<void> {
     console.error("Failed to claim daily reward:", err);
     return;
   }
+
+  claimedDateCache = today;
 
   if (!claimed) {
     return;
