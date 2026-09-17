@@ -11,6 +11,7 @@ import { addTextObject } from "#ui/text";
 import { UiHandler } from "#ui/ui-handler";
 import { addWindow } from "#ui/ui-theme";
 import { formatFancyLargeNumber, getPlayTimeString } from "#utils/common";
+import { CHEAT_ONLY_SPECIES_IDS } from "#utils/pokemon-utils";
 import { toTitleCase } from "#utils/strings";
 import i18next from "i18next";
 import Phaser from "phaser";
@@ -23,6 +24,22 @@ interface DisplayStat {
 
 interface DisplayStats {
   [key: string]: DisplayStat | string;
+}
+
+/**
+ * Total starter count for the "X unlocked (Y%)" stat lines below, excluding CHEAT_ONLY_SPECIES_IDS
+ * (see its own doc comment) - they're all counted as starters by speciesDataRegistry.getAllStarters()
+ * despite being unobtainable through any normal gameplay path, which without this exclusion would
+ * make 100% completion permanently unreachable for a player who's genuinely caught every real
+ * Pokemon in the game.
+ */
+function REAL_STARTER_COUNT(): number {
+  return speciesDataRegistry.getAllStarters().length - CHEAT_ONLY_SPECIES_IDS.length;
+}
+
+/** Same reasoning as REAL_STARTER_COUNT() above, for the dex encountered/seen/caught stat lines, whose denominator is gameData.dexData's own key count instead. */
+function REAL_DEX_SIZE(gameData: GameData): number {
+  return Object.keys(gameData.dexData).length - CHEAT_ONLY_SPECIES_IDS.length;
 }
 
 const displayStats: DisplayStats = {
@@ -38,35 +55,35 @@ const displayStats: DisplayStats = {
     label_key: "starters",
     sourceFunc: gameData => {
       const starterCount = gameData.getStarterCount(d => !!d.caughtAttr);
-      return `${starterCount} (${Math.floor((starterCount / speciesDataRegistry.getAllStarters().length) * 1000) / 10}%)`;
+      return `${starterCount} (${Math.floor((starterCount / REAL_STARTER_COUNT()) * 1000) / 10}%)`;
     },
   },
   shinyStartersUnlocked: {
     label_key: "shinyStarters",
     sourceFunc: gameData => {
       const starterCount = gameData.getStarterCount(d => !!(d.caughtAttr & DexAttr.SHINY));
-      return `${starterCount} (${Math.floor((starterCount / speciesDataRegistry.getAllStarters().length) * 1000) / 10}%)`;
+      return `${starterCount} (${Math.floor((starterCount / REAL_STARTER_COUNT()) * 1000) / 10}%)`;
     },
   },
   dexEncountered: {
     label_key: "speciesEncountered",
     sourceFunc: gameData => {
       const seenCount = gameData.getSpeciesCount(d => !!d.seenCount);
-      return `${seenCount} (${Math.floor((seenCount / Object.keys(gameData.dexData).length) * 1000) / 10}%)`;
+      return `${seenCount} (${Math.floor((seenCount / REAL_DEX_SIZE(gameData)) * 1000) / 10}%)`;
     },
   },
   dexSeen: {
     label_key: "speciesSeen",
     sourceFunc: gameData => {
       const seenCount = gameData.getSpeciesCount(d => !!d.seenAttr || !!d.caughtAttr);
-      return `${seenCount} (${Math.floor((seenCount / Object.keys(gameData.dexData).length) * 1000) / 10}%)`;
+      return `${seenCount} (${Math.floor((seenCount / REAL_DEX_SIZE(gameData)) * 1000) / 10}%)`;
     },
   },
   dexCaught: {
     label_key: "speciesCaught",
     sourceFunc: gameData => {
       const caughtCount = gameData.getSpeciesCount(d => !!d.caughtAttr);
-      return `${caughtCount} (${Math.floor((caughtCount / Object.keys(gameData.dexData).length) * 1000) / 10}%)`;
+      return `${caughtCount} (${Math.floor((caughtCount / REAL_DEX_SIZE(gameData)) * 1000) / 10}%)`;
     },
   },
   ribbonsOwned: {

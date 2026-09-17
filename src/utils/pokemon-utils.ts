@@ -10,6 +10,19 @@ import type { EnemyPokemon, PlayerPokemon, Pokemon } from "#field/pokemon";
 import { randSeedIntRange, randSeedItem } from "#utils/common";
 
 /**
+ * This fork's own non-canon, cheat-only species (see each of their own doc comments on
+ * {@linkcode SpeciesId}) - never obtainable through any normal gameplay path (wild encounters,
+ * trainer battles, eggs/gacha, Mystery Encounter rewards, ...), each reachable only through its
+ * own single curated path (a dev cheat, or - for Adeus - its own dedicated Mystery Encounter).
+ * Their IDs are also placed far outside the real Pokedex range specifically so they never
+ * accidentally collide with it - but that same placement means generic ID-range/modulo heuristics
+ * elsewhere in the codebase (regional-form detection, egg-tier pools, random-species rolls, ...)
+ * can misclassify or accidentally include them unless explicitly excluded. Exported so every such
+ * site can share one list instead of hand-maintaining its own copy.
+ */
+export const CHEAT_ONLY_SPECIES_IDS: readonly SpeciesId[] = [SpeciesId.MISSING_NO, SpeciesId.ADEUS, SpeciesId.INGINGI];
+
+/**
  * Converts the internal id of the Pokemon into its national dex number
  * @param speciesId - The {@linkcode SpeciesId} to get the dex number of
  * @returns The national dex number matching the `SpeciesId`

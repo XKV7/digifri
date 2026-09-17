@@ -37,6 +37,7 @@ import type { PartyOption } from "#ui/party-ui-handler";
 import { SummaryUiMode } from "#ui/summary-ui-handler";
 import { applyChallenges } from "#utils/challenge-utils";
 import { BooleanHolder, randSeedInt } from "#utils/common";
+import { CHEAT_ONLY_SPECIES_IDS } from "#utils/pokemon-utils";
 import i18next from "i18next";
 
 /** Will give +1 level every 10 waves */
@@ -253,9 +254,14 @@ export function getRandomSpeciesByStarterCost(
 
   let filteredSpecies: [species: PokemonSpecies, cost: number][] = [];
 
+  // CHEAT_ONLY_SPECIES_IDS are never a legitimate reward/encounter species regardless of caller -
+  // excluded here rather than requiring every one of this function's several callers (Safari Zone,
+  // Pokemon Salesman, Dark Deal's boss roll, ...) to remember to pass them in their own
+  // excludedSpecies.
   for (const species of speciesDataRegistry.getAllStarters(true)) {
     if (
       species
+      && !CHEAT_ONLY_SPECIES_IDS.includes(species.speciesId)
       && !excludedSpecies?.includes(species.speciesId)
       && (allowSubLegendary || !species.subLegendary)
       && (allowLegendary || !species.legendary)

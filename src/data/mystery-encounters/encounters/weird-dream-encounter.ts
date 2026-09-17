@@ -43,7 +43,7 @@ import { trainerConfigs } from "#trainers/trainer-config";
 import { TrainerPartyTemplate } from "#trainers/trainer-party-template";
 import type { HeldModifierConfig } from "#types/held-modifier-config";
 import { NumberHolder, randSeedInt, randSeedShuffle } from "#utils/common";
-import { getRandomRegularPokemonType } from "#utils/pokemon-utils";
+import { CHEAT_ONLY_SPECIES_IDS, getRandomRegularPokemonType } from "#utils/pokemon-utils";
 import i18next from "i18next";
 
 /** i18n namespace for encounter */
@@ -100,6 +100,11 @@ const EXCLUDED_TRANSFORMATION_SPECIES = [
   SpeciesId.MUNKIDORI,
   SpeciesId.FEZANDIPITI,
   SpeciesId.TERAPAGOS,
+  // CHEAT_ONLY_SPECIES_IDS (see its own doc comment) - Ingingi's BST (690) sits squarely inside
+  // this encounter's own +90/+110 transform-target range for any ordinary late-game party member
+  // with a BST in the very common ~580-600 range, making it a realistic outcome for a normal
+  // player here without this exclusion.
+  ...CHEAT_ONLY_SPECIES_IDS,
 ];
 
 const SUPER_LEGENDARY_BST_THRESHOLD = 600;

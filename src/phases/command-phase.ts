@@ -26,6 +26,7 @@ import { getMoveTargets } from "#moves/move-utils";
 import { FieldPhase } from "#phases/field-phase";
 import type { MoveTargetSet } from "#types/move-target-set";
 import type { TurnMove } from "#types/turn-move";
+import { CHEAT_ONLY_SPECIES_IDS } from "#utils/pokemon-utils";
 import i18next from "i18next";
 import type Phaser from "phaser";
 
@@ -385,8 +386,14 @@ export class CommandPhase extends FieldPhase {
     const someUncaughtSpeciesOnField = globalScene
       .getEnemyField()
       .some(p => p.isActive() && !dexData[p.species.speciesId].caughtAttr);
+    // CHEAT_ONLY_SPECIES_IDS (see its own doc comment) are counted as starters by
+    // speciesDataRegistry.getAllStarters() despite being unobtainable through any normal gameplay
+    // path - without excluding them here, a player who's genuinely caught every real starter but
+    // never happened to stumble into their own narrow one-off unlock paths would be "missing 3"
+    // and permanently blocked from ever catching the Classic final boss in that run.
     const missingMultipleStarters =
-      gameData.getStarterCount(d => !!d.caughtAttr) < speciesDataRegistry.getAllStarters().length - 1;
+      gameData.getStarterCount(d => !!d.caughtAttr)
+      < speciesDataRegistry.getAllStarters().length - CHEAT_ONLY_SPECIES_IDS.length - 1;
     const isCatchableDailyBoss = isDailyFinalBoss() && (getDailyEventSeedBoss()?.catchable ?? false);
     // The Beach biome's rare, level 100-200 MissingNo. encounter (see encounter-phase.ts) is
     // uncatchable, same as the End biome's paradox/final-boss mons. Level is what distinguishes

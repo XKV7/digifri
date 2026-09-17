@@ -316,6 +316,14 @@ export abstract class PokemonSpeciesForm {
       SpeciesId.IRON_BOULDER,
       SpeciesId.IRON_CROWN,
       SpeciesId.PECHARUNT,
+      // This fork's own non-canon, cheat-only species (see each of their own doc comments) - none
+      // of them have a curated `speciesPools` entry checked before this fallback ever runs
+      // (confirmed for TrainerType.ACE_TRAINER/BACKERS, which have none at all), so without this
+      // MissingNo. (baseTotal 900, every stat 150) could be rolled as an ordinary trainer's party
+      // member in a completely normal battle, wildly breaking the intended difficulty curve.
+      SpeciesId.MISSING_NO,
+      SpeciesId.ADEUS,
+      SpeciesId.INGINGI,
     ];
     return !blockedSpecies.includes(this.speciesId);
   }

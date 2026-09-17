@@ -205,9 +205,14 @@ export class SpeciesDataRegistry {
   public getSpeciesForEggTier(tier: EggTier): PokemonSpecies[] {
     const ret: PokemonSpecies[] = [];
     for (const speciesData of Object.values(this._data)) {
-      // ADEUS is unlock-only (see Unlockables.ADEUS, won on the Adeus encounter) - never
-      // obtainable via eggs/gacha, regardless of whatever eggTier value its species data carries.
-      if (speciesData.species.speciesId === SpeciesId.ADEUS) {
+      // ADEUS is unlock-only (see Unlockables.ADEUS, won on the Adeus encounter), and INGINGI is
+      // cheat-only (see SpeciesId.INGINGI's own doc comment) - neither is ever obtainable via
+      // eggs/gacha, regardless of whatever eggTier value their species data carries. Confirmed in
+      // practice for Ingingi: it carries EggTier.LEGENDARY with no exclusion here, and a Legendary-
+      // tier egg's non-gacha roll pulls straight from this list (see rollSpecies() in egg.ts) with
+      // only its starter cost (3) clamped/de-weighted for that tier - not excluded - meaning an
+      // entirely ordinary player hatching Legendary eggs had a real chance of hatching it.
+      if (speciesData.species.speciesId === SpeciesId.ADEUS || speciesData.species.speciesId === SpeciesId.INGINGI) {
         continue;
       }
       if (speciesData.eggTier === tier) {
