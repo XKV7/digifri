@@ -175,7 +175,13 @@ export class EggHatchPhase extends Phase {
 
       this.pokemon = pokemon;
 
-      pokemon.loadAssets().then(() => {
+      // waitForIdleLoader=true: without it, a species whose sprite is being loaded for the very
+      // first time in this browser session (a freshly-hatched custom/cheat-only species is the
+      // common case) can have its atlas file silently stranded if the loader happens to already be
+      // mid-batch, leaving doReveal()'s later `.play(spriteKey)` stuck on the "pkmn__sub"
+      // Substitute-doll placeholder this.pokemonSprite started as instead of ever swapping to the
+      // real sprite - see Pokemon#loadAssets()'s own doc comment in field/pokemon.ts.
+      pokemon.loadAssets(true, false, true).then(() => {
         this.canSkip = true;
 
         globalScene.time.delayedCall(1000, () => {

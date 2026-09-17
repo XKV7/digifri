@@ -61,7 +61,7 @@ import {
 } from "#data/pokemon-data";
 import type { SpeciesFormChange } from "#data/pokemon-forms";
 import type { PokemonSpeciesForm } from "#data/pokemon-species";
-import { PokemonSpecies } from "#data/pokemon-species";
+import { PokemonSpecies, waitForLoaderIdle } from "#data/pokemon-species";
 import { getRandomStatus, getStatusEffectHealText, getStatusEffectOverlapText, Status } from "#data/status-effect";
 import { getTerrainBlockMessage, TerrainType } from "#data/terrain";
 import type { TypeDamageMultiplier } from "#data/type";
@@ -767,9 +767,22 @@ export abstract class Pokemon extends Phaser.GameObjects.Container {
    * Load all assets needed for this Pokemon's use in battle
    * @param ignoreOverride - Whether to ignore overrides caused by {@linkcode MoveId.TRANSFORM | Transform}; default `true`
    * @param useIllusion - Whether to consider this pokemon's active illusion; default `false`
+   * @param waitForIdleLoader - Whether to wait (briefly, bounded by a timeout - see
+   * waitForLoaderIdle() in pokemon-species.ts) for the Phaser loader to be idle before queuing this
+   * Pokemon's own asset files into it; default `false`. Without this, a species being loaded for
+   * the very first time in the browser session (a cheat-only custom species hatched from an egg
+   * right after being granted, for instance) can have its freshly-queued sprite atlas silently
+   * stranded if the loader happens to already be mid-batch at that exact moment - the below
+   * `waitOnLoadPromise`/`load.start()` guard only protects against double-starting an *already
+   * finished* loader, not against queuing into one that's still mid-flight on an unrelated batch.
+   * The visible symptom is the sprite staying stuck on the "pkmn__sub" Substitute-doll placeholder
+   * every preview/reveal sprite starts as, since the swap to the real sprite never happens.
    * @returns A promise that resolves once all the corresponding assets have been loaded.
    */
-  async loadAssets(ignoreOverride = true, useIllusion = false): Promise<void> {
+  async loadAssets(ignoreOverride = true, useIllusion = false, waitForIdleLoader = false): Promise<void> {
+    if (waitForIdleLoader) {
+      await waitForLoaderIdle();
+    }
     /** Promises that are loading assets and can be run concurrently. */
     const loadPromises: Promise<void>[] = [];
     // Assets for moves
