@@ -275,6 +275,7 @@ export abstract class PokemonSpeciesForm {
       this.speciesId === SpeciesId.MISSING_NO
       || this.speciesId === SpeciesId.ADEUS
       || this.speciesId === SpeciesId.INGINGI
+      || this.speciesId === SpeciesId.ARCEUS_ZERO
     ) {
       return Region.NORMAL;
     }
@@ -324,6 +325,7 @@ export abstract class PokemonSpeciesForm {
       SpeciesId.MISSING_NO,
       SpeciesId.ADEUS,
       SpeciesId.INGINGI,
+      SpeciesId.ARCEUS_ZERO,
     ];
     return !blockedSpecies.includes(this.speciesId);
   }
@@ -392,6 +394,13 @@ export abstract class PokemonSpeciesForm {
   }
 
   getBaseSpriteKey(female: boolean, formIndex?: number): string {
+    // Arceus#0 (SpeciesId.ARCEUS_ZERO) deliberately reuses real Arceus's own base-game "normal"
+    // (no-plate) sprite art wholesale, with no dedicated custom assets of its own (see its own
+    // SpeciesId doc comment) - regardless of which of its own 18 type-forms is actually active
+    // internally (see legend-plate.ts), so its own formIndex/formSpriteKey must never affect this.
+    if (this.speciesId === SpeciesId.ARCEUS_ZERO) {
+      return `${SpeciesId.ARCEUS}-normal`;
+    }
     if (formIndex === undefined || this instanceof PokemonForm) {
       formIndex = this.formIndex;
     }
@@ -528,6 +537,11 @@ export abstract class PokemonSpeciesForm {
   }
 
   getIconId(female: boolean, formIndex?: number, shiny?: boolean, variant?: number): string {
+    // Arceus#0 always reuses real Arceus's own base "normal" icon frame, regardless of its own
+    // current internal form - same substitution and reasoning as getBaseSpriteKey() above.
+    if (this.speciesId === SpeciesId.ARCEUS_ZERO) {
+      return `${SpeciesId.ARCEUS}-normal`;
+    }
     if (formIndex === undefined) {
       formIndex = this.formIndex;
     }
@@ -633,6 +647,12 @@ export abstract class PokemonSpeciesForm {
           // would otherwise collide with whichever real species has cry number 974 (confirmed in
           // practice to be Psyduck, the same collision that also broke getRegion()/getSpriteId()
           // for this speciesId).
+          break;
+        case SpeciesId.ARCEUS_ZERO:
+          // Deliberately reuses real Arceus's own cry audio file rather than needing a dedicated
+          // one of its own (see SpeciesId.ARCEUS_ZERO's own doc comment) - the generic `%2000`
+          // mapping would otherwise collide with whichever real species has cry number 1002.
+          speciesId = SpeciesId.ARCEUS;
           break;
         default:
           speciesId %= 2000;
@@ -1067,6 +1087,7 @@ export class PokemonSpecies extends PokemonSpeciesForm implements Localizable {
       || this.speciesId === SpeciesId.MISSING_NO
       || this.speciesId === SpeciesId.ADEUS
       || this.speciesId === SpeciesId.INGINGI
+      || this.speciesId === SpeciesId.ARCEUS_ZERO
     ) {
       return this.name; // Other special cases could be put here too
     }
@@ -1093,7 +1114,7 @@ export class PokemonSpecies extends PokemonSpeciesForm implements Localizable {
     let ret = "";
 
     const region = this.getRegion();
-    if (this.speciesId === SpeciesId.ARCEUS) {
+    if (this.speciesId === SpeciesId.ARCEUS || this.speciesId === SpeciesId.ARCEUS_ZERO) {
       ret = i18next.t(`pokemonInfo:type.${toCamelCase(formText)}`);
     } else if (
       [

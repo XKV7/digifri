@@ -2190,4 +2190,17 @@ export enum SpeciesId {
    * added to a save via the `window.cheatGiveIngingi()` dev/cheat helper (see cheats.ts).
    */
   INGINGI = 6974,
+
+  /**
+   * A wholly original, non-canon entity created for this fork - Arceus's own "true form," not a
+   * separate real Pokémon. Visually reuses real Arceus's own base-game sprite/icon/cry assets
+   * wholesale (see the sprite-key/icon-id/cry-key special-casing for this id in
+   * pokemon-species.ts) - no dedicated custom art of its own - with a permanent brightness boost
+   * applied at render time (see Pokemon#init() in field/pokemon.ts) as its only visual
+   * distinction. Unlike a real Arceus, it always benefits from the Legend Plate's auto-retyping
+   * effect (see legend-plate.ts) without needing to actually hold one. Not obtainable through any
+   * normal in-game path - only ever added to a save via the `window.cheatGiveArceusZero()`
+   * dev/cheat helper (see cheats.ts).
+   */
+  ARCEUS_ZERO = 9002,
 }

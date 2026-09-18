@@ -225,7 +225,11 @@ export class SpeciesDataRegistry {
       // tier egg's non-gacha roll pulls straight from this list (see rollSpecies() in egg.ts) with
       // only its starter cost (3) clamped/de-weighted for that tier - not excluded - meaning an
       // entirely ordinary player hatching Legendary eggs had a real chance of hatching it.
-      if (speciesData.species.speciesId === SpeciesId.ADEUS || speciesData.species.speciesId === SpeciesId.INGINGI) {
+      if (
+        speciesData.species.speciesId === SpeciesId.ADEUS
+        || speciesData.species.speciesId === SpeciesId.INGINGI
+        || speciesData.species.speciesId === SpeciesId.ARCEUS_ZERO
+      ) {
         continue;
       }
       if (speciesData.eggTier === tier) {

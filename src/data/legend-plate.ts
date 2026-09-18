@@ -65,9 +65,14 @@ export function getMostEffectiveTypeAgainst(target: Pokemon): PokemonType {
  * `pokemon.species.forms` by index.
  */
 export function getLegendPlateFormKey(pokemon: Pokemon, target: Pokemon): string | null {
+  // Arceus#0 (SpeciesId.ARCEUS_ZERO) is a standalone Pokemon version of Arceus's "true form" that
+  // always benefits from this retyping effect (see its own SpeciesId doc comment) - unlike a real
+  // Arceus, it never needs to actually hold an active Legend Plate/Heavenly Flute.
+  const isArceusZero = pokemon.species.speciesId === SpeciesId.ARCEUS_ZERO;
   if (
-    pokemon.species.speciesId !== SpeciesId.ARCEUS
-    || !(hasActiveLegendPlate(pokemon) || hasActiveHeavenlyFlute(pokemon))
+    !isArceusZero
+    && (pokemon.species.speciesId !== SpeciesId.ARCEUS
+      || !(hasActiveLegendPlate(pokemon) || hasActiveHeavenlyFlute(pokemon)))
   ) {
     return null;
   }

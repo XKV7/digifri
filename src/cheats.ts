@@ -202,6 +202,22 @@ async function giveMissingNo(): Promise<void> {
   window.location.reload();
 }
 
+/** Marks Arceus#0 as caught (all variants, 31 IVs, all natures) and candy-maxed as a starter. */
+async function giveArceusZero(): Promise<void> {
+  const gameData = globalScene?.gameData;
+  if (!gameData) {
+    alert("게임이 아직 로딩되지 않았습니다. 타이틀 화면이 뜬 뒤 다시 시도해주세요.");
+    return;
+  }
+
+  unlockDexEntry(gameData, SpeciesId.ARCEUS_ZERO, allNatureAttr());
+  unlockStarterEntry(gameData, SpeciesId.ARCEUS_ZERO);
+
+  await gameData.saveSystem();
+  alert("아르세우스#0이 도감에 등록되고 스타터로 선택 가능해졌습니다. 새로고침합니다.");
+  window.location.reload();
+}
+
 /**
  * Marks Adeus as caught (all variants, 31 IVs, all natures) and candy-maxed as a starter, and
  * flips {@linkcode Unlockables.ADEUS} - unlike MissingNo., Adeus's starter-select visibility is
@@ -356,6 +372,7 @@ async function givePikachuAndManaphyEggs(): Promise<void> {
 (window as unknown as { cheatToggleEndlessCostLimit: () => void }).cheatToggleEndlessCostLimit = toggleEndlessCostLimit;
 (window as unknown as { cheatAddExVouchers: (amount: number) => Promise<void> }).cheatAddExVouchers = addExVouchers;
 (window as unknown as { cheatGiveMissingNo: () => Promise<void> }).cheatGiveMissingNo = giveMissingNo;
+(window as unknown as { cheatGiveArceusZero: () => Promise<void> }).cheatGiveArceusZero = giveArceusZero;
 (window as unknown as { cheatGiveAdeus: () => Promise<void> }).cheatGiveAdeus = giveAdeus;
 (window as unknown as { cheatGiveIngingi: () => Promise<void> }).cheatGiveIngingi = giveIngingi;
 (window as unknown as { cheatGiveMissingNoEgg: () => Promise<void> }).cheatGiveMissingNoEgg = giveMissingNoEgg;

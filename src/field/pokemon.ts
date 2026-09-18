@@ -532,6 +532,17 @@ export abstract class Pokemon extends Phaser.GameObjects.Container {
         teraColor: getTypeRgb(this.getTeraType()),
         isTerastallized: this.isTerastallized,
       });
+      // Arceus#0's only visual distinction from a real Arceus is a permanent brightness boost
+      // (see SpeciesId.ARCEUS_ZERO's own doc comment) - applied via Phaser's postFX pipeline
+      // rather than this custom SpritePipeline's own `tone` uniform, since `tone` gets reset to
+      // [0,0,0,0] after every move animation this Pokemon takes part in (see battle-anims.ts's
+      // cleanUpAndComplete()) and would need re-applying constantly to stay visible; postFX is a
+      // separate render pass untouched by that reset. `postFX` is only populated under a real
+      // WebGL renderer (undefined under the headless renderer this test suite runs with), so this
+      // is skipped gracefully rather than crashing wherever a full render pipeline isn't set up.
+      if (this.species.speciesId === SpeciesId.ARCEUS_ZERO && ret.postFX) {
+        ret.postFX.addColorMatrix().brightness(1.35);
+      }
       return ret;
     };
 

@@ -20,7 +20,12 @@ import { randSeedIntRange, randSeedItem } from "#utils/common";
  * can misclassify or accidentally include them unless explicitly excluded. Exported so every such
  * site can share one list instead of hand-maintaining its own copy.
  */
-export const CHEAT_ONLY_SPECIES_IDS: readonly SpeciesId[] = [SpeciesId.MISSING_NO, SpeciesId.ADEUS, SpeciesId.INGINGI];
+export const CHEAT_ONLY_SPECIES_IDS: readonly SpeciesId[] = [
+  SpeciesId.MISSING_NO,
+  SpeciesId.ADEUS,
+  SpeciesId.INGINGI,
+  SpeciesId.ARCEUS_ZERO,
+];
 
 /**
  * Converts the internal id of the Pokemon into its national dex number
@@ -34,13 +39,13 @@ export function getDexNumber(speciesId: SpeciesId): SpeciesId {
   if (speciesId === SpeciesId.MISSING_NO) {
     return 0 as SpeciesId;
   }
-  // Adeus/Ingingi aren't regional forms of anything - the same generic `% 2000` mapping that
-  // needs this special-casing here also needed it in PokemonSpecies#getRegion()/getCryKey() (see
-  // pokemon-species.ts) for the exact same reason: their own IDs (9001/6974) fall into numeric
-  // ranges real regional forms use, and without this they'd show whatever real species happens to
-  // share that remainder as their own dex number instead (confirmed in practice for Ingingi:
-  // 6974 % 2000 = 974, Psyduck's). They show their own full numeric ID instead.
-  if (speciesId === SpeciesId.ADEUS || speciesId === SpeciesId.INGINGI) {
+  // Adeus/Ingingi/Arceus#0 aren't regional forms of anything - the same generic `% 2000` mapping
+  // that needs this special-casing here also needed it in PokemonSpecies#getRegion()/getCryKey()
+  // (see pokemon-species.ts) for the exact same reason: their own IDs (9001/6974/9002) fall into
+  // numeric ranges real regional forms use, and without this they'd show whatever real species
+  // happens to share that remainder as their own dex number instead (confirmed in practice for
+  // Ingingi: 6974 % 2000 = 974, Psyduck's). They show their own full numeric ID instead.
+  if (speciesId === SpeciesId.ADEUS || speciesId === SpeciesId.INGINGI || speciesId === SpeciesId.ARCEUS_ZERO) {
     return speciesId;
   }
   return speciesId % 2000;
